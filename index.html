@@ -1052,7 +1052,9 @@ async function ocrReadFiles(files, progId, variants){
         if(countWords(raw) > data._procWords){
           data = raw; data._procWords = countWords(data); data._usedRaw = true; data._src = files[i]; data._orig = files[i];
         }
-        data._variantWords = passes.map(p=>flattenWords(p)).concat(flattenWords(raw));
+        // NOTE: wrap in an extra array — concat() would otherwise splice the raw
+        // word objects in as top-level entries (they must stay one list among others).
+        data._variantWords = passes.map(p=>flattenWords(p)).concat([flattenWords(raw)]);
       }catch(e){ /* keep the preprocessed result */ }
     } else {
       data._variantWords = passes.map(p=>flattenWords(p));
@@ -1067,7 +1069,7 @@ async function ocrReadFiles(files, progId, variants){
    pass (near-identical bbox) is counted once. */
 function mergeWords(lists){
   const out = [];
-  (lists||[]).forEach(list=>{
+  (lists||[]).filter(l=> Array.isArray(l)).forEach(list=>{
     (list||[]).forEach(w=>{
       const t = (w.text||'').trim(); if(!t) return;
       const cx = (w.bbox.x0+w.bbox.x1)/2, cy = (w.bbox.y0+w.bbox.y1)/2;
