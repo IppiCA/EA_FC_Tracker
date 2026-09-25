@@ -900,10 +900,22 @@ async function ocrReadFiles(files, progId){
   const prog = document.getElementById(progId);
   ocrLoggerTarget = prog;
   const worker = await withTimeout(getOcrWorker(), 45000, 'Loading the OCR engine');
+  const countWords = d => flattenWords(d).length;
   const results = [];
   for(let i=0;i<files.length;i++){
     const src = await preprocessForOcr(files[i]);
-    const {data} = await withTimeout(worker.recognize(src), 45000, 'Reading the image');
+    let data = (await withTimeout(worker.recognize(src), 45000, 'Reading the image')).data;
+    data._orig = files[i]; data._src = src; data._procWords = countWords(data);
+    // Self-heal: if the preprocessed canvas came out unreadable (some browser pastes
+    // mangle the colors), re-read the ORIGINAL file and keep whichever actually worked.
+    if(data._procWords < 20){
+      try{
+        const raw = (await withTimeout(worker.recognize(files[i]), 45000, 'Reading the image')).data;
+        if(countWords(raw) > data._procWords){
+          data = raw; data._procWords = countWords(data); data._usedRaw = true; data._src = files[i]; data._orig = files[i];
+        }
+      }catch(e){ /* keep the preprocessed result */ }
+    }
     results.push(data);
   }
   ocrLoggerTarget = null;
@@ -1082,8 +1094,18 @@ async function scanPlayerImages(files, progId){
       });
     });
     if(!found.length){
-      let totalWords=0; results.forEach(d=> totalWords += flattenWords(d).length);
-      prog.innerHTML = `<div class="hint" style="color:var(--red)">No player rows recognized (OCR read ${totalWords} word(s)) — try re-pasting a sharper screenshot or enter manually.</div>`;
+      const totalWords = results.reduce((s,d)=> s + (d._procWords||flattenWords(d).length), 0);
+      const usedRaw = results.some(d=>d._usedRaw);
+      const thumb = (blob, label)=>{
+        if(!blob || typeof URL.createObjectURL !== 'function') return '';
+        return `<div><div class="sub" style="margin-bottom:4px">${label}</div><img src="${URL.createObjectURL(blob)}" style="max-width:130px; max-height:170px; border-radius:8px; border:1px solid var(--line); display:block"></div>`;
+      };
+      const previews = results.map((d,i)=>{
+        const a = thumb(d._src, `Image ${i+1}: ${d._usedRaw ? 'as OCR saw it (original)' : 'as OCR saw it'}`);
+        const b = (d._orig && d._src !== d._orig) ? thumb(d._orig, `Image ${i+1}: original file`) : '';
+        return (a||b) ? `<div style="margin-top:10px; display:flex; gap:14px; align-items:flex-start">${a}${b}</div>` : '';
+      }).join('');
+      prog.innerHTML = `<div class="hint" style="color:var(--red)">No player rows recognized (OCR read ${totalWords} word(s)) — try re-pasting a sharper screenshot or enter manually.${usedRaw ? ' (The enhanced version failed, so the scanner fell back to the original image — the preview shows what it saw.)' : ''} If it keeps failing, send us the small preview below and we'll see exactly what the scanner received.</div>${previews}`;
       return;
     }
     readDraftFromForm();
@@ -1119,7 +1141,8 @@ async function scanTeamImage(files, progId){
       });
     });
     if(!Object.keys(map).length){
-      prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized — check image clarity or enter manually.</div>`;
+      const totalWords = results.reduce((s,d)=> s + (d._procWords||flattenWords(d).length), 0);
+      prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized (OCR read ${totalWords} word(s)) — check image clarity or enter manually.</div>`;
       return;
     }
     Object.entries(map).forEach(([rawLabel, vals])=>{
