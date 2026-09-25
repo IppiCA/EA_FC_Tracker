@@ -935,7 +935,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v4';
+const SCAN_BUILD = 'v5';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1298,6 +1298,28 @@ function parseSummaryScreen(words){
     return pool[0] || null;
   };
 
+  /* Two OCR passes can leave two readings of the same cell ("39" and "139"). For xG —
+     a small decimal in a single match — prefer the reading that recovers a sensible
+     value (3-4 digits = dropped decimal point) over a bare 1-2 digit integer. */
+  const xgScore = nv=>{
+    if(nv==null) return -1;
+    if(/^\d{3,4}$/.test(nv)) return 3;        // "139" → 1.39
+    if(/^\d+\.\d+$/.test(nv)) return 2;      // already a decimal
+    return nv.replace(/\D/g,'').length;      // 1-2 digit integers: weak
+  };
+  const preferXgReading = (row, g, side, cur)=>{
+    if(!cur) return null;
+    const margin = Math.max(...g.words.map(w=>w.h)) * 0.9;
+    let best = cur;
+    row.words.forEach(v=>{
+      if(cleanNum(v.text)==null) return;
+      if(side==='L' ? v.cx >= g.x0 - margin : v.cx <= g.x1 + margin) return;
+      if(Math.abs(v.cx - cur.cx) > 80) return;  // a different cell, not a re-reading
+      if(xgScore(cleanNum(v.text)) > xgScore(cleanNum(best.text))) best = v;
+    });
+    return best;
+  };
+
   /* --- center table rows: [left value]  STAT LABEL  [right value] --- */
   rows.forEach(row=>{
     labelGroups(row).forEach(g=>{
@@ -1321,13 +1343,14 @@ function parseSummaryScreen(words){
         if(!best || score>best.score || (score===best.score && cw.length<best.cw)) best={canon, score, cw:cw.length};
       });
       if(!best) return;
-      const L = valueNear(row, g, 'L');
-      const R = valueNear(row, g, 'R');
+      let L = valueNear(row, g, 'L');
+      let R = valueNear(row, g, 'R');
+      if(best.canon==='Expected Goals'){ L = preferXgReading(row, g, 'L', L); R = preferXgReading(row, g, 'R', R); }
       let lv = L ? cleanNum(L.text) : null;
       let rv = R ? cleanNum(R.text) : null;
-      /* xG is small in a single match — a 3-4 digit integer is a dropped decimal point
-         ("I396" = 3.96, "139" = 1.39). Reinsert it after the first digit. */
-      const fixXg = v => (best.canon==='Expected Goals' && /^\d{3,4}$/.test(v)) ? v.slice(0,1)+'.'+v.slice(1) : v;
+      /* xG is small in a single match — a 2-4 digit integer is a dropped decimal point
+         ("I396" = 3.96, "139" = 1.39, "39" = 3.9). Reinsert it after the first digit. */
+      const fixXg = v => (best.canon==='Expected Goals' && /^\d{2,4}$/.test(v)) ? v.slice(0,1)+'.'+v.slice(1) : v;
       if(lv!=null) left[best.canon] = fixXg(lv);
       if(rv!=null) right[best.canon] = fixXg(rv);
     });
