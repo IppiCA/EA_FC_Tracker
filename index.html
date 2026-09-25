@@ -337,7 +337,7 @@ let games = [];      // {id, seasonId, gameNumber, opponentTeam, opponentGamerta
                       //  playerStats:[{playerId,position,rating,goals,assists}], createdAt}
 let currentTab = 'dashboard';
 
-const STAT_LABELS = ['Possession %','Shots','Expected Goals','Passes Attempted','Pass Accuracy %','Tackles','Tackles Won','Interceptions','Saves','Fouls Committed','Offsides','Corners','Free Kicks','Penalty Kicks','Yellow Cards','Dribble Success Rate','Shot Accuracy','Ball Recovery Time (Seconds)'];
+const STAT_LABELS = ['Possession %','Shots','Expected Goals','Passes Attempted','Pass Accuracy %','Tackles','Tackles Won','Interceptions','Saves','Fouls Committed','Offsides','Corners','Free Kicks','Penalty Kicks','Yellow Cards','Red Cards','Def Line Breaks Through','Def Line Breaks Around','Def Line Breaks Over','Def Line Breaks Attempted','Dribble Success Rate','Shot Accuracy','Ball Recovery Time (Seconds)'];
 const STAT_LABEL_SYNONYMS = {
   'passes':'Passes Attempted',
   'pass accuracy':'Pass Accuracy %',
@@ -935,7 +935,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v5';
+const SCAN_BUILD = 'v6';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1314,7 +1314,7 @@ function parseSummaryScreen(words){
     row.words.forEach(v=>{
       if(cleanNum(v.text)==null) return;
       if(side==='L' ? v.cx >= g.x0 - margin : v.cx <= g.x1 + margin) return;
-      if(Math.abs(v.cx - cur.cx) > 80) return;  // a different cell, not a re-reading
+      if(Math.abs(v.cx - cur.cx) > Math.max(40, 4*medH)) return;  // a different cell, not a re-reading
       if(xgScore(cleanNum(v.text)) > xgScore(cleanNum(best.text))) best = v;
     });
     return best;
@@ -1331,15 +1331,21 @@ function parseSummaryScreen(words){
         const cw = canon.toLowerCase().replace(/[%(].*$/,'').split(' ').filter(x=>x.length>2);
         if(!cw.length) return;
         let hit=0;
+        const hitWordIdx = new Set();
         cw.forEach(c=>{
-          if(labelWords.some(w=> w.includes(c)
-            || (w.length>=2 && c.startsWith(w))
-            || (c.length>=3 && w.length>=Math.ceil(c.length*0.6) && w.startsWith(c)))) hit++;
+          labelWords.forEach((w, wi)=>{
+            if(w.includes(c)
+              || (w.length>=2 && c.startsWith(w))
+              || (c.length>=3 && w.length>=Math.ceil(c.length*0.6) && w.startsWith(c))) { hit++; hitWordIdx.add(wi); }
+          });
         });
-        // 1-word labels: 1 hit; 2-word labels ("Passes", "Free Kicks"): 1 hit;
-        // 3+ word labels: 2 hits. (Stricter was dropping rows whose label OCR'd short.)
-        if(hit < Math.max(1, Math.round(cw.length*0.6))) return;
-        const score = hit*2 - (cw.length-hit);
+        if(hit < 1) return;
+        /* Label words that match NOTHING about this stat are a red flag — they keep a
+           near-miss ("def line breaks attempted") from filing under the wrong stat
+           ("passes attempted"). Better an empty box than a wrong number. */
+        const extra = labelWords.length - hitWordIdx.size;
+        const score = hit*2 - (cw.length-hit) - extra;
+        if(score < 1) return;
         if(!best || score>best.score || (score===best.score && cw.length<best.cw)) best={canon, score, cw:cw.length};
       });
       if(!best) return;
