@@ -768,6 +768,7 @@ function renderLog(){
   <div class="card" style="margin-bottom:20px">
     <div class="scanbox" id="scan-team" tabindex="0">
       📸 <b>Click here, then paste</b> (Ctrl+V) <b>the Match Facts / Summary screen</b>
+      <div style="margin-top:6px; font-size:12px">Both columns are read, and filed as us-vs-them according to your Home/Away pick above (home = left column)</div>
       <div style="margin-top:10px"><input type="file" id="scan-team-input" accept="image/*">&nbsp;<span class="hint" style="display:inline">or choose a file</span></div>
       <div id="scan-team-progress"></div>
     </div>
@@ -960,7 +961,7 @@ function withTimeout(promise, ms, label){
 /* Preprocess the screenshot before OCR. Tesseract is far more accurate on crisp dark-on-light
    text, so: upscale, grayscale, contrast-stretch (2nd–98th percentile), and invert when the
    screenshot is mostly dark (the game UI is). Falls back to the raw file if anything fails. */
-async function preprocessForOcr(file){
+async function preprocessForOcr(file, opts){
   try{
     const bmp = await createImageBitmap(file);
     const scale = Math.max(1, Math.min(2.2, 1800/bmp.width));
@@ -985,12 +986,31 @@ async function preprocessForOcr(file){
     acc=0;
     for(let i=255;i>=0;i--){ acc+=hist[i]; if(acc>n*0.02){ hi=i; break; } }
     const range = Math.max(1, hi-lo);
+    const out = new Uint8ClampedArray(n);
     for(let i=0;i<n;i++){
       let v = (gray[i]-lo)/range*255;
       if(invert) v = 255-v;
       v = v<0?0:(v>255?255:v);
-      d[i*4]=d[i*4+1]=d[i*4+2]=v; d[i*4+3]=255;
+      out[i]=v;
     }
+    if(opts && opts.binarize){
+      // Otsu threshold → pure black text on pure white. Kills the grass-stripe
+      // texture that makes Tesseract drop half the words on the Summary screen.
+      const hist = new Uint32Array(256);
+      for(let i=0;i<n;i++) hist[out[i]]++;
+      let sum=0; for(let i=0;i<256;i++) sum += i*hist[i];
+      let wB=0, sumB=0, best=0, thr=127;
+      for(let i=0;i<256;i++){
+        wB += hist[i]; if(!wB) continue;
+        const wF = n-wB; if(!wF) break;
+        sumB += i*hist[i];
+        const mB = sumB/wB, mF = (sum-sumB)/wF;
+        const v = wB*wF*(mB-mF)*(mB-mF);
+        if(v>best){ best=v; thr=i; }
+      }
+      for(let i=0;i<n;i++) out[i] = out[i] > thr ? 255 : 0;
+    }
+    for(let i=0;i<n;i++){ d[i*4]=d[i*4+1]=d[i*4+2]=out[i]; d[i*4+3]=255; }
     ctx.putImageData(img, 0, 0);
     return await new Promise(res=> cv.toBlob(b=>res(b||file), 'image/png'));
   }catch(e){ return file; }
@@ -999,30 +1019,64 @@ async function preprocessForOcr(file){
 /* Returns one `data` result (with .blocks word-position tree) per image — NOT concatenated text,
    because reconstructing table rows needs each word's actual pixel position, not Tesseract's own
    line-breaking (which falls apart on UIs with big gaps between columns like this one). */
-async function ocrReadFiles(files, progId){
+/* `variants` = list of preprocess option-sets to run (e.g. [{}, {binarize:true}]).
+   Each pass is OCR'd separately; the result with the most words wins, and every
+   pass's words are kept in `data._variantWords` so callers can merge them. */
+async function ocrReadFiles(files, progId, variants){
+  variants = (variants && variants.length) ? variants : [{}];
   const prog = document.getElementById(progId);
   ocrLoggerTarget = prog;
   const worker = await withTimeout(getOcrWorker(), 45000, 'Loading the OCR engine');
   const countWords = d => flattenWords(d).length;
   const results = [];
   for(let i=0;i<files.length;i++){
-    const src = await preprocessForOcr(files[i]);
-    let data = (await withTimeout(worker.recognize(src), 45000, 'Reading the image')).data;
-    data._orig = files[i]; data._src = src; data._procWords = countWords(data);
-    // Self-heal: if the preprocessed canvas came out unreadable (some browser pastes
-    // mangle the colors), re-read the ORIGINAL file and keep whichever actually worked.
+    const passes = [];
+    for(const v of variants){
+      try{
+        const src = await preprocessForOcr(files[i], v);
+        const data = (await withTimeout(worker.recognize(src), 45000, 'Reading the image')).data;
+        data._orig = files[i]; data._src = src; data._procWords = countWords(data);
+        passes.push(data);
+      }catch(e){
+        if(variants.length===1) throw e; // single-pass flow: surface the error as before
+        console.warn('OCR pass failed, continuing with the others', e);
+      }
+    }
+    if(!passes.length) throw new Error('OCR engine did not load');
+    let data = passes.slice().sort((a,b)=> b._procWords-a._procWords)[0];
+    // Self-heal: if everything came out nearly empty (some browser pastes mangle the
+    // colors), re-read the ORIGINAL file and keep whichever actually worked.
     if(data._procWords < 20){
       try{
         const raw = (await withTimeout(worker.recognize(files[i]), 45000, 'Reading the image')).data;
         if(countWords(raw) > data._procWords){
           data = raw; data._procWords = countWords(data); data._usedRaw = true; data._src = files[i]; data._orig = files[i];
         }
+        data._variantWords = passes.map(p=>flattenWords(p)).concat(flattenWords(raw));
       }catch(e){ /* keep the preprocessed result */ }
+    } else {
+      data._variantWords = passes.map(p=>flattenWords(p));
     }
     results.push(data);
   }
   ocrLoggerTarget = null;
   return results;
+}
+
+/* Union of several word-lists (one per OCR pass) — a word present in more than one
+   pass (near-identical bbox) is counted once. */
+function mergeWords(lists){
+  const out = [];
+  (lists||[]).forEach(list=>{
+    (list||[]).forEach(w=>{
+      const t = (w.text||'').trim(); if(!t) return;
+      const cx = (w.bbox.x0+w.bbox.x1)/2, cy = (w.bbox.y0+w.bbox.y1)/2;
+      const h = Math.max(4, w.bbox.y1-w.bbox.y0);
+      if(out.some(o=> o.t===t.toLowerCase() && Math.abs(o.cx-cx)<h*0.9 && Math.abs(o.cy-cy)<h*0.9)) return;
+      out.push({text:t, t:t.toLowerCase(), bbox:w.bbox, cx, cy, h});
+    });
+  });
+  return out;
 }
 
 /* Walk Tesseract's blocks→paragraphs→lines→words tree and flatten to a plain word list with bbox,
@@ -1157,6 +1211,161 @@ function parsePlayerRow(rowWords, anchors){
   return {position, name, rating, goals, assists};
 }
 
+/* ================= SUMMARY (MATCH FACTS) SCREEN PARSER =================
+   Layout:  [left value]  STAT LABEL  [right value]   — the center column,
+   plus three big % circles in the left/right margins (Dribble / Shot / Pass)
+   whose label sits BELOW the number. In EA FC the home team is always the
+   LEFT column, so left/right are mapped to us/them from the Home/Away pick.
+   Purely positional (word bounding boxes), tolerant of OCR mangling and of
+   extra numbers merged into a row. Deliberately separate from — and it never
+   touches — the player-rating scanner or its rules. */
+const CIRCLE_WORDS = {dribble:'Dribble Success Rate', shot:'Shot Accuracy', pass:'Pass Accuracy %'};
+const CIRCLE_LABELS = Object.values(CIRCLE_WORDS);
+
+function parseSummaryScreen(words){
+  if(!words || !words.length) return null;
+  let W=0, H=0;
+  words.forEach(w=>{ W=Math.max(W,w.bbox.x1); H=Math.max(H,w.bbox.y1); });
+  if(!W) return null;
+
+  /* Drop words with abnormally tall boxes (e.g. a circle-ring artifact OCR'd as "(80%)"
+     spanning three rows) — left in, they would swallow neighbouring table rows when the
+     words are clustered into visual lines. */
+  const hs = words.map(w=>w.bbox.y1-w.bbox.y0).sort((a,b)=>a-b);
+  const medH = hs[Math.floor(hs.length/2)] || 10;
+  const clean = words
+    .filter(w=>(w.bbox.y1-w.bbox.y0) <= Math.max(3*medH, 60))
+    .map(w=>{
+      const b=w.bbox;
+      return {text:(w.text||'').trim(), t:(w.text||'').trim().toLowerCase(),
+        x0:b.x0, x1:b.x1, y0:b.y0, y1:b.y1, bbox:b,
+        cx:(b.x0+b.x1)/2, cy:(b.y0+b.y1)/2, h:Math.max(1,b.y1-b.y0)};
+    })
+    .filter(w=>w.text);
+
+  /* OCR wraps values in bar/bracket junk ("|15", "l2", "[0]") — strip it and keep the
+     number. A lone "o" is Tesseract's classic misread zero. Returns the cleaned number
+     string, or null if the token is not a number. */
+  const cleanNum = t=>{
+    let s = String(t).trim().replace(/%+\s*$/,'').replace(/^\s*%+/,'');
+    s = s.replace(/^[|\[\]()lLIi]+/,'').replace(/[|\[\]()]+$/,'');
+    if(/^[oO]$/.test(s)) return '0';
+    if(/^-?\d{1,4}(\.\d{1,3})?$/.test(s)) return s;
+    return null;
+  };
+
+  /* A token counts as a label word only if it carries at least 2 real letters.
+     Punctuation-only tokens ("|" bars, brackets, "°", "[+]") are junk: neither label
+     nor number, so they must never extend a label span or shadow a value. */
+  const letterCount = t => (String(t).match(/[A-Za-zÀ-ſ]/g)||[]).length;
+  const isWord = t => letterCount(t) >= 2;
+
+  const left={}, right={};
+  const zone = cx => cx < W*0.35 ? 'outer' : cx > W*0.65 ? 'outer' : 'center';
+  const rows = clusterRows(clean);
+
+  /* A visual row can hold several labels side by side (the "Expected Goals" row merges
+     with a circle-label row). Split each row's label words into x-gap groups and treat
+     each group as its own label. */
+  const labelGroups = row=>{
+    const lab = row.words
+      .filter(w=> cleanNum(w.text)==null && isWord(w.text))
+      .sort((a,b)=> a.x0-b.x0);
+    const groups = [];
+    lab.forEach(w=>{
+      const last = groups[groups.length-1];
+      if(last && w.x0 - last.x1 <= Math.max(120, 6*medH)) last.words.push(w), last.x1 = Math.max(last.x1, w.x1);
+      else groups.push({x0:w.x0, x1:w.x1, words:[w]});
+    });
+    return groups;
+  };
+
+  /* The value closest to a label group on one side: L = rightmost number left of the
+     span, R = leftmost number right of it. Numbers inside/adjacent to the span are
+     label junk and must never shadow the real value. */
+  const valueNear = (row, g, side)=>{
+    const margin = Math.max(...g.words.map(w=>w.h)) * 0.9;
+    const pool = side==='L'
+      ? row.words.filter(w=> cleanNum(w.text)!=null && w.cx < g.x0 - margin)
+      : row.words.filter(w=> cleanNum(w.text)!=null && w.cx > g.x1 + margin);
+    pool.sort((a,b)=> side==='L' ? b.x0-a.x0 : a.x0-b.x0);
+    return pool[0] || null;
+  };
+
+  /* --- center table rows: [left value]  STAT LABEL  [right value] --- */
+  rows.forEach(row=>{
+    labelGroups(row).forEach(g=>{
+      if(zone((g.x0+g.x1)/2)!=='center') return;   // margin groups are circles — handled below
+      const labelWords = g.words.map(w=>w.t);
+      let best=null;
+      STAT_LABELS.forEach(canon=>{
+        if(CIRCLE_LABELS.includes(canon)) return;  // circles are handled separately
+        const cw = canon.toLowerCase().replace(/[%(].*$/,'').split(' ').filter(x=>x.length>2);
+        if(!cw.length) return;
+        let hit=0;
+        cw.forEach(c=>{
+          if(labelWords.some(w=> w.includes(c)
+            || (w.length>=2 && c.startsWith(w))
+            || (c.length>=3 && w.length>=Math.ceil(c.length*0.6) && w.startsWith(c)))) hit++;
+        });
+        // 1-word labels: 1 hit; 2-word labels ("Passes", "Free Kicks"): 1 hit;
+        // 3+ word labels: 2 hits. (Stricter was dropping rows whose label OCR'd short.)
+        if(hit < Math.max(1, Math.round(cw.length*0.6))) return;
+        const score = hit*2 - (cw.length-hit);
+        if(!best || score>best.score || (score===best.score && cw.length<best.cw)) best={canon, score, cw:cw.length};
+      });
+      if(!best) return;
+      const L = valueNear(row, g, 'L');
+      const R = valueNear(row, g, 'R');
+      let lv = L ? cleanNum(L.text) : null;
+      let rv = R ? cleanNum(R.text) : null;
+      /* xG is small in a single match — a 3-4 digit integer is a dropped decimal point
+         ("I396" = 3.96, "139" = 1.39). Reinsert it after the first digit. */
+      const fixXg = v => (best.canon==='Expected Goals' && /^\d{3,4}$/.test(v)) ? v.slice(0,1)+'.'+v.slice(1) : v;
+      if(lv!=null) left[best.canon] = fixXg(lv);
+      if(rv!=null) right[best.canon] = fixXg(rv);
+    });
+  });
+
+  /* --- margin circles: big % number directly ABOVE a label like "DRIBBLE SUCCESS RATE" ---
+     Align to the whole label GROUP (not one word, not the merged row) and to the
+     correct half of the screen. */
+  Object.entries(CIRCLE_WORDS).forEach(([word, canon])=>{
+    clean.forEach(w=>{
+      if(!(w.t.includes(word) && w.t.length<=word.length+3)) return;  // dribble / shot / pass(es)
+      if(zone(w.cx)!=='outer') return;                                 // ignore "Passes", "Shooting" etc.
+      if(w.cy < H*0.15) return;                                        // ignore the tab bar
+      const side = w.cx < W/2 ? 'left' : 'right';
+      const row = rows.find(r=> r.words.indexOf(w) !== -1);
+      if(!row) return;
+      const g = labelGroups(row).find(x=> x.words.indexOf(w)!==-1) || {x0:w.x0, x1:w.x1, words:[w]};
+      const top = Math.min(...g.words.map(x=>x.y0));
+      /* A circle's number sits a fixed short distance above its label; the neighbouring
+         circle's number is far higher. Cap the gap so one circle never steals another's
+         value. */
+      const maxGap = Math.max(150, 8*medH);
+      let cand=null;  // {nv, digits, gap}
+      clean.forEach(v=>{
+        const nv = cleanNum(v.text);
+        if(nv==null) return;
+        if(v.y1 > top + 2) return;                                     // must sit above the label
+        if(side==='left'  && v.cx > W/2) return;                       // same half of the screen
+        if(side==='right' && v.cx < W/2) return;
+        if(v.cx < g.x0 - 30 || v.cx > g.x1 + 30) return;               // roughly above the label
+        const digits = nv.replace(/\D/g,'').length;
+        const gap = top - v.y1;
+        if(gap > maxGap) return;                                       // belongs to another circle
+        if(!cand || digits>cand.digits || (digits===cand.digits && gap<cand.gap)) cand={nv, digits, gap};
+      });
+      if(!cand) return;
+      if(side==='left') left[canon]=cand.nv; else right[canon]=cand.nv;
+    });
+  });
+
+  if(!Object.keys(left).length && !Object.keys(right).length) return null;
+  return {left, right};
+}
+
 /* A team-stat row is: [for value] Label text… [against value] */
 function parseTeamStatRow(rowWords){
   const toks = rowWords.map(w=>w.text).filter(Boolean);
@@ -1234,32 +1443,48 @@ async function scanTeamImage(files, progId){
   prog.innerHTML = `<div class="hint">Starting…</div>`;
   try{
     if(typeof Tesseract === 'undefined') throw new Error('OCR engine did not load');
-    const results = await ocrReadFiles(files, progId);
-    const map = {};
+    // Two OCR passes (normal + hard binarized), merged — the grass-stripe background
+    // makes Tesseract drop words on this screen, and the second pass catches them.
+    const results = await ocrReadFiles(files, progId, [{}, {binarize:true}]);
+    const homeAway = (logDraft && logDraft.homeAway) ? logDraft.homeAway : 'home';
+    const left={}, right={};
     results.forEach(data=>{
-      const rows = clusterRows(flattenWords(data));
-      rows.forEach(row=>{
-        const parsed = parseTeamStatRow(row.words);
-        if(parsed) map[parsed.label] = {for:parsed.for, against:parsed.against};
-      });
+      const lists = (data._variantWords && data._variantWords.length) ? data._variantWords : [flattenWords(data)];
+      const words = mergeWords(lists);
+      const parsed = parseSummaryScreen(words);
+      if(parsed){ Object.assign(left, parsed.left); Object.assign(right, parsed.right); }
+      // Fallback: the old "[num] label [num]" heuristic (works on other screen variants)
+      if(!Object.keys(left).length && !Object.keys(right).length){
+        clusterRows(words).forEach(row=>{
+          const p = parseTeamStatRow(row.words);
+          if(p){ left[p.label]=p.for; right[p.label]=p.against; }
+        });
+      }
     });
-    if(!Object.keys(map).length){
+    const labels = Array.from(new Set([...Object.keys(left), ...Object.keys(right)]));
+    if(!labels.length){
       const totalWords = results.reduce((s,d)=> s + (d._procWords||flattenWords(d).length), 0);
       prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized (OCR read ${totalWords} word(s)) — check image clarity or enter manually.</div>`;
       return;
     }
-    Object.entries(map).forEach(([rawLabel, vals])=>{
+    // Home team is always the LEFT column in the game → map to us/them via Home/Away.
+    const usSide = homeAway==='away' ? 'right' : 'left';
+    let filled = 0;
+    labels.forEach(rawLabel=>{
       const label = canonicalStatLabel(rawLabel);
+      const us = usSide==='left' ? left[rawLabel] : right[rawLabel];
+      const them = usSide==='left' ? right[rawLabel] : left[rawLabel];
       let row = document.querySelector(`#teamstat-rows .statline[data-label="${CSS.escape(label)}"]`);
       if(!row){
-        document.getElementById('teamstat-custom').insertAdjacentHTML('beforeend', teamStatLine(label, vals.for, vals.against));
-      }else{
-        row.querySelector('[data-side=for]').value = vals.for;
-        row.querySelector('[data-side=against]').value = vals.against;
+        document.getElementById('teamstat-custom').insertAdjacentHTML('beforeend', teamStatLine(label));
+        const all = document.querySelectorAll(`#teamstat-custom .statline[data-label="${CSS.escape(label)}"]`);
+        row = all[all.length-1];
       }
+      if(us!=null && us!==''){ row.querySelector('[data-side=for]').value = us; filled++; }
+      if(them!=null && them!==''){ row.querySelector('[data-side=against]').value = them; }
     });
-    toast('Filled in team stats — double check before saving');
-    prog.innerHTML = `<div class="hint" style="color:var(--turf)">Scan complete — review the numbers above, then save.</div>`;
+    toast(`Filled ${filled} team stat(s) — us = ${usSide} column (you're ${homeAway})`);
+    prog.innerHTML = `<div class="hint" style="color:var(--turf)">Scan complete — ${filled} stat(s) filled in. Review the numbers, then save.</div>`;
   }catch(err){
     const timedOut = /timed out/.test(err.message||'');
     prog.innerHTML = `<div class="hint" style="color:var(--red)">${timedOut ? "This is taking too long — check your connection." : `Couldn't read that image automatically (${esc(err.message||'scan failed')}).`} Just type the values in below for now.</div>`;
