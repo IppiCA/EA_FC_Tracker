@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
-<title>Matchday Ledger</title>
+<link rel="icon" href="app-icon.png">
+<title>EA FC Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Caprasimo&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -50,6 +50,20 @@ input,select{font-family:inherit}
   radial-gradient(100% 80% at 100% 100%, rgba(139,108,255,.14), transparent 55%),
   linear-gradient(180deg, rgba(7,11,16,.55), rgba(7,11,16,.88) 60%, #070B10 100%);
 }
+:root[data-theme="light"] #bg-scene img{ filter:saturate(.55) brightness(.95); }
+:root[data-theme="light"] #bg-scene::after{ background:
+  radial-gradient(120% 90% at 15% 0%, rgba(34,201,122,.08), transparent 55%),
+  radial-gradient(100% 80% at 100% 100%, rgba(139,108,255,.10), transparent 55%),
+  linear-gradient(180deg, rgba(238,242,241,.6), rgba(238,242,241,.88) 60%, #EEF2F1 100%);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]) #bg-scene img{ filter:saturate(.55) brightness(.95); }
+  :root:not([data-theme="dark"]) #bg-scene::after{ background:
+    radial-gradient(120% 90% at 15% 0%, rgba(34,201,122,.08), transparent 55%),
+    radial-gradient(100% 80% at 100% 100%, rgba(139,108,255,.10), transparent 55%),
+    linear-gradient(180deg, rgba(238,242,241,.6), rgba(238,242,241,.88) 60%, #EEF2F1 100%);
+  }
+}
 
 /* ---- layout shell ---- */
 #app{display:flex; min-height:100vh; min-height:100dvh; position:relative; z-index:1; gap:14px; padding:14px;}
@@ -63,7 +77,7 @@ nav.rail{
   box-shadow:0 20px 50px rgba(0,0,0,.35);
 }
 .rail-brand{padding:6px 8px 18px; display:flex; align-items:center; gap:10px}
-.rail-brand .crest{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--turf),var(--violet));display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto; box-shadow:0 0 18px rgba(60,255,154,.35)}
+.rail-brand .crest{width:36px;height:36px;border-radius:10px;object-fit:cover;flex:0 0 auto; box-shadow:0 0 18px rgba(60,255,154,.35)}
 .rail-brand .brand{font-size:19px; line-height:1.05; letter-spacing:.02em}
 .rail-brand .brand small{display:block;font-family:'IBM Plex Sans';font-weight:500;font-size:11px;color:var(--ink-faint);letter-spacing:.04em}
 .navbtn{
@@ -266,7 +280,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 
 <div id="app" style="display:none">
   <nav class="rail">
-    <div class="rail-brand"><div class="crest">⚽</div><div class="brand">Matchday<br>Ledger</div></div>
+    <div class="rail-brand"><img class="crest" src="app-icon.webp" alt="" width="36" height="36"><div class="brand">EA FC<br>Tracker</div></div>
     <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
     <button class="navbtn" data-tab="log"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> Squad & Seasons</button>
