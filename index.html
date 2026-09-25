@@ -190,10 +190,13 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .hint{font-size:12px; color:var(--ink-faint); margin-top:4px}
 .scanbox{border:1.5px dashed var(--line); border-radius:14px; padding:16px; text-align:center; color:var(--ink-dim); font-size:13px}
 .scanbox.active{border-color:var(--turf); color:var(--turf)}
-.ocr-row{display:grid; grid-template-columns:70px 1fr 62px 46px 46px 34px; gap:6px; align-items:center; margin-bottom:6px}
+.ocr-row{display:grid; grid-template-columns:64px minmax(0,1fr) 54px 42px 42px 30px 24px 28px; gap:6px; align-items:center; margin-bottom:6px}
 .ocr-row input{padding:6px 7px; font-size:13px}
 .ocr-row .del{background:none;border:none;color:var(--red);font-size:16px}
-.ocr-head{display:grid; grid-template-columns:70px 1fr 62px 46px 46px 34px; gap:6px; font-size:10.5px; color:var(--ink-faint); margin-bottom:4px; padding:0 2px}
+.ocr-row .ren{background:none;border:none;color:var(--gold);font-size:14px;padding:2px 4px}
+.ocr-row .ren:hover{color:var(--ink)}
+.ocr-row input[type=checkbox]{width:16px;height:16px;margin:0;justify-self:center;accent-color:var(--turf)}
+.ocr-head{display:grid; grid-template-columns:64px minmax(0,1fr) 54px 42px 42px 30px 24px 28px; gap:6px; font-size:10.5px; color:var(--ink-faint); margin-bottom:4px; padding:0 2px}
 .statline{display:grid; grid-template-columns:60px 1fr 60px; gap:8px; align-items:center; margin-bottom:6px; font-size:13px}
 .statline input{text-align:center}
 .statline .lbl{color:var(--ink-dim); font-size:12.5px; text-align:center}
@@ -404,6 +407,15 @@ async function dbDelete(collection, id){
 
 /* ============================= DERIVED / COMPUTE ============================= */
 function playerName(id){ const p = players.find(p=>p.id===id); return p ? p.name : '—'; }
+/* Rename a player everywhere (scanner list, history, MOTM). Used by the ✎ buttons. */
+async function renamePlayer(id){
+  const p = players.find(x=>x.id===id); if(!p) return;
+  const name = (prompt(`Rename "${p.name}" — applies everywhere:`, p.name)||'').trim();
+  if(!name || name.toLowerCase()===p.name.toLowerCase()) return;
+  await dbSet('players', id, {name});
+  const dupe = players.find(x=>x.id!==id && normalizeName(x.name)===normalizeName(name));
+  toast(dupe ? `Renamed — but "${dupe.name}" already exists; delete the one you don't need below` : 'Player renamed everywhere');
+}
 function normalizeName(n){ return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^[a-z]\.\s*/,'').trim(); }
 async function resolveOrCreatePlayer(rawName){
   const name = rawName.trim();
@@ -693,9 +705,6 @@ function renderLog(){
       <div class="field"><label>Disconnect</label>
         <select id="f-dc"><option value="0" ${!logDraft.disconnect?'selected':''}>No</option><option value="1" ${logDraft.disconnect?'selected':''}>Yes</option></select>
       </div>
-      <div class="field"><label>Man of the Match</label>
-        <select id="f-motm"><option value="">—</option>${(logDraft.playerStats||[]).map(ps=>`<option value="${ps.playerId}" ${logDraft.motmPlayerId===ps.playerId?'selected':''}>${esc(playerName(ps.playerId))}</option>`).join('')}</select>
-      </div>
     </div>
   </div>
 
@@ -708,10 +717,17 @@ function renderLog(){
       <div id="scan-players-progress"></div>
     </div>
     <div style="margin-top:14px" class="tablewrap">
-      <div class="ocr-head"><span>Pos</span><span>Player</span><span>Rating</span><span>Goals</span><span>Ast</span><span></span></div>
+      <div class="ocr-head"><span>Pos</span><span>Player</span><span>Rating</span><span>Goals</span><span>Ast</span><span style="text-align:center">MOTM</span><span></span><span></span></div>
       <div id="playerstat-rows">${(logDraft.playerStats||[]).map((ps,i)=>playerStatRow(ps,i)).join('')}</div>
       <button class="btn ghost small" id="add-playerstat" style="margin-top:6px">+ Add player to this game</button>
     </div>
+  </div>
+
+  <div class="section-title">Team sheet <span class="subtle">— the scanner matches names against this list · ✎ fixes a wrong name everywhere</span></div>
+  <div class="card" style="margin-bottom:16px">
+    ${s && (s.squadIds||[]).length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
+      ${s.squadIds.map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rename-player="${pid}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button></span>`).join('')}
+    </div>` : `<div class="hint">Empty for now — players appear here as you scan or add them. The scanner uses this list to fix near-miss names.</div>`}
   </div>
 
   <div class="section-title">Team stats <span class="subtle">(optional — us vs. them)</span></div>
@@ -740,7 +756,9 @@ function playerStatRow(ps, i){
     <input type="text" data-f="rating" value="${esc(ps.rating)}" placeholder="7.4">
     <input type="number" data-f="goals" value="${ps.goals||0}">
     <input type="number" data-f="assists" value="${ps.assists||0}">
-    <button class="del" data-remove="${i}">×</button>
+    <input type="checkbox" data-f="motm" title="Man of the Match" ${logDraft.motmPlayerId===ps.playerId?'checked':''}>
+    <button class="ren" data-rename="${i}" title="Rename this player everywhere">✎</button>
+    <button class="del" data-remove="${i}" title="Remove this row">×</button>
   </div>`;
 }
 function teamStatLine(label, forVal, againstVal){
@@ -763,7 +781,8 @@ function readDraftFromForm(){
   g.scoreAgainst = Number(val('f-scoreagainst')||0);
   g.rageQuit = val('f-rq');
   g.disconnect = val('f-dc')==='1';
-  g.motmPlayerId = val('f-motm');
+  const motmBox = document.querySelector('#playerstat-rows .ocr-row [data-f=motm]:checked');
+  g.motmPlayerId = motmBox ? motmBox.closest('.ocr-row').querySelector('[data-f=playerId]').value : '';
   document.querySelectorAll('#playerstat-rows .ocr-row').forEach((row,i)=>{
     const ps = g.playerStats[i]; if(!ps) return;
     ps.position = row.querySelector('[data-f=position]').value;
@@ -802,9 +821,22 @@ function wireLogHandlers(){
     render();
   });
   document.getElementById('playerstat-rows')?.addEventListener('click', (e)=>{
+    const rn = e.target.closest('[data-rename]');
+    if(rn){
+      const pid = rn.closest('.ocr-row').querySelector('[data-f=playerId]').value;
+      readDraftFromForm();
+      renamePlayer(pid);
+      return;
+    }
     const rm = e.target.closest('[data-remove]');
     if(rm){ readDraftFromForm(); logDraft.playerStats.splice(Number(rm.dataset.remove),1); render(); }
   });
+  document.getElementById('playerstat-rows')?.addEventListener('change', (e)=>{
+    if(!e.target || !e.target.matches('[data-f=motm]')) return;
+    if(e.target.checked) document.querySelectorAll('#playerstat-rows [data-f=motm]').forEach(cb=>{ if(cb!==e.target) cb.checked=false; });
+    readDraftFromForm();
+  });
+  document.querySelectorAll('[data-rename-player]').forEach(b=> b.addEventListener('click', ()=> renamePlayer(b.dataset.renamePlayer)));
   document.getElementById('add-teamstat')?.addEventListener('click', ()=>{
     const label = prompt('Stat name (e.g. "Corners")'); if(!label) return;
     document.getElementById('teamstat-custom').insertAdjacentHTML('beforeend', teamStatLine(label));
@@ -1209,14 +1241,14 @@ function renderSquad(){
     <button class="btn" id="new-season-btn">+ New season</button>
   </div>
 
-  <div class="section-title">All players <span class="subtle">(${players.length})</span></div>
+  <div class="section-title">All players <span class="subtle">(${players.length}) — ✎ renames a player everywhere (scanner list, history, MOTM)</span></div>
   <div class="card" style="margin-bottom:22px">
     <div class="row" style="align-items:flex-end; margin-bottom:${players.length?'14px':'0'}">
       <div class="field" style="margin-bottom:0"><label>Add player</label><input type="text" id="new-player-name" placeholder="Player name"></div>
       <button class="btn small" id="add-player-btn" style="flex:0 0 auto">Add</button>
     </div>
     ${players.length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
-      ${players.map(p=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(p.name)} <button data-del-player="${p.id}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('')}
+      ${players.map(p=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(p.name)} <button data-rename-player="${p.id}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button> <button data-del-player="${p.id}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('')}
     </div>` : ''}
   </div>
 
@@ -1265,6 +1297,7 @@ function wireSquadHandlers(){
   document.querySelectorAll('[data-del-player]').forEach(b=> b.addEventListener('click', ()=>{
     if(confirm('Remove this player from the pool? Past game stats referencing them are kept.')) dbDelete('players', b.dataset.delPlayer);
   }));
+  document.querySelectorAll('[data-rename-player]').forEach(b=> b.addEventListener('click', ()=> renamePlayer(b.dataset.renamePlayer)));
   document.getElementById('new-season-btn')?.addEventListener('click', openNewSeasonModal);
   document.querySelectorAll('[data-del-season]').forEach(b=> b.addEventListener('click', ()=>{
     if(confirm('Delete this season? Its logged games stay but lose their season link.')) dbDelete('seasons', b.dataset.delSeason);
