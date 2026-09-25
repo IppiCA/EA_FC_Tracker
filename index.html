@@ -483,8 +483,22 @@ async function resolveOrCreatePlayer(rawName){
 }
 function seasonById(id){ return seasons.find(s=>s.id===id); }
 function teamById(id){ return teams.find(t=>t.id===id); }
-function seasonTeamName(s){ return (s && s.teamId && teamById(s.teamId)?.name) || (s && s.team) || ''; }
-function squadForSeason(s){ const t = s && s.teamId ? teamById(s.teamId) : null; return t ? (t.playerIds||[]) : (s ? (s.squadIds||[]) : []); }
+/* A season may span multiple teams (mid-season switch): teamIds is the ordered list
+   (first = original team); teamId/team are the legacy single-team fields. */
+function seasonTeams(s){
+  if(!s) return [];
+  const ids = (s.teamIds && s.teamIds.length) ? s.teamIds : (s.teamId ? [s.teamId] : []);
+  const list = [];
+  ids.forEach(id=>{ const t = teamById(id); if(t && !list.some(x=>x.id===t.id)) list.push(t); });
+  if(!list.length && s.team) list.push({id:'', name:s.team, playerIds:(s.squadIds||[])});
+  return list;
+}
+function seasonTeamName(s){
+  const names = seasonTeams(s).map(t=>t.name);
+  return names.length ? names.join(' / ') : (s && s.team) || '';
+}
+function seasonPrimaryTeamId(s){ const t = seasonTeams(s)[0]; return (t && t.id) ? t.id : ''; }
+function squadForSeason(s){ const t = seasonTeams(s)[0]; return t ? (t.playerIds||[]) : (s ? (s.squadIds||[]) : []); }
 /* A player counts for exactly ONE team: the add-player dropdowns only offer players
    that are not on any team sheet (or legacy season squad). */
 function freePlayers(){
@@ -687,6 +701,7 @@ function freshDraft(){
   const s = seasons[0];
   return {
     seasonId: s ? s.id : '',
+    teamId: s ? seasonPrimaryTeamId(s) : '',
     opponentTeam:'', opponentGamertags:['',''], homeAway:'home',
     scoreFor:0, scoreAgainst:0, rageQuit:'none', disconnect:false, motmPlayerId:'',
     playerStats: s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
@@ -697,6 +712,7 @@ function freshDraft(){
 function gameToDraft(g){
   return {
     seasonId: g.seasonId,
+    teamId: g.teamId || seasonPrimaryTeamId(seasonById(g.seasonId)),
     opponentTeam: g.opponentTeam||'',
     opponentGamertags: g.opponentGamertags||['',''],
     homeAway: g.homeAway||'home',
@@ -714,6 +730,8 @@ function renderLog(){
   if(!logDraft) logDraft = editingGameId ? gameToDraft(games.find(g=>g.id===editingGameId)) : freshDraft();
   const isEditing = !!editingGameId;
   const s = seasonById(logDraft.seasonId);
+  const dTeam = (logDraft.teamId && teamById(logDraft.teamId)) || (s ? seasonTeams(s)[0] : null) || null;
+  const dSquad = dTeam ? (dTeam.playerIds||[]) : (s ? (s.squadIds||[]) : []);
   if(!seasons.length){
     return `<div class="pagehead"><h1>Log Match</h1></div><div class="card empty">Create a season first (with a squad) under <b>Squad & Seasons</b> before logging a match.</div>`;
   }
@@ -724,6 +742,13 @@ function renderLog(){
     <div class="row">
       <div class="field"><label>Season</label>
         <select id="f-season">${seasons.map(x=>`<option value="${x.id}" ${x.id===logDraft.seasonId?'selected':''}>#${x.number} · ${esc(seasonTeamName(x))} (${esc(x.gameVersion||'')})</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Team <span class="hint" style="display:inline">— switching mid-season adds it to this season</span></label>
+        <select id="f-team">
+          ${!logDraft.teamId ? `<option value="" disabled selected>No team (legacy season)</option>` : ''}
+          ${teams.map(t=>`<option value="${t.id}" ${t.id===(logDraft.teamId||'')?'selected':''}>${esc(t.name)}</option>`).join('')}
+          <option value="__new">＋ New team…</option>
+        </select>
       </div>
       <div class="field"><label>Opponent team</label><input type="text" id="f-opp" placeholder="e.g. Liverpool" value="${esc(logDraft.opponentTeam)}"></div>
       <div class="field"><label>Home / Away</label>
@@ -765,10 +790,10 @@ function renderLog(){
     </div>
   </div>
 
-  <div class="section-title">Team sheet <span class="subtle">— the scanner matches names against this list · ✎ fixes a wrong name everywhere</span></div>
+  <div class="section-title">Team sheet <span class="subtle">— ${dTeam ? esc(dTeam.name) : 'this squad'} · the scanner matches names against this list · ✎ fixes a wrong name everywhere</span></div>
   <div class="card" style="margin-bottom:16px">
-    ${s && squadForSeason(s).length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
-      ${squadForSeason(s).map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rename-player="${pid}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button></span>`).join('')}
+    ${dSquad.length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
+      ${dSquad.map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rename-player="${pid}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button></span>`).join('')}
     </div>` : `<div class="hint">Empty for now — players appear here as you scan or add them. The scanner uses this list to fix near-miss names.</div>`}
   </div>
 
@@ -828,6 +853,7 @@ function readDraftFromForm(){
   const g = logDraft;
   const val = id => document.getElementById(id)?.value;
   g.seasonId = val('f-season');
+  g.teamId = (val('f-team')==='__new') ? (g.teamId||'') : (val('f-team')||'');
   g.opponentTeam = val('f-opp');
   g.homeAway = val('f-homeaway');
   g.opponentGamertags = [val('f-tag1')||'', val('f-tag2')||''];
@@ -861,8 +887,29 @@ function wireLogHandlers(){
   if(seasonSel) seasonSel.addEventListener('change', (e)=>{
     logDraft.seasonId = e.target.value;
     const s = seasonById(logDraft.seasonId);
+    logDraft.teamId = seasonPrimaryTeamId(s);
     if(!editingGameId){
       logDraft.playerStats = s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [];
+    }
+    render();
+  });
+  const teamSel = document.getElementById('f-team');
+  if(teamSel) teamSel.addEventListener('change', async (e)=>{
+    if(e.target.value==='__new'){
+      const prev = logDraft.teamId||'';
+      const name = (prompt('New team name:')||'').trim();
+      if(!name){ e.target.value = prev; render(); return; }
+      const tid = await dbAdd('teams', {name, playerIds:[]});
+      logDraft.teamId = tid;
+      if(!editingGameId) logDraft.playerStats = [];
+      toast(`Team "${name}" created — it's now part of this season`);
+      render();
+      return;
+    }
+    logDraft.teamId = e.target.value;
+    if(!editingGameId){
+      const t = teamById(logDraft.teamId);
+      logDraft.playerStats = t ? (t.playerIds||[]).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [];
     }
     render();
   });
@@ -920,7 +967,15 @@ function wireLogHandlers(){
       if(combined.length !== (s.squadIds||[]).length){
         await dbSet('seasons', s.id, {...stripId(s), squadIds: combined});
       }
-      const t = s.teamId ? teamById(s.teamId) : null;
+      /* Mid-season switch: if this match's team is new to the season, add it to the
+         season's ordered team list (shown as "Team A / Team B"). */
+      if(rest.teamId){
+        const base = (s.teamIds && s.teamIds.length) ? [...s.teamIds] : (s.teamId ? [s.teamId] : []);
+        if(!base.includes(rest.teamId)){
+          await dbSet('seasons', s.id, {...stripId(s), teamIds: [...base, rest.teamId]});
+        }
+      }
+      const t = (rest.teamId && teamById(rest.teamId)) || (s.teamId ? teamById(s.teamId) : null);
       if(t){
         const combinedT = Array.from(new Set([...(t.playerIds||[]), ...playedIds]));
         if(combinedT.length !== (t.playerIds||[]).length){
@@ -1607,17 +1662,30 @@ function seasonEditCard(s){
         <button class="link-btn" data-del-season="${s.id}" style="color:var(--red)">Delete</button>
       </div>
     </div>
-    <div class="section-title" style="margin:16px 0 8px">Squad (${squadForSeason(s).length})${s.teamId ? ' <span class="subtle">— team sheet, shared with Settings</span>' : ''}</div>
+    ${seasonSquadBlocks(s)}
+  </div>`;
+}
+/* A season can span several teams (mid-season switch) — each gets its own squad block.
+   Legacy seasons without a team keep the old single season-squad block. */
+function seasonSquadBlocks(s){
+  const tlist = seasonTeams(s);
+  const blocks = (tlist.length ? tlist : [null]);
+  return blocks.map(t=>{
+    const ids = t ? (t.playerIds||[]) : (s.squadIds||[]);
+    const key = t ? t.id : 'none';
+    const label = t ? t.name : 'squad';
+    return `
+    <div class="section-title" style="margin:16px 0 8px">Squad — ${esc(label)} <span class="subtle">(${ids.length})${t ? ' · team sheet, shared with Settings' : ''}</span></div>
     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px">
-      ${squadForSeason(s).map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rm-squad="${s.id}|${pid}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('') || `<span class="subtle">Empty — add players below</span>`}
+      ${ids.map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rm-squad="${s.id}|${key}|${pid}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('') || `<span class="subtle">Empty — add players below</span>`}
     </div>
     <div class="row" style="align-items:flex-end">
-      <div class="field" style="margin-bottom:0"><label>Add to squad</label>
-        <select data-squad-add="${s.id}"><option value="">Choose player…</option>${freePlayers().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+      <div class="field" style="margin-bottom:0"><label>Add to ${esc(label)}</label>
+        <select data-squad-add="${s.id}|${key}"><option value="">Choose player…</option>${freePlayers().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
         ${!freePlayers().length ? `<div class="hint">Every player is already on a team sheet — a player can only count for one team.</div>` : ''}
       </div>
-    </div>
-  </div>`;
+    </div>`;
+  }).join('');
 }
 
 function wireSquadHandlers(){
@@ -1643,16 +1711,16 @@ function wireSquadHandlers(){
     const s = seasonById(cb.dataset.perfect); dbSet('seasons', s.id, {...stripId(s), perfectSeason:cb.checked});
   }));
   document.querySelectorAll('[data-rm-squad]').forEach(b=> b.addEventListener('click', ()=>{
-    const [sid,pid] = b.dataset.rmSquad.split('|');
+    const [sid,key,pid] = b.dataset.rmSquad.split('|');
     const s = seasonById(sid); if(!s) return;
-    const t = s.teamId ? teamById(s.teamId) : null;
+    const t = key && key!=='none' ? teamById(key) : null;
     if(t){ dbSet('teams', t.id, {...stripId(t), playerIds:(t.playerIds||[]).filter(x=>x!==pid)}); }
     else { dbSet('seasons', sid, {...stripId(s), squadIds:(s.squadIds||[]).filter(x=>x!==pid)}); }
   }));
   document.querySelectorAll('[data-squad-add]').forEach(sel=> sel.addEventListener('change', ()=>{
-    const sid = sel.dataset.squadAdd; const pid = sel.value; if(!pid) return;
+    const [sid,key] = sel.dataset.squadAdd.split('|'); const pid = sel.value; if(!pid) return;
     const s = seasonById(sid); if(!s) return;
-    const t = s.teamId ? teamById(s.teamId) : null;
+    const t = key && key!=='none' ? teamById(key) : null;
     if(t){ dbSet('teams', t.id, {...stripId(t), playerIds:[...(t.playerIds||[]), pid]}); }
     else { dbSet('seasons', sid, {...stripId(s), squadIds:[...(s.squadIds||[]), pid]}); }
   }));
@@ -1661,7 +1729,11 @@ function stripId(obj){ const {id, ...rest} = obj; return rest; }
 
 function openNewSeasonModal(){
   const nextNum = seasons.length ? Math.max(...seasons.map(s=>s.number||0))+1 : 1;
-  const lastTeam = seasons[0]?.team || '';
+  const prev = seasons[0] || null;
+  const prevTeams = seasonTeams(prev);                       // may be several (mid-season switch)
+  const lastTeamObj = prevTeams.length ? prevTeams[prevTeams.length-1] : null;  // most recent team
+  const lastTeam = lastTeamObj ? lastTeamObj.name : (prev?.team || '');
+  const lastTeamId = lastTeamObj && lastTeamObj.id ? lastTeamObj.id : (prev?.teamId || '');
   const html = `<div class="modal-bg" id="modal"><div class="modal">
     <div class="modal-head"><h3>New season</h3><button class="xbtn" id="modal-close">×</button></div>
     <div class="row">
@@ -1669,11 +1741,11 @@ function openNewSeasonModal(){
       <div class="field"><label>Game version</label><input type="text" id="ns-ver" placeholder="FC26" value="${seasons[0]?.gameVersion||'FC26'}"></div>
     </div>
     <div class="field"><label>Team</label>
-      ${teams.length ? `<select id="ns-team">${teams.map(t=>`<option value="${t.id}" ${t.id===(seasons[0]?.teamId||'')?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`
+      ${teams.length ? `<select id="ns-team">${teams.map(t=>`<option value="${t.id}" ${t.id===lastTeamId?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`
       : `<input type="text" id="ns-team" placeholder="Real Madrid" value="${esc(lastTeam)}">`}
     </div>
     <div class="field"><label>Carry squad over from last season?</label>
-      <select id="ns-carry"><option value="1">Yes — copy squad from #${seasons[0]?.number||'-'}</option><option value="0">No — start empty</option></select>
+      <select id="ns-carry"><option value="1">Yes — copy ${esc(lastTeam)?lastTeam+' ':''}squad from #${seasons[0]?.number||'-'}</option><option value="0">No — start empty</option></select>
     </div>
     <button class="btn" id="ns-save" style="width:100%; justify-content:center; margin-top:6px">Create season</button>
   </div></div>`;
@@ -1694,7 +1766,9 @@ function openNewSeasonModal(){
       teamId = existing ? existing.id : await dbAdd('teams', {name:teamName, playerIds:[]});
     }
     const carry = document.getElementById('ns-carry').value==='1';
-    const squadIds = carry && seasons[0] ? [...squadForSeason(seasons[0])] : [];
+    const prevTeams = seasons[0] ? seasonTeams(seasons[0]) : [];
+    const carryTeam = prevTeams.length ? prevTeams[prevTeams.length-1] : null;  // carry the most recent team's sheet
+    const squadIds = carry && seasons[0] ? [...(carryTeam ? (carryTeam.playerIds||[]) : (seasons[0].squadIds||[]))] : [];
     await dbAdd('seasons', {number, gameVersion, team: teamName, teamId, squadIds, champion:false, perfectSeason:false, createdAt:Date.now()});
     closeModal();
     toast('Season created');
