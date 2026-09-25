@@ -418,6 +418,24 @@ async function resolveOrCreatePlayer(rawName){
       || fold(pnorm(p))===fold(norm);
   });
   if(existing) return existing.id;
+  // OCR occasionally mangles a name beyond l/I folding (e.g. "Muñoz" → "Mufioz").
+  // If one player is clearly the closest (edit distance ≤ 2 and closer than every
+  // other player), treat it as the same person instead of creating a duplicate.
+  const lev=(a,b)=>{ const m=a.length, n=b.length; if(!m) return n; if(!n) return m;
+    let prev=Array.from({length:n+1},(_,i)=>i);
+    for(let i=1;i<=m;i++){ const cur=[i];
+      for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+      prev=cur; }
+    return prev[n]; };
+  const nn = norm.replace(/\s+/g,'');
+  const cand = [];
+  for(const p of players){
+    const pn = pnorm(p).replace(/\s+/g,'');
+    if(pn.length<4 || nn.length<4) continue;
+    cand.push({p, d: Math.min(lev(pn,nn), lev(fold(pn),fold(nn)))});
+  }
+  cand.sort((a,b)=>a.d-b.d);
+  if(cand.length && cand[0].d<=2 && (cand.length<2 || cand[1].d>cand[0].d)) return cand[0].p.id;
   const id = await dbAdd('players', {name});
   return id;
 }
