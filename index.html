@@ -618,6 +618,7 @@ function seasonPanel(s){
 
 /* ============================= LOG MATCH ============================= */
 let logDraft = null; // in-progress match object while filling the form
+let editingGameId = null; // set while editing an already-logged match
 
 function freshDraft(){
   const s = seasons[0];
@@ -630,14 +631,31 @@ function freshDraft(){
   };
 }
 
+function gameToDraft(g){
+  return {
+    seasonId: g.seasonId,
+    opponentTeam: g.opponentTeam||'',
+    opponentGamertags: g.opponentGamertags||['',''],
+    homeAway: g.homeAway||'home',
+    scoreFor: g.scoreFor||0,
+    scoreAgainst: g.scoreAgainst||0,
+    rageQuit: g.rageQuit||'none',
+    disconnect: !!g.disconnect,
+    motmPlayerId: g.motmPlayerId||'',
+    playerStats: (g.playerStats||[]).map(p=>({playerId:p.playerId, position:p.position||'', rating:p.rating||'', goals:p.goals||0, assists:p.assists||0})),
+    teamStats: JSON.parse(JSON.stringify(g.teamStats||{for:{}, against:{}}))
+  };
+}
+
 function renderLog(){
-  if(!logDraft) logDraft = freshDraft();
+  if(!logDraft) logDraft = editingGameId ? gameToDraft(games.find(g=>g.id===editingGameId)) : freshDraft();
+  const isEditing = !!editingGameId;
   const s = seasonById(logDraft.seasonId);
   if(!seasons.length){
     return `<div class="pagehead"><h1>Log Match</h1></div><div class="card empty">Create a season first (with a squad) under <b>Squad & Seasons</b> before logging a match.</div>`;
   }
   return `
-  <div class="pagehead"><div><h1>Log Match</h1><div class="sub">Scan the in-game screens or enter it manually — review before saving</div></div></div>
+  <div class="pagehead"><div><h1>${isEditing?'Edit Match':'Log Match'}</h1><div class="sub">${isEditing?'Update the details below and save your changes':'Scan the in-game screens or enter it manually — review before saving'}</div></div></div>
 
   <div class="card" style="margin-bottom:16px">
     <div class="row">
@@ -699,7 +717,10 @@ function renderLog(){
     <div id="teamstat-custom"></div>
   </div>
 
-  <button class="btn" id="save-match" style="width:100%; justify-content:center; padding:14px">Save match</button>
+  <div class="row" style="gap:10px">
+    ${isEditing ? `<button class="btn ghost" id="cancel-edit" style="flex:1; justify-content:center; padding:14px">Cancel</button>` : ''}
+    <button class="btn" id="save-match" style="flex:2; justify-content:center; padding:14px">${isEditing?'Save changes':'Save match'}</button>
+  </div>
   `;
 }
 
@@ -758,7 +779,9 @@ function wireLogHandlers(){
   if(seasonSel) seasonSel.addEventListener('change', (e)=>{
     logDraft.seasonId = e.target.value;
     const s = seasonById(logDraft.seasonId);
-    logDraft.playerStats = s ? (s.squadIds||[]).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [];
+    if(!editingGameId){
+      logDraft.playerStats = s ? (s.squadIds||[]).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [];
+    }
     render();
   });
   document.getElementById('add-playerstat')?.addEventListener('click', async ()=>{
@@ -777,12 +800,22 @@ function wireLogHandlers(){
     const label = prompt('Stat name (e.g. "Corners")'); if(!label) return;
     document.getElementById('teamstat-custom').insertAdjacentHTML('beforeend', teamStatLine(label));
   });
+  document.getElementById('cancel-edit')?.addEventListener('click', ()=>{
+    editingGameId = null;
+    logDraft = null;
+    setTab('history');
+  });
   document.getElementById('save-match')?.addEventListener('click', async ()=>{
     readDraftFromForm();
     if(!logDraft.seasonId){ toast('Pick a season first'); return; }
     const {seasonId, ...rest} = logDraft;
-    const existingCount = gamesFor(seasonId).length;
-    await dbAdd('games', {seasonId, ...rest, gameNumber: existingCount+1, createdAt: Date.now()});
+    if(editingGameId){
+      const orig = games.find(g=>g.id===editingGameId);
+      await dbSet('games', editingGameId, {seasonId, ...rest, gameNumber: orig?.gameNumber||1, createdAt: orig?.createdAt||Date.now()});
+    } else {
+      const existingCount = gamesFor(seasonId).length;
+      await dbAdd('games', {seasonId, ...rest, gameNumber: existingCount+1, createdAt: Date.now()});
+    }
     const s = seasonById(seasonId);
     if(s){
       const playedIds = (rest.playerStats||[]).map(p=>p.playerId).filter(Boolean);
@@ -791,7 +824,8 @@ function wireLogHandlers(){
         await dbSet('seasons', s.id, {...stripId(s), squadIds: combined});
       }
     }
-    toast('Match saved');
+    toast(editingGameId ? 'Match updated' : 'Match saved');
+    editingGameId = null;
     logDraft = null;
     setTab('history');
   });
@@ -1185,6 +1219,7 @@ function historyRow(g){
       </div>
       <div style="display:flex; align-items:center; gap:12px">
         <div class="num" style="font-size:22px">${g.scoreFor} – ${g.scoreAgainst}</div>
+        <button class="link-btn" data-edit-game="${g.id}">Edit</button>
         <button class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
       </div>
     </div>
@@ -1201,6 +1236,13 @@ function wireHistoryHandlers(){
   document.getElementById('history-filter')?.addEventListener('change', e=>{ historyFilterSeason = e.target.value; render(); });
   document.querySelectorAll('[data-del-game]').forEach(b=> b.addEventListener('click', ()=>{
     if(confirm('Delete this match permanently?')) dbDelete('games', b.dataset.delGame);
+  }));
+  document.querySelectorAll('[data-edit-game]').forEach(b=> b.addEventListener('click', ()=>{
+    const g = games.find(x=>x.id===b.dataset.editGame);
+    if(!g) return;
+    editingGameId = g.id;
+    logDraft = null;
+    setTab('log');
   }));
 }
 
