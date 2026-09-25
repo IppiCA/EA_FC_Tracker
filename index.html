@@ -393,9 +393,16 @@ function initDb(){
     }, (err)=>{
       console.error(name, 'sync error', err);
       if(err.code === 'permission-denied'){
-        const email = currentUser && currentUser.email ? ` (${currentUser.email})` : '';
-        document.getElementById('login-error').textContent = `This Google account${email} doesn't have access to this tracker.`;
-        firebase.auth().signOut();
+        // All four collection listeners can raise this; show the message once,
+        // with the account's email captured BEFORE we sign out.
+        if(!accessDeniedShown){
+          accessDeniedShown = true;
+          const u = (firebase.auth && firebase.auth().currentUser) || currentUser;
+          const email = u && u.email ? ` (${u.email})` : '';
+          const el = document.getElementById('login-error');
+          if(el) el.textContent = `This Google account${email} doesn't have access to this tracker. If that's not the allowed account, click the account picture in the top-left of the Google window and pick the right one, then try again.`;
+          firebase.auth().signOut();
+        }
         return;
       }
       document.getElementById('syncstate') && (document.getElementById('syncstate').textContent = 'sync error — check Firestore rules');
@@ -1431,10 +1438,12 @@ async function maybeSeedTeams(){
       (s.squadIds||[]).forEach(pid=>byName[k].add(pid));
     });
     for(const [name, ids] of Object.entries(byName)){
-      const tid = await dbAdd('teams', {name, playerIds:[...ids]});
-      seasons.filter(s=>!s.teamId && (s.team||'').trim()===name).forEach(s=>{
-        dbSet('seasons', s.id, {...stripId(s), teamId: tid});
-      });
+      try{
+        const tid = await dbAdd('teams', {name, playerIds:[...ids]});
+        for(const s of seasons.filter(s=>!s.teamId && (s.team||'').trim()===name)){
+          await dbSet('seasons', s.id, {...stripId(s), teamId: tid});
+        }
+      }catch(e){ console.warn('Team auto-setup skipped a step:', e); }
     }
     localStorage.setItem('teamsSeeded','1');
   }finally{ seedingTeams = false; }
@@ -1584,13 +1593,14 @@ function wireTabHandlers(){
    show a generic message and sign them out below. */
 let currentUser = null;
 let dbStarted = false;
+let accessDeniedShown = false;
 
 function initAuth(){
   firebase.auth().onAuthStateChanged(user=>{
     currentUser = user;
     document.getElementById('login-screen').style.display = user ? 'none' : 'flex';
     document.getElementById('app').style.display = user ? 'flex' : 'none';
-    if(user && !dbStarted){ dbStarted = true; initDb(); }
+    if(user && !dbStarted){ dbStarted = true; accessDeniedShown = false; initDb(); }
     if(!user){ dbStarted = false; }
   });
 }
