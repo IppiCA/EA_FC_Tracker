@@ -282,6 +282,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
     <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
     <button class="navbtn" data-tab="log"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> Squad & Seasons</button>
+    <button class="navbtn" data-tab="settings"><span class="ic">⚙</span> Settings</button>
     <button class="navbtn" data-tab="history"><span class="ic">≡</span> Match History</button>
     <div class="rail-foot">
       <span id="syncstate">connecting…</span>
@@ -298,6 +299,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
     <button data-tab="dashboard"><span class="ic">◆</span>Dashboard</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>Squad</button>
+    <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
     <button data-tab="history"><span class="ic">≡</span>History</button>
   </nav>
 </div>
@@ -327,7 +329,9 @@ const firebaseConfig = {
 /* ============================= STATE ============================= */
 let db = null;
 let players = [];   // {id, name}
-let seasons = [];   // {id, number, gameVersion, team, squadIds[], champion, perfectSeason, createdAt}
+let teams = [];     // {id, name, playerIds[]} — team sheets, managed in Settings
+let seasons = [];   // {id, number, gameVersion, team, teamId?, squadIds[], champion, perfectSeason, createdAt}
+let seedingTeams = false;
 let games = [];      // {id, seasonId, gameNumber, opponentTeam, opponentGamertags[2], homeAway, scoreFor, scoreAgainst,
                       //  rageQuit ('none'|'us'|'them'), disconnect(bool), motmPlayerId, teamStats:{for:{},against:{}},
                       //  playerStats:[{playerId,position,rating,goals,assists}], createdAt}
@@ -378,13 +382,14 @@ function initDb(){
     render();
     return;
   }
-  const col = (name, arr, sortFn) => {
+  const col = (name, arr, sortFn, after) => {
     db.collection(name).onSnapshot((snap)=>{
       arr.length = 0;
       snap.forEach(doc=>{ const data = doc.data(); if(data) arr.push({id:doc.id, ...data}); });
       if(sortFn) arr.sort(sortFn);
       document.getElementById('syncstate') && (document.getElementById('syncstate').textContent = 'synced');
       render();
+      if(after) after();
     }, (err)=>{
       console.error(name, 'sync error', err);
       if(err.code === 'permission-denied'){
@@ -397,13 +402,14 @@ function initDb(){
     });
   };
   col('players', players, (a,b)=> a.name.localeCompare(b.name));
-  col('seasons', seasons, (a,b)=> (b.number||0)-(a.number||0));
+  col('teams', teams, (a,b)=> a.name.localeCompare(b.name), maybeSeedTeams);
+  col('seasons', seasons, (a,b)=> (b.number||0)-(a.number||0), maybeSeedTeams);
   col('games', games, (a,b)=> (b.createdAt||0)-(a.createdAt||0));
 }
 
 async function dbAdd(collection, data){
   const ref = await db.collection(collection).add(data);
-  const arr = collection==='players'?players:collection==='seasons'?seasons:games;
+  const arr = collection==='players'?players:collection==='seasons'?seasons:collection==='teams'?teams:games;
   arr.push({id: ref.id, ...data}); // optimistic — the live snapshot reconciles right after
   return ref.id;
 }
@@ -458,9 +464,20 @@ async function resolveOrCreatePlayer(rawName){
   cand.sort((a,b)=>a.d-b.d);
   if(cand.length && cand[0].d<=2 && (cand.length<2 || cand[1].d>cand[0].d)) return cand[0].p.id;
   const id = await dbAdd('players', {name});
+  // A player the scanner met for the first time joins the active team's sheet automatically
+  try{
+    const s = (typeof logDraft!=='undefined' && logDraft && logDraft.seasonId) ? seasonById(logDraft.seasonId) : seasons[0];
+    const t = s && s.teamId ? teamById(s.teamId) : null;
+    if(t && !(t.playerIds||[]).includes(id)){
+      await dbSet('teams', t.id, {...stripId(t), playerIds:[...(t.playerIds||[]), id]});
+    }
+  }catch(e){}
   return id;
 }
 function seasonById(id){ return seasons.find(s=>s.id===id); }
+function teamById(id){ return teams.find(t=>t.id===id); }
+function seasonTeamName(s){ return (s && s.teamId && teamById(s.teamId)?.name) || (s && s.team) || ''; }
+function squadForSeason(s){ const t = s && s.teamId ? teamById(s.teamId) : null; return t ? (t.playerIds||[]) : (s ? (s.squadIds||[]) : []); }
 function gamesFor(seasonId){ return games.filter(g=>g.seasonId===seasonId); }
 
 function outcome(g){
@@ -515,7 +532,7 @@ function leaderboard(seasonId){
 }
 
 function bestWorstSeasons(filterTeam){
-  const list = seasons.filter(s=> !filterTeam || s.team===filterTeam).map(s=>{
+  const list = seasons.filter(s=> !filterTeam || seasonTeamName(s)===filterTeam).map(s=>{
     const r = seasonRecord(s.id);
     return {season:s, ...r, gd: r.gf-r.ga};
   }).filter(x=>x.games>0);
@@ -545,6 +562,7 @@ function render(){
   if(currentTab==='dashboard') main.innerHTML = renderDashboard();
   else if(currentTab==='log') main.innerHTML = renderLog();
   else if(currentTab==='squad') main.innerHTML = renderSquad();
+  else if(currentTab==='settings') main.innerHTML = renderSettings();
   else if(currentTab==='history') main.innerHTML = renderHistory();
   wireTabHandlers();
 }
@@ -586,7 +604,7 @@ function renderDashboard(){
   ${activeSeason ? `
   <div class="section-title" style="display:flex;align-items:center;gap:10px">
     <div class="shield"><div class="n">${activeSeason.number}</div></div>
-    <span>Current season · ${esc(activeSeason.team)} <span class="tag">${esc(activeSeason.gameVersion||'')}</span></span>
+    <span>Current season · ${esc(seasonTeamName(activeSeason))} <span class="tag">${esc(activeSeason.gameVersion||'')}</span></span>
   </div>
   ${seasonPanel(activeSeason)}
   ` : ''}
@@ -618,7 +636,7 @@ function seasonSummaryCard(entry, title, color){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="shield" style="width:38px;height:44px"><div class="n" style="font-size:16px">${s.number}</div></div>
-        <div class="num" style="font-size:20px">${esc(s.team)}</div>
+        <div class="num" style="font-size:20px">${esc(seasonTeamName(s))}</div>
       </div>
       <div class="num" style="font-size:26px;color:var(--${color})">${entry.points} pts</div>
     </div>
@@ -656,7 +674,7 @@ function freshDraft(){
     seasonId: s ? s.id : '',
     opponentTeam:'', opponentGamertags:['',''], homeAway:'home',
     scoreFor:0, scoreAgainst:0, rageQuit:'none', disconnect:false, motmPlayerId:'',
-    playerStats: s ? (s.squadIds||[]).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
+    playerStats: s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
     teamStats: {for:{}, against:{}}
   };
 }
@@ -690,7 +708,7 @@ function renderLog(){
   <div class="card" style="margin-bottom:16px">
     <div class="row">
       <div class="field"><label>Season</label>
-        <select id="f-season">${seasons.map(x=>`<option value="${x.id}" ${x.id===logDraft.seasonId?'selected':''}>#${x.number} · ${esc(x.team)} (${esc(x.gameVersion||'')})</option>`).join('')}</select>
+        <select id="f-season">${seasons.map(x=>`<option value="${x.id}" ${x.id===logDraft.seasonId?'selected':''}>#${x.number} · ${esc(seasonTeamName(x))} (${esc(x.gameVersion||'')})</option>`).join('')}</select>
       </div>
       <div class="field"><label>Opponent team</label><input type="text" id="f-opp" placeholder="e.g. Liverpool" value="${esc(logDraft.opponentTeam)}"></div>
       <div class="field"><label>Home / Away</label>
@@ -734,8 +752,8 @@ function renderLog(){
 
   <div class="section-title">Team sheet <span class="subtle">— the scanner matches names against this list · ✎ fixes a wrong name everywhere</span></div>
   <div class="card" style="margin-bottom:16px">
-    ${s && (s.squadIds||[]).length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
-      ${s.squadIds.map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rename-player="${pid}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button></span>`).join('')}
+    ${s && squadForSeason(s).length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
+      ${squadForSeason(s).map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rename-player="${pid}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button></span>`).join('')}
     </div>` : `<div class="hint">Empty for now — players appear here as you scan or add them. The scanner uses this list to fix near-miss names.</div>`}
   </div>
 
@@ -827,7 +845,7 @@ function wireLogHandlers(){
     logDraft.seasonId = e.target.value;
     const s = seasonById(logDraft.seasonId);
     if(!editingGameId){
-      logDraft.playerStats = s ? (s.squadIds||[]).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [];
+      logDraft.playerStats = s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [];
     }
     render();
   });
@@ -884,6 +902,13 @@ function wireLogHandlers(){
       const combined = Array.from(new Set([...(s.squadIds||[]), ...playedIds]));
       if(combined.length !== (s.squadIds||[]).length){
         await dbSet('seasons', s.id, {...stripId(s), squadIds: combined});
+      }
+      const t = s.teamId ? teamById(s.teamId) : null;
+      if(t){
+        const combinedT = Array.from(new Set([...(t.playerIds||[]), ...playedIds]));
+        if(combinedT.length !== (t.playerIds||[]).length){
+          await dbSet('teams', t.id, {...stripId(t), playerIds: combinedT});
+        }
       }
     }
     toast(editingGameId ? 'Match updated' : 'Match saved');
@@ -1285,7 +1310,7 @@ function seasonEditCard(s){
       <div style="display:flex; align-items:center; gap:12px">
         <div class="shield" style="width:38px;height:44px"><div class="n" style="font-size:16px">${s.number}</div></div>
         <div>
-          <div class="num" style="font-size:20px">${esc(s.team)}</div>
+          <div class="num" style="font-size:20px">${esc(seasonTeamName(s))}</div>
           <div class="subtle">${esc(s.gameVersion||'')} &nbsp;·&nbsp; ${r.games} games logged &nbsp;·&nbsp; ${r.w}W ${r.d}D ${r.l}L</div>
         </div>
       </div>
@@ -1295,13 +1320,13 @@ function seasonEditCard(s){
         <button class="link-btn" data-del-season="${s.id}" style="color:var(--red)">Delete</button>
       </div>
     </div>
-    <div class="section-title" style="margin:16px 0 8px">Squad (${(s.squadIds||[]).length})</div>
+    <div class="section-title" style="margin:16px 0 8px">Squad (${squadForSeason(s).length})${s.teamId ? ' <span class="subtle">— team sheet, shared with Settings</span>' : ''}</div>
     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px">
-      ${(s.squadIds||[]).map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rm-squad="${s.id}|${pid}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('') || `<span class="subtle">Empty — add players below</span>`}
+      ${squadForSeason(s).map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rm-squad="${s.id}|${pid}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('') || `<span class="subtle">Empty — add players below</span>`}
     </div>
     <div class="row" style="align-items:flex-end">
       <div class="field" style="margin-bottom:0"><label>Add to squad</label>
-        <select data-squad-add="${s.id}"><option value="">Choose player…</option>${players.filter(p=>!(s.squadIds||[]).includes(p.id)).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+        <select data-squad-add="${s.id}"><option value="">Choose player…</option>${players.filter(p=>!squadForSeason(s).includes(p.id)).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
       </div>
     </div>
   </div>`;
@@ -1331,13 +1356,17 @@ function wireSquadHandlers(){
   }));
   document.querySelectorAll('[data-rm-squad]').forEach(b=> b.addEventListener('click', ()=>{
     const [sid,pid] = b.dataset.rmSquad.split('|');
-    const s = seasonById(sid);
-    dbSet('seasons', sid, {...stripId(s), squadIds:(s.squadIds||[]).filter(x=>x!==pid)});
+    const s = seasonById(sid); if(!s) return;
+    const t = s.teamId ? teamById(s.teamId) : null;
+    if(t){ dbSet('teams', t.id, {...stripId(t), playerIds:(t.playerIds||[]).filter(x=>x!==pid)}); }
+    else { dbSet('seasons', sid, {...stripId(s), squadIds:(s.squadIds||[]).filter(x=>x!==pid)}); }
   }));
   document.querySelectorAll('[data-squad-add]').forEach(sel=> sel.addEventListener('change', ()=>{
     const sid = sel.dataset.squadAdd; const pid = sel.value; if(!pid) return;
-    const s = seasonById(sid);
-    dbSet('seasons', sid, {...stripId(s), squadIds:[...(s.squadIds||[]), pid]});
+    const s = seasonById(sid); if(!s) return;
+    const t = s.teamId ? teamById(s.teamId) : null;
+    if(t){ dbSet('teams', t.id, {...stripId(t), playerIds:[...(t.playerIds||[]), pid]}); }
+    else { dbSet('seasons', sid, {...stripId(s), squadIds:[...(s.squadIds||[]), pid]}); }
   }));
 }
 function stripId(obj){ const {id, ...rest} = obj; return rest; }
@@ -1351,7 +1380,10 @@ function openNewSeasonModal(){
       <div class="field"><label>Season number</label><input type="number" id="ns-num" value="${nextNum}"></div>
       <div class="field"><label>Game version</label><input type="text" id="ns-ver" placeholder="FC26" value="${seasons[0]?.gameVersion||'FC26'}"></div>
     </div>
-    <div class="field"><label>Team</label><input type="text" id="ns-team" placeholder="Real Madrid" value="${esc(lastTeam)}"></div>
+    <div class="field"><label>Team</label>
+      ${teams.length ? `<select id="ns-team">${teams.map(t=>`<option value="${t.id}" ${t.id===(seasons[0]?.teamId||'')?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`
+      : `<input type="text" id="ns-team" placeholder="Real Madrid" value="${esc(lastTeam)}">`}
+    </div>
     <div class="field"><label>Carry squad over from last season?</label>
       <select id="ns-carry"><option value="1">Yes — copy squad from #${seasons[0]?.number||'-'}</option><option value="0">No — start empty</option></select>
     </div>
@@ -1363,16 +1395,117 @@ function openNewSeasonModal(){
   document.getElementById('ns-save').addEventListener('click', async ()=>{
     const number = Number(document.getElementById('ns-num').value||1);
     const gameVersion = document.getElementById('ns-ver').value.trim();
-    const team = document.getElementById('ns-team').value.trim();
+    const teamEl = document.getElementById('ns-team');
+    let teamId = '', teamName = '';
+    if(teamEl.tagName==='SELECT'){
+      teamId = teamEl.value; teamName = (teamById(teamId)||{}).name || lastTeam;
+    } else {
+      teamName = teamEl.value.trim();
+      if(!teamName){ toast('Enter a team name'); return; }
+      const existing = teams.find(t=>t.name.toLowerCase()===teamName.toLowerCase());
+      teamId = existing ? existing.id : await dbAdd('teams', {name:teamName, playerIds:[]});
+    }
     const carry = document.getElementById('ns-carry').value==='1';
-    if(!team){ toast('Enter a team name'); return; }
-    const squadIds = carry && seasons[0] ? [...(seasons[0].squadIds||[])] : [];
-    await dbAdd('seasons', {number, gameVersion, team, squadIds, champion:false, perfectSeason:false, createdAt:Date.now()});
+    const squadIds = carry && seasons[0] ? [...squadForSeason(seasons[0])] : [];
+    await dbAdd('seasons', {number, gameVersion, team: teamName, teamId, squadIds, champion:false, perfectSeason:false, createdAt:Date.now()});
     closeModal();
     toast('Season created');
   });
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+/* ============================= SETTINGS (TEAMS) ============================= */
+/* One-time migration: create a team sheet from the seasons that already exist, so
+   nothing is lost when the Teams feature lands. */
+async function maybeSeedTeams(){
+  if(seedingTeams || localStorage.getItem('teamsSeeded')) return;
+  if(teams.length && seasons.length) return;          // already have teams
+  if(!seasons.length) return;                          // wait for seasons to load
+  seedingTeams = true;
+  try{
+    const byName = {};
+    seasons.forEach(s=>{
+      if(s.teamId) return;
+      const k = (s.team||'').trim(); if(!k) return;
+      byName[k] = byName[k] || new Set();
+      (s.squadIds||[]).forEach(pid=>byName[k].add(pid));
+    });
+    for(const [name, ids] of Object.entries(byName)){
+      const tid = await dbAdd('teams', {name, playerIds:[...ids]});
+      seasons.filter(s=>!s.teamId && (s.team||'').trim()===name).forEach(s=>{
+        dbSet('seasons', s.id, {...stripId(s), teamId: tid});
+      });
+    }
+    localStorage.setItem('teamsSeeded','1');
+  }finally{ seedingTeams = false; }
+}
+
+function renderSettings(){
+  return `
+  <div class="pagehead"><div><h1>Settings</h1><div class="sub">Teams, sheets and app preferences</div></div></div>
+
+  <div class="section-title">Team Sheets <span class="subtle">— each team has its own player sheet; the scanner matches names against the sheet of the team you pick</span></div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="row" style="align-items:flex-end">
+      <div class="field" style="margin-bottom:0"><label>New team name</label><input type="text" id="new-team-name" placeholder="e.g. Liverpool"></div>
+      <button class="btn small" id="add-team-btn" style="flex:0 0 auto">Add team</button>
+    </div>
+    <div class="hint">The player pool is shared — a team's sheet decides who belongs to it. Teams you add show up in the Season dropdown when you create a season.</div>
+  </div>
+  ${teams.length ? teams.map(teamCard).join('') : `<div class="card empty">No teams yet — add one above (existing seasons create their team automatically).</div>`}
+  `;
+}
+function teamCard(t){
+  const missing = players.filter(p=>!(t.playerIds||[]).includes(p.id));
+  return `<div class="card" style="margin-bottom:14px">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
+      <div class="num" style="font-size:19px">${esc(t.name)} <span class="subtle">(${(t.playerIds||[]).length} players)</span></div>
+      <div style="display:flex; gap:8px; align-items:center">
+        <button class="link-btn" data-rename-team="${t.id}">✎ Rename team</button>
+        <button class="link-btn" data-del-team="${t.id}" style="color:var(--red)">Delete</button>
+      </div>
+    </div>
+    <div class="section-title" style="margin:14px 0 8px">Sheet</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px">
+      ${(t.playerIds||[]).map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rename-player="${pid}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button> <button data-rm-team="${t.id}|${pid}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('') || `<span class="subtle">Empty — add players below</span>`}
+    </div>
+    ${missing.length ? `<div class="row" style="align-items:flex-end">
+      <div class="field" style="margin-bottom:0"><label>Add to ${esc(t.name)}</label>
+        <select data-team-add="${t.id}"><option value="">Choose player…</option>${missing.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+function wireSettingsHandlers(){
+  document.getElementById('add-team-btn')?.addEventListener('click', async ()=>{
+    const inp = document.getElementById('new-team-name');
+    const name = inp.value.trim(); if(!name){ toast('Enter a team name'); return; }
+    await dbAdd('teams', {name, playerIds:[]});
+    inp.value='';
+  });
+  document.getElementById('new-team-name')?.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('add-team-btn').click(); });
+  document.querySelectorAll('[data-rename-team]').forEach(b=> b.addEventListener('click', async ()=>{
+    const t = teamById(b.dataset.renameTeam); if(!t) return;
+    const name = (prompt(`Rename team "${t.name}":`, t.name)||'').trim();
+    if(!name || name===t.name) return;
+    await dbSet('teams', t.id, {name, playerIds:t.playerIds||[]});
+  }));
+  document.querySelectorAll('[data-del-team]').forEach(b=> b.addEventListener('click', ()=>{
+    const t = teamById(b.dataset.delTeam); if(!t) return;
+    if(confirm(`Delete team "${t.name}"? Seasons using it keep their own squad lists.`)) dbDelete('teams', b.dataset.delTeam);
+  }));
+  document.querySelectorAll('[data-rm-team]').forEach(b=> b.addEventListener('click', ()=>{
+    const [tid,pid] = b.dataset.rmTeam.split('|');
+    const t = teamById(tid); if(!t) return;
+    dbSet('teams', tid, {...stripId(t), playerIds:(t.playerIds||[]).filter(x=>x!==pid)});
+  }));
+  document.querySelectorAll('[data-team-add]').forEach(sel=> sel.addEventListener('change', ()=>{
+    const tid = sel.dataset.teamAdd; const pid = sel.value; if(!pid) return;
+    const t = teamById(tid); if(!t) return;
+    dbSet('teams', tid, {...stripId(t), playerIds:[...(t.playerIds||[]), pid]});
+  }));
+  document.querySelectorAll('[data-rename-player]').forEach(b=> b.addEventListener('click', ()=> renamePlayer(b.dataset.renamePlayer)));
+}
 
 /* ============================= HISTORY ============================= */
 let historyFilterSeason = '';
@@ -1382,7 +1515,7 @@ function renderHistory(){
   <div class="pagehead"><div><h1>Match History</h1><div class="sub">${games.length} matches logged</div></div>
     <select id="history-filter">
       <option value="">All seasons</option>
-      ${seasons.map(s=>`<option value="${s.id}" ${historyFilterSeason===s.id?'selected':''}>#${s.number} · ${esc(s.team)}</option>`).join('')}
+      ${seasons.map(s=>`<option value="${s.id}" ${historyFilterSeason===s.id?'selected':''}>#${s.number} · ${esc(seasonTeamName(s))}</option>`).join('')}
     </select>
   </div>
   ${filtered.length ? filtered.map(g=>historyRow(g)).join('') : `<div class="card empty">No matches ${historyFilterSeason?'in this season':'logged'} yet.</div>`}
@@ -1440,6 +1573,7 @@ function wireHistoryHandlers(){
 function wireTabHandlers(){
   if(currentTab==='log') wireLogHandlers();
   if(currentTab==='squad') wireSquadHandlers();
+  if(currentTab==='settings') wireSettingsHandlers();
   if(currentTab==='history') wireHistoryHandlers();
 }
 
