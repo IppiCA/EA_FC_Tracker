@@ -54,7 +54,9 @@ The app has a login screen that uses "Sign in with Google" — no separate passw
    }
    ```
 
-**Your repo is public, so nothing with your real emails in it belongs there.** This is why the app's code doesn't contain an email list at all — the rule above, which lives only in your private Firebase console (never pushed to GitHub), is the one and only place those addresses need to exist. If someone signs in with a Google account that isn't on that list, Firestore itself refuses to hand over any data, and the app shows a generic "this account doesn't have access" message and signs them back out.
+⚠️ **Rule must cover every data table the app uses.** The current app reads/writes four Firestore collections: `players`, `seasons`, `games`, and `teams`. If your rules list collections explicitly (like `match /players/{id} …`), a new collection appears broken the moment the app starts using it — the app signs you out and shows "access denied", even though your account is fine. Either add a `match /<collection>/{id} { allow read, write: if allowed(); }` line for any new table, or use the wildcard `match /{document=**}` version above, which covers everything automatically.
+
+**Your repo is public, so nothing with your real emails in it belongs there.** This is why the app's code doesn't contain an email list at all — the rule above, which lives only in your private Firebase console (never pushed to GitHub), is the one and only place those addresses need to exist. If a request is refused — either because the signed-in account isn't on the list, or because a data table is missing from the rules above — the app shows an "access denied" message (with the signed-in email) and signs them back out.
 
 ## 4. Firestore security rules (superseded by step 3)
 

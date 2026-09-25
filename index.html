@@ -400,7 +400,7 @@ function initDb(){
           const u = (firebase.auth && firebase.auth().currentUser) || currentUser;
           const email = u && u.email ? ` (${u.email})` : '';
           const el = document.getElementById('login-error');
-          if(el) el.textContent = `This Google account${email} doesn't have access to this tracker. If that's not the allowed account, click the account picture in the top-left of the Google window and pick the right one, then try again.`;
+          if(el) el.textContent = `Access was denied for this Google account${email}. Either the account isn't on the allowed list (pick the right one via the account picture in the top-left of the Google window), or the Firestore rules don't cover a data table this version of the app uses — in that case update the rules in Firebase Console → Firestore → Rules, then sign in again.`;
           firebase.auth().signOut();
         }
         return;
