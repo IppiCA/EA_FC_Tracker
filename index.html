@@ -485,6 +485,14 @@ function seasonById(id){ return seasons.find(s=>s.id===id); }
 function teamById(id){ return teams.find(t=>t.id===id); }
 function seasonTeamName(s){ return (s && s.teamId && teamById(s.teamId)?.name) || (s && s.team) || ''; }
 function squadForSeason(s){ const t = s && s.teamId ? teamById(s.teamId) : null; return t ? (t.playerIds||[]) : (s ? (s.squadIds||[]) : []); }
+/* A player counts for exactly ONE team: the add-player dropdowns only offer players
+   that are not on any team sheet (or legacy season squad). */
+function freePlayers(){
+  const taken = new Set();
+  teams.forEach(t=>(t.playerIds||[]).forEach(id=>taken.add(id)));
+  seasons.forEach(s=>{ if(!s.teamId) (s.squadIds||[]).forEach(id=>taken.add(id)); });
+  return players.filter(p=>!taken.has(p.id));
+}
 function gamesFor(seasonId){ return games.filter(g=>g.seasonId===seasonId); }
 
 function outcome(g){
@@ -1605,7 +1613,8 @@ function seasonEditCard(s){
     </div>
     <div class="row" style="align-items:flex-end">
       <div class="field" style="margin-bottom:0"><label>Add to squad</label>
-        <select data-squad-add="${s.id}"><option value="">Choose player…</option>${players.filter(p=>!squadForSeason(s).includes(p.id)).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+        <select data-squad-add="${s.id}"><option value="">Choose player…</option>${freePlayers().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+        ${!freePlayers().length ? `<div class="hint">Every player is already on a team sheet — a player can only count for one team.</div>` : ''}
       </div>
     </div>
   </div>`;
@@ -1731,13 +1740,13 @@ function renderSettings(){
       <div class="field" style="margin-bottom:0"><label>New team name</label><input type="text" id="new-team-name" placeholder="e.g. Liverpool"></div>
       <button class="btn small" id="add-team-btn" style="flex:0 0 auto">Add team</button>
     </div>
-    <div class="hint">The player pool is shared — a team's sheet decides who belongs to it. Teams you add show up in the Season dropdown when you create a season.</div>
+    <div class="hint">The player pool is shared, but a player can only count for ONE team — each team's sheet decides who belongs to it. Teams you add show up in the Season dropdown when you create a season.</div>
   </div>
   ${teams.length ? teams.map(teamCard).join('') : `<div class="card empty">No teams yet — add one above (existing seasons create their team automatically).</div>`}
   `;
 }
 function teamCard(t){
-  const missing = players.filter(p=>!(t.playerIds||[]).includes(p.id));
+  const missing = freePlayers();  // players not on ANY team's sheet — one player, one team
   return `<div class="card" style="margin-bottom:14px">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
       <div class="num" style="font-size:19px">${esc(t.name)} <span class="subtle">(${(t.playerIds||[]).length} players)</span></div>
@@ -1754,7 +1763,7 @@ function teamCard(t){
       <div class="field" style="margin-bottom:0"><label>Add to ${esc(t.name)}</label>
         <select data-team-add="${t.id}"><option value="">Choose player…</option>${missing.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
       </div>
-    </div>` : ''}
+    </div>` : `<div class="hint">Every player is already on a team sheet — a player can only count for one team. Add a new player in Squad &amp; Seasons to assign them here.</div>`}
   </div>`;
 }
 function wireSettingsHandlers(){
