@@ -196,6 +196,15 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .ocr-row .ren{background:none;border:none;color:var(--gold);font-size:14px;padding:2px 4px}
 .ocr-row .ren:hover{color:var(--ink)}
 .ocr-row input[type=checkbox]{width:16px;height:16px;margin:0;justify-self:center;accent-color:var(--turf)}
+/* Column tints (light, so the numbers keep their contrast) + stronger fill when a
+   cell holds a real value — played players light up, ones who sat out stay plain. */
+.ocr-row input[data-f=rating]{background:rgba(60,255,154,.08); border-color:rgba(60,255,154,.30)}
+.ocr-row input[data-f=goals]{background:rgba(45,212,191,.09); border-color:rgba(45,212,191,.32)}
+.ocr-row input[data-f=assists]{background:rgba(139,108,255,.10); border-color:rgba(139,108,255,.34)}
+.ocr-row input.hasval{font-weight:600}
+.ocr-row input[data-f=rating].hasval{background:rgba(60,255,154,.22)}
+.ocr-row input[data-f=goals].hasval{background:rgba(45,212,191,.24)}
+.ocr-row input[data-f=assists].hasval{background:rgba(139,108,255,.26)}
 .ocr-head{display:grid; grid-template-columns:64px minmax(0,1fr) 54px 42px 42px 30px 24px 28px; gap:6px; font-size:10.5px; color:var(--ink-faint); margin-bottom:4px; padding:0 2px}
 .statline{display:grid; grid-template-columns:60px 1fr 60px; gap:8px; align-items:center; margin-bottom:6px; font-size:13px}
 .statline input{text-align:center}
@@ -717,7 +726,7 @@ function renderLog(){
       <div id="scan-players-progress"></div>
     </div>
     <div style="margin-top:14px" class="tablewrap">
-      <div class="ocr-head"><span>Pos</span><span>Player</span><span>Rating</span><span>Goals</span><span>Ast</span><span style="text-align:center">MOTM</span><span></span><span></span></div>
+      <div class="ocr-head"><span>Pos</span><span>Player</span><span style="color:#22C97A">Rating</span><span style="color:#14B8A6">Goals</span><span style="color:#8B6CFF">Ast</span><span style="text-align:center">MOTM</span><span></span><span></span></div>
       <div id="playerstat-rows">${(logDraft.playerStats||[]).map((ps,i)=>playerStatRow(ps,i)).join('')}</div>
       <button class="btn ghost small" id="add-playerstat" style="margin-top:6px">+ Add player to this game</button>
     </div>
@@ -753,13 +762,23 @@ function playerStatRow(ps, i){
   return `<div class="ocr-row" data-idx="${i}">
     <input type="text" data-f="position" value="${esc(ps.position||'')}" placeholder="POS">
     <select data-f="playerId">${players.map(p=>`<option value="${p.id}" ${p.id===ps.playerId?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
-    <input type="text" data-f="rating" value="${esc(ps.rating)}" placeholder="7.4">
+    <input type="text" data-f="rating" value="${esc(ps.rating)}" placeholder="N/A">
     <input type="number" data-f="goals" value="${ps.goals||0}">
     <input type="number" data-f="assists" value="${ps.assists||0}">
     <input type="checkbox" data-f="motm" title="Man of the Match" ${logDraft.motmPlayerId===ps.playerId?'checked':''}>
     <button class="ren" data-rename="${i}" title="Rename this player everywhere">✎</button>
     <button class="del" data-remove="${i}" title="Remove this row">×</button>
   </div>`;
+}
+/* Highlight cells that hold a real value (rating entered, or goals/assists > 0),
+   so played vs. sat-out players are instantly visible. */
+function paintStatHighlights(){
+  document.querySelectorAll('#playerstat-rows .ocr-row').forEach(row=>{
+    const r=row.querySelector('[data-f=rating]'), g=row.querySelector('[data-f=goals]'), a=row.querySelector('[data-f=assists]');
+    if(r) r.classList.toggle('hasval', r.value.trim()!=='');
+    if(g) g.classList.toggle('hasval', Number(g.value)>0);
+    if(a) a.classList.toggle('hasval', Number(a.value)>0);
+  });
 }
 function teamStatLine(label, forVal, againstVal){
   const key = label.toLowerCase().replace(/[^a-z0-9]+/g,'_');
@@ -837,6 +856,8 @@ function wireLogHandlers(){
     readDraftFromForm();
   });
   document.querySelectorAll('[data-rename-player]').forEach(b=> b.addEventListener('click', ()=> renamePlayer(b.dataset.renamePlayer)));
+  paintStatHighlights();
+  document.getElementById('playerstat-rows')?.addEventListener('input', paintStatHighlights);
   document.getElementById('add-teamstat')?.addEventListener('click', ()=>{
     const label = prompt('Stat name (e.g. "Corners")'); if(!label) return;
     document.getElementById('teamstat-custom').insertAdjacentHTML('beforeend', teamStatLine(label));
