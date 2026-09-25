@@ -771,6 +771,7 @@ function renderLog(){
       <div style="margin-top:6px; font-size:12px">Both columns are read, and filed as us-vs-them according to your Home/Away pick above (home = left column)</div>
       <div style="margin-top:10px"><input type="file" id="scan-team-input" accept="image/*">&nbsp;<span class="hint" style="display:inline">or choose a file</span></div>
       <div id="scan-team-progress"></div>
+      <div style="margin-top:6px; font-size:10px; opacity:.45">scanner ${SCAN_BUILD}</div>
     </div>
     <div style="margin-top:14px" id="teamstat-rows">${STAT_LABELS.map(l=>teamStatLine(l)).join('')}</div>
     <button class="btn ghost small" id="add-teamstat" style="margin-top:4px">+ Add custom stat</button>
@@ -932,6 +933,9 @@ function wireLogHandlers(){
 /* ---- Scanning, via Tesseract.js OCR (works normally here — no restrictive CSP on GitHub Pages) ---- */
 let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
+/* Bump on every scanner change — shown in the scan box so we can tell which build a
+   browser is actually running (browsers cache this page aggressively). */
+const SCAN_BUILD = 'v3';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1466,7 +1470,7 @@ async function scanTeamImage(files, progId){
     const labels = Array.from(new Set([...Object.keys(left), ...Object.keys(right)]));
     if(!labels.length){
       const totalWords = results.reduce((s,d)=> s + (d._procWords||flattenWords(d).length), 0);
-      prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized (OCR read ${totalWords} word(s)) — check image clarity or enter manually.</div>`;
+      prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized (OCR read ${totalWords} word(s)) [build ${SCAN_BUILD}] — check image clarity or enter manually.</div>`;
       return;
     }
     // Home team is always the LEFT column in the game → map to us/them via Home/Away.
@@ -1489,7 +1493,7 @@ async function scanTeamImage(files, progId){
     prog.innerHTML = `<div class="hint" style="color:var(--turf)">Scan complete — ${filled} stat(s) filled in. Review the numbers, then save.</div>`;
   }catch(err){
     const timedOut = /timed out/.test(err.message||'');
-    prog.innerHTML = `<div class="hint" style="color:var(--red)">${timedOut ? "This is taking too long — check your connection." : `Couldn't read that image automatically (${esc(err.message||'scan failed')}).`} Just type the values in below for now.</div>`;
+    prog.innerHTML = `<div class="hint" style="color:var(--red)">${timedOut ? "This is taking too long — check your connection." : `Couldn't read that image automatically (${esc(err.message||'scan failed')}) [build ${SCAN_BUILD}].`} Just type the values in below for now.</div>`;
   }
 }
 
