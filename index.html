@@ -404,13 +404,18 @@ async function dbDelete(collection, id){
 
 /* ============================= DERIVED / COMPUTE ============================= */
 function playerName(id){ const p = players.find(p=>p.id===id); return p ? p.name : '—'; }
-function normalizeName(n){ return n.toLowerCase().replace(/^[a-z]\.\s*/,'').trim(); }
+function normalizeName(n){ return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^[a-z]\.\s*/,'').trim(); }
 async function resolveOrCreatePlayer(rawName){
   const name = rawName.trim();
   const norm = normalizeName(name);
+  // OCR frequently confuses l/I ("A.lsak" vs "A.Isak") — fold them together for comparison only
+  const fold = s => s.replace(/\s+/g,'').replace(/l/g,'i');
+  const pnorm = p => normalizeName(p.name);
   const existing = players.find(p=>{
     const pn = p.name.toLowerCase();
-    return pn===name.toLowerCase() || normalizeName(pn)===norm || pn.endsWith(norm) || norm.endsWith(normalizeName(pn));
+    return pn===name.toLowerCase() || pnorm(p)===norm || pn.endsWith(norm) || norm.endsWith(pnorm(p))
+      || pnorm(p).replace(/\s+/g,'')===norm.replace(/\s+/g,'') // OCR may drop/double spaces
+      || fold(pnorm(p))===fold(norm);
   });
   if(existing) return existing.id;
   const id = await dbAdd('players', {name});
@@ -948,9 +953,9 @@ function clusterRows(words){
    Anchoring on the header lets us decide which number sits in which column — this kills the
    "7.1 misread as 71 and filed under Goals" class of errors. */
 function findColumnAnchors(rows){
+  // The POS/Name labels get garbled by OCR ("a A on …") but the RR / G / AST column
+  // headers read reliably — anchor on those three, which is all the parser needs.
   for(const row of rows){
-    const lows = row.words.map(w=>w.text.toLowerCase());
-    if(!lows.some(t=>/pos/.test(t)) || !lows.some(t=>/name/.test(t))) continue;
     const a = {};
     row.words.forEach(w=>{
       const t = w.text.toLowerCase().replace(/[^a-z]/g,'');
@@ -961,7 +966,7 @@ function findColumnAnchors(rows){
       else if(t==='g' && a.g==null) a.g = cx;
       else if(t==='ast' && a.ast==null) a.ast = cx;
     });
-    if(a.name!=null && a.g!=null && a.ast!=null){ a.headerCy = row.cy; return a; }
+    if(a.rr!=null && a.g!=null && a.ast!=null){ a.headerCy = row.cy; return a; }
   }
   return null;
 }
@@ -971,9 +976,18 @@ function findColumnAnchors(rows){
    number that lands in the wrong column (or is too big for a single match) is dropped instead
    of misfiled. Without anchors we fall back to the old right-to-left heuristic. */
 function parsePlayerRow(rowWords, anchors){
-  const toks = rowWords.map(w=>({text:w.text.trim(), cx:(w.bbox.x0+w.bbox.x1)/2})).filter(t=>t.text);
+  // Tesseract spits out junk like "0)", "o", "oO", "(0" around digits — strip the junk
+  // (keeping letters, digits, . - ' / and accented characters) before pattern matching.
+  const keep = ch => /[A-Za-z0-9.\/'-\u00C0-\u017F]/.test(ch);
+  const clean = s => {
+    let i=0, j=s.length-1;
+    while(i<j && !keep(s[i])) i++;
+    while(j>i && !keep(s[j])) j--;
+    return s.slice(i, j+1).trim();
+  };
+  const toks = rowWords.map(w=>({text:clean(w.text), cx:(w.bbox.x0+w.bbox.x1)/2})).filter(t=>t.text);
   if(toks.length < 3) return null;
-  const isInt = t=>/^\d{1,3}$/.test(t);
+  const isInt = t=>/^\d{1,3}$/.test(t) || /^[oO]$/.test(t);   // "O" is a misread zero
   const isRate = t=>/^\d{1,2}[.,]\d$/.test(t) || /^n\/?a$/i.test(t);
   const col = t=>{
     if(!anchors) return null;
@@ -990,7 +1004,7 @@ function parsePlayerRow(rowWords, anchors){
       const c = col(t);
       if(c==='ast' && isInt(t.text) && assistsIdx===-1) assistsIdx=i;
       else if(c==='g' && isInt(t.text) && goalsIdx===-1) goalsIdx=i;
-      else if(c==='rr' && isRate(t.text) && ratingIdx===-1) ratingIdx=i;
+      else if(c==='rr' && (isRate(t.text) || /^\d{3}$/.test(t.text)) && ratingIdx===-1) ratingIdx=i;
     });
     if(goalsIdx===-1 && assistsIdx===-1 && ratingIdx===-1) return null;
   } else {
@@ -1001,11 +1015,11 @@ function parsePlayerRow(rowWords, anchors){
       }
     }
     if(goalsIdx===-1 || assistsIdx===-1 || goalsIdx>=assistsIdx) return null;
-    if(goalsIdx-1>=0 && isRate(toks[goalsIdx-1].text)) ratingIdx = goalsIdx-1;
+    if(goalsIdx-1>=0 && (isRate(toks[goalsIdx-1].text) || /^\d{3}$/.test(toks[goalsIdx-1].text))) ratingIdx = goalsIdx-1;
   }
   const idxs = [ratingIdx, goalsIdx, assistsIdx].filter(i=>i!==-1);
   const nameEnd = idxs.length ? Math.min(...idxs) : toks.length;
-  let nameTokens = toks.slice(0, nameEnd);
+  let nameTokens = toks.slice(0, nameEnd).filter(t=>!/^[oO]$/.test(t.text)); // lone "O" is a misread zero, never a name
   let position = '';
   if(nameTokens.length>1 && /^[A-Z]{2,4}$/.test(nameTokens[0].text)){
     position = nameTokens[0].text.replace(/[^A-Za-z]/g,'');
@@ -1013,13 +1027,18 @@ function parsePlayerRow(rowWords, anchors){
   }
   const name = nameTokens.map(t=>t.text).join(' ')
     .replace(/[^A-Za-z.'\-\u00C0-\u017F ]/g,'').replace(/\s+/g,' ').trim();
-  if(!name || /^\d/.test(name) || /^(pos|name|rr|g|ast|player|performance)$/i.test(name)) return null;
-  let goals = goalsIdx!==-1 ? Number(toks[goalsIdx].text) : 0;
-  let assists = assistsIdx!==-1 ? Number(toks[assistsIdx].text) : 0;
+  if(!name || /^\d/.test(name) || /\d/.test(name) || /^(pos|name|rr|g|ast|player|performance)$/i.test(name)) return null;
+  const val = i => i===-1 ? 0 : (toks[i].text==='O' || toks[i].text==='o' ? 0 : Number(toks[i].text));
+  let goals = val(goalsIdx);
+  let assists = val(assistsIdx);
   if(goals>30) goals=0;     // impossible in one match → misread number, drop it
   if(assists>30) assists=0;
   let rating = '';
-  if(ratingIdx!==-1 && /^\d{1,2}[.,]\d$/.test(toks[ratingIdx].text)) rating = toks[ratingIdx].text.replace(',','.');
+  if(ratingIdx!==-1){
+    const rt = toks[ratingIdx].text;
+    if(/^\d{1,2}[.,]\d$/.test(rt)) rating = rt.replace(',','.');
+    else if(/^\d{3}$/.test(rt)){ const v = Number(rt)/10; if(v>=1 && v<=10) rating = v.toFixed(1); } // "100" → 10.0
+  }
   return {position, name, rating, goals, assists};
 }
 
@@ -1063,7 +1082,8 @@ async function scanPlayerImages(files, progId){
       });
     });
     if(!found.length){
-      prog.innerHTML = `<div class="hint" style="color:var(--red)">No player rows recognized — check image clarity or enter manually.</div>`;
+      let totalWords=0; results.forEach(d=> totalWords += flattenWords(d).length);
+      prog.innerHTML = `<div class="hint" style="color:var(--red)">No player rows recognized (OCR read ${totalWords} word(s)) — try re-pasting a sharper screenshot or enter manually.</div>`;
       return;
     }
     readDraftFromForm();
