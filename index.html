@@ -849,6 +849,45 @@ function withTimeout(promise, ms, label){
   return Promise.race([promise.finally(()=>clearTimeout(t)), timeout]);
 }
 
+/* Preprocess the screenshot before OCR. Tesseract is far more accurate on crisp dark-on-light
+   text, so: upscale, grayscale, contrast-stretch (2nd–98th percentile), and invert when the
+   screenshot is mostly dark (the game UI is). Falls back to the raw file if anything fails. */
+async function preprocessForOcr(file){
+  try{
+    const bmp = await createImageBitmap(file);
+    const scale = Math.max(1, Math.min(2.2, 1800/bmp.width));
+    const w = Math.round(bmp.width*scale), h = Math.round(bmp.height*scale);
+    const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(bmp, 0, 0, w, h);
+    const img = ctx.getImageData(0,0,w,h);
+    const d = img.data, n = w*h;
+    const gray = new Float32Array(n);
+    let mean = 0;
+    for(let i=0;i<n;i++){
+      const v = (d[i*4]*299 + d[i*4+1]*587 + d[i*4+2]*114)/10;
+      gray[i] = v; mean += v;
+    }
+    const invert = mean/n < 128; // mostly-dark UI screenshot → flip to dark text on light bg
+    const hist = new Uint32Array(256);
+    for(let i=0;i<n;i++) hist[gray[i]<0?0:(gray[i]>255?255:gray[i]|0)]++;
+    let lo=0, hi=255, acc=0;
+    for(let i=0;i<256;i++){ acc+=hist[i]; if(acc>n*0.02){ lo=i; break; } }
+    acc=0;
+    for(let i=255;i>=0;i--){ acc+=hist[i]; if(acc>n*0.02){ hi=i; break; } }
+    const range = Math.max(1, hi-lo);
+    for(let i=0;i<n;i++){
+      let v = (gray[i]-lo)/range*255;
+      if(invert) v = 255-v;
+      v = v<0?0:(v>255?255:v);
+      d[i*4]=d[i*4+1]=d[i*4+2]=v; d[i*4+3]=255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return await new Promise(res=> cv.toBlob(b=>res(b||file), 'image/png'));
+  }catch(e){ return file; }
+}
+
 /* Returns one `data` result (with .blocks word-position tree) per image — NOT concatenated text,
    because reconstructing table rows needs each word's actual pixel position, not Tesseract's own
    line-breaking (which falls apart on UIs with big gaps between columns like this one). */
@@ -858,7 +897,8 @@ async function ocrReadFiles(files, progId){
   const worker = await withTimeout(getOcrWorker(), 45000, 'Loading the OCR engine');
   const results = [];
   for(let i=0;i<files.length;i++){
-    const {data} = await withTimeout(worker.recognize(files[i]), 45000, 'Reading the image');
+    const src = await preprocessForOcr(files[i]);
+    const {data} = await withTimeout(worker.recognize(src), 45000, 'Reading the image');
     results.push(data);
   }
   ocrLoggerTarget = null;
@@ -904,36 +944,82 @@ function clusterRows(words){
   return rows;
 }
 
-/* A player-performance row is: [optional POS] Name (one or more words) [Rating|N/A] Goals Assists */
-function parsePlayerRow(rowWords){
-  const toks = rowWords.map(w=>w.text).filter(Boolean);
+/* Find the table header row (POS / Name / RR / G / AST) and record each column's x-center.
+   Anchoring on the header lets us decide which number sits in which column — this kills the
+   "7.1 misread as 71 and filed under Goals" class of errors. */
+function findColumnAnchors(rows){
+  for(const row of rows){
+    const lows = row.words.map(w=>w.text.toLowerCase());
+    if(!lows.some(t=>/pos/.test(t)) || !lows.some(t=>/name/.test(t))) continue;
+    const a = {};
+    row.words.forEach(w=>{
+      const t = w.text.toLowerCase().replace(/[^a-z]/g,'');
+      const cx = (w.bbox.x0+w.bbox.x1)/2;
+      if(t==='pos' && a.pos==null) a.pos = cx;
+      else if(t==='name' && a.name==null) a.name = cx;
+      else if(t==='rr' && a.rr==null) a.rr = cx;
+      else if(t==='g' && a.g==null) a.g = cx;
+      else if(t==='ast' && a.ast==null) a.ast = cx;
+    });
+    if(a.name!=null && a.g!=null && a.ast!=null){ a.headerCy = row.cy; return a; }
+  }
+  return null;
+}
+
+/* A player-performance row is: [optional POS] Name (one or more words) [Rating|N/A] Goals Assists.
+   With column anchors, each number is assigned to the column it visually sits under, and a
+   number that lands in the wrong column (or is too big for a single match) is dropped instead
+   of misfiled. Without anchors we fall back to the old right-to-left heuristic. */
+function parsePlayerRow(rowWords, anchors){
+  const toks = rowWords.map(w=>({text:w.text.trim(), cx:(w.bbox.x0+w.bbox.x1)/2})).filter(t=>t.text);
   if(toks.length < 3) return null;
-  let goalsIdx=-1, assistsIdx=-1;
-  for(let i=toks.length-1;i>=0;i--){
-    if(/^\d{1,2}$/.test(toks[i])){
-      if(assistsIdx===-1) assistsIdx=i;
-      else { goalsIdx=i; break; }
+  const isInt = t=>/^\d{1,3}$/.test(t);
+  const isRate = t=>/^\d{1,2}[.,]\d$/.test(t) || /^n\/?a$/i.test(t);
+  const col = t=>{
+    if(!anchors) return null;
+    let best=null, bd=Infinity;
+    [['rr',anchors.rr],['g',anchors.g],['ast',anchors.ast]].forEach(p=>{
+      if(p[1]==null) return;
+      const d=Math.abs(t.cx-p[1]); if(d<bd){bd=d;best=p[0];}
+    });
+    return best;
+  };
+  let goalsIdx=-1, assistsIdx=-1, ratingIdx=-1;
+  if(anchors){
+    toks.forEach((t,i)=>{
+      const c = col(t);
+      if(c==='ast' && isInt(t.text) && assistsIdx===-1) assistsIdx=i;
+      else if(c==='g' && isInt(t.text) && goalsIdx===-1) goalsIdx=i;
+      else if(c==='rr' && isRate(t.text) && ratingIdx===-1) ratingIdx=i;
+    });
+    if(goalsIdx===-1 && assistsIdx===-1 && ratingIdx===-1) return null;
+  } else {
+    for(let i=toks.length-1;i>=0;i--){
+      if(isInt(toks[i].text)){
+        if(assistsIdx===-1) assistsIdx=i;
+        else { goalsIdx=i; break; }
+      }
     }
+    if(goalsIdx===-1 || assistsIdx===-1 || goalsIdx>=assistsIdx) return null;
+    if(goalsIdx-1>=0 && isRate(toks[goalsIdx-1].text)) ratingIdx = goalsIdx-1;
   }
-  if(goalsIdx===-1 || assistsIdx===-1 || goalsIdx>=assistsIdx) return null;
-  const assists = Number(toks[assistsIdx]);
-  const goals = Number(toks[goalsIdx]);
-  let ratingIdx = goalsIdx-1;
-  let rating = '', hasRating = false;
-  if(ratingIdx>=0){
-    const rt = toks[ratingIdx];
-    if(/^n\/?a$/i.test(rt)){ rating=''; hasRating=true; }
-    else if(/^\d{1,2}[.,]\d$/.test(rt)){ rating = rt.replace(',','.'); hasRating=true; }
-  }
-  const nameEnd = hasRating ? ratingIdx : goalsIdx;
+  const idxs = [ratingIdx, goalsIdx, assistsIdx].filter(i=>i!==-1);
+  const nameEnd = idxs.length ? Math.min(...idxs) : toks.length;
   let nameTokens = toks.slice(0, nameEnd);
   let position = '';
-  if(nameTokens.length>1 && /^[A-Z]{2,4}$/.test(nameTokens[0])){
-    position = nameTokens[0];
+  if(nameTokens.length>1 && /^[A-Z]{2,4}$/.test(nameTokens[0].text)){
+    position = nameTokens[0].text.replace(/[^A-Za-z]/g,'');
     nameTokens = nameTokens.slice(1);
   }
-  const name = nameTokens.join(' ').replace(/[^A-Za-z.'\-\u00C0-\u017F ]/g,'').trim();
-  if(!name || /^(pos|name|rr|g|ast)$/i.test(name)) return null;
+  const name = nameTokens.map(t=>t.text).join(' ')
+    .replace(/[^A-Za-z.'\-\u00C0-\u017F ]/g,'').replace(/\s+/g,' ').trim();
+  if(!name || /^\d/.test(name) || /^(pos|name|rr|g|ast|player|performance)$/i.test(name)) return null;
+  let goals = goalsIdx!==-1 ? Number(toks[goalsIdx].text) : 0;
+  let assists = assistsIdx!==-1 ? Number(toks[assistsIdx].text) : 0;
+  if(goals>30) goals=0;     // impossible in one match → misread number, drop it
+  if(assists>30) assists=0;
+  let rating = '';
+  if(ratingIdx!==-1 && /^\d{1,2}[.,]\d$/.test(toks[ratingIdx].text)) rating = toks[ratingIdx].text.replace(',','.');
   return {position, name, rating, goals, assists};
 }
 
@@ -968,8 +1054,11 @@ async function scanPlayerImages(files, progId){
     const found = [];
     results.forEach(data=>{
       const rows = clusterRows(flattenWords(data));
-      rows.forEach(row=>{
-        const parsed = parsePlayerRow(row.words);
+      const anchors = findColumnAnchors(rows);
+      // Skip everything above the header (the "89 · Alexander Isak" highlight card etc.)
+      const dataRows = anchors ? rows.filter(r=>r.cy > anchors.headerCy) : rows;
+      dataRows.forEach(row=>{
+        const parsed = parsePlayerRow(row.words, anchors||null);
         if(parsed) found.push(parsed);
       });
     });
