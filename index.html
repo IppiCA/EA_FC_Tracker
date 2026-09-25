@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
+<title>Matchday Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Caprasimo&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A100C; --panel:#111D16; --panel-2:#16241C; --line:#22352A;
+  --turf:#38B26A; --turf-dim:#2A8C55; --gold:#D9B45C; --red:#D2564A; --blue:#5B8FD9;
+  --ink:#EFF4EF; --ink-dim:#9BB0A2; --ink-faint:#5E7468;
+  --radius:10px;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
+}
+:root:not([data-theme="light"]){ }
+:root[data-theme="light"]{
+  --bg:#F2F5F1; --panel:#FFFFFF; --panel-2:#EAF0EA; --line:#D6E0D8;
+  --ink:#10201A; --ink-dim:#4C5F55; --ink-faint:#8CA096;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F2F5F1; --panel:#FFFFFF; --panel-2:#EAF0EA; --line:#D6E0D8;
+    --ink:#10201A; --ink-dim:#4C5F55; --ink-faint:#8CA096;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+html{scroll-padding-top: env(safe-area-inset-top, 0px);}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  min-height:100%;
+}
+h1,h2,h3,.num,.brand{font-family:'Big Shoulders Display',sans-serif; font-weight:800; letter-spacing:.01em;}
+a{color:inherit}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit}
+
+/* ---- layout shell ---- */
+#app{display:flex; min-height:100vh; min-height:100dvh;}
+nav.rail{
+  width:212px; flex:0 0 212px; background:var(--panel);
+  border-right:1px solid var(--line);
+  padding:20px 14px calc(20px + env(safe-area-inset-bottom,0px));
+  display:flex; flex-direction:column; gap:4px;
+  position:sticky; top:0; height:100vh; height:100dvh; overflow-y:auto;
+}
+.rail-brand{padding:6px 8px 18px; display:flex; align-items:center; gap:10px}
+.rail-brand .crest{width:34px;height:34px;border-radius:8px;background:linear-gradient(155deg,var(--turf),var(--turf-dim));display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
+.rail-brand .brand{font-size:20px; line-height:1.05}
+.rail-brand .brand small{display:block;font-family:'IBM Plex Sans';font-weight:500;font-size:11px;color:var(--ink-faint);letter-spacing:.04em}
+.navbtn{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  padding:10px 12px; border-radius:8px; border:none; background:transparent; color:var(--ink-dim);
+  font-size:14.5px; font-weight:500;
+}
+.navbtn .ic{width:18px;text-align:center;opacity:.85}
+.navbtn:hover{background:var(--panel-2); color:var(--ink)}
+.navbtn.active{background:var(--panel-2); color:var(--turf); font-weight:700}
+.rail-foot{margin-top:auto; padding-top:14px; border-top:1px solid var(--line); font-size:11.5px; color:var(--ink-faint); display:flex; justify-content:space-between; align-items:center}
+.themebtn{background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:6px;padding:5px 8px;font-size:11px}
+
+main{flex:1; min-width:0; padding:26px 30px calc(30px + env(safe-area-inset-bottom,0px)); max-width:1180px}
+.pagehead{display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap}
+.pagehead h1{font-size:30px; margin:0}
+.pagehead .sub{color:var(--ink-dim); font-size:13.5px; margin-top:2px}
+
+/* ---- mobile bottom nav ---- */
+nav.tabbar{display:none}
+@media (max-width: 860px){
+  nav.rail{display:none}
+  #app{flex-direction:column}
+  main{padding:18px 16px 90px; max-width:none}
+  nav.tabbar{
+    display:flex; position:fixed; bottom:0; left:0; right:0; z-index:50;
+    background:var(--panel); border-top:1px solid var(--line);
+    padding:8px 4px calc(8px + env(safe-area-inset-bottom,0px));
+  }
+  nav.tabbar button{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+    background:none;border:none;color:var(--ink-faint);font-size:10.5px;padding:4px 0;
+  }
+  nav.tabbar button .ic{font-size:18px}
+  nav.tabbar button.active{color:var(--turf)}
+}
+
+/* ---- shared bits ---- */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px}
+.grid{display:grid; gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
+@media (max-width:760px){ .g4{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(2,1fr)} }
+.stat{padding:16px}
+.stat .num{font-size:34px; line-height:1; color:var(--turf)}
+.stat .num.gold{color:var(--gold)} .stat .num.red{color:var(--red)}
+.stat .lbl{font-size:12px; color:var(--ink-dim); margin-top:6px}
+.section-title{font-size:12px; text-transform:none; letter-spacing:.02em; color:var(--ink-faint); margin:26px 0 10px; font-weight:600}
+.section-title:first-child{margin-top:0}
+
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+th{text-align:left; color:var(--ink-faint); font-weight:600; font-size:11.5px; padding:7px 10px; border-bottom:1px solid var(--line)}
+td{padding:8px 10px; border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:none}
+.tablewrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+.right{text-align:right}
+.center{text-align:center}
+
+.btn{
+  display:inline-flex; align-items:center; gap:7px; background:var(--turf); color:#08120C;
+  border:none; padding:10px 16px; border-radius:8px; font-weight:700; font-size:13.5px;
+}
+.btn.ghost{background:transparent; border:1px solid var(--line); color:var(--ink)}
+.btn.gold{background:var(--gold)}
+.btn.small{padding:6px 11px; font-size:12.5px}
+.btn:disabled{opacity:.5}
+
+input[type=text],input[type=number],select,textarea{
+  width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
+  border-radius:7px; padding:9px 10px; font-size:14px;
+}
+label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
+.field{margin-bottom:12px}
+.row{display:flex; gap:10px; flex-wrap:wrap}
+.row > *{flex:1; min-width:120px}
+
+.pill{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:99px; font-size:11.5px; font-weight:600}
+.pill.win{background:rgba(56,178,106,.15); color:var(--turf)}
+.pill.draw{background:rgba(217,180,92,.15); color:var(--gold)}
+.pill.loss{background:rgba(210,86,74,.15); color:var(--red)}
+
+.vs-bar{display:flex; align-items:center; gap:10px; margin:5px 0}
+.vs-bar .track{flex:1; height:7px; background:var(--panel-2); border-radius:99px; overflow:hidden; display:flex}
+.vs-bar .fill-a{background:var(--turf); height:100%}
+.vs-bar .fill-b{background:var(--ink-faint); height:100%}
+.vs-bar .val{font-size:12.5px; width:36px; color:var(--ink-dim); font-weight:600}
+.vs-bar .val.right{text-align:right}
+.vs-label{font-size:11px; color:var(--ink-faint); text-align:center; margin-top:1px}
+
+.modal-bg{position:fixed; inset:0; background:rgba(4,8,6,.6); backdrop-filter:blur(2px); display:flex; align-items:flex-end; justify-content:center; z-index:100}
+@media (min-width:760px){ .modal-bg{align-items:center} }
+.modal{background:var(--panel); border:1px solid var(--line); border-radius:14px 14px 0 0; width:100%; max-width:640px; max-height:92vh; overflow-y:auto; padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px))}
+@media (min-width:760px){ .modal{border-radius:14px} }
+.modal-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px}
+.modal-head h3{margin:0; font-size:20px}
+.xbtn{background:none;border:none;color:var(--ink-dim);font-size:20px;padding:4px 8px}
+
+.empty{padding:40px 20px; text-align:center; color:var(--ink-faint)}
+.badge-champ{color:var(--gold); font-size:13px}
+.tag{font-size:11px; background:var(--panel-2); border:1px solid var(--line); padding:2px 7px; border-radius:5px; color:var(--ink-dim)}
+.hint{font-size:12px; color:var(--ink-faint); margin-top:4px}
+.scanbox{border:1.5px dashed var(--line); border-radius:10px; padding:16px; text-align:center; color:var(--ink-dim); font-size:13px}
+.scanbox.active{border-color:var(--turf); color:var(--turf)}
+.ocr-row{display:grid; grid-template-columns:70px 1fr 62px 46px 46px 34px; gap:6px; align-items:center; margin-bottom:6px}
+.ocr-row input{padding:6px 7px; font-size:13px}
+.ocr-row .del{background:none;border:none;color:var(--red);font-size:16px}
+.ocr-head{display:grid; grid-template-columns:70px 1fr 62px 46px 46px 34px; gap:6px; font-size:10.5px; color:var(--ink-faint); margin-bottom:4px; padding:0 2px}
+.statline{display:grid; grid-template-columns:60px 1fr 60px; gap:8px; align-items:center; margin-bottom:6px; font-size:13px}
+.statline input{text-align:center}
+.statline .lbl{color:var(--ink-dim); font-size:12.5px; text-align:center}
+.toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line); padding:10px 18px; border-radius:8px; font-size:13px; z-index:200; box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.progress{height:5px; background:var(--panel-2); border-radius:99px; overflow:hidden; margin-top:8px}
+.progress > div{height:100%; background:var(--turf); transition:width .2s}
+::placeholder{color:var(--ink-faint)}
+.link-btn{background:none;border:none;color:var(--turf);font-size:12.5px;font-weight:600;padding:0}
+.subtle{color:var(--ink-faint); font-size:12.5px}
+.login-wrap{position:relative; width:100%; height:100vh; height:100dvh; overflow:hidden; background:#f5ead8; font-family:'Figtree',system-ui,sans-serif;}
+.login-wrap .zc-bg{position:absolute; inset:0;}
+.login-wrap .zc-bg img{width:100%; height:100%; object-fit:cover; object-position:center; display:block;}
+.login-wrap .zc-snow{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
+.login-wrap .zc-snow .flake{position:absolute; top:-20px; border-radius:50%; background:#fff; animation-name:zc-fall; animation-timing-function:linear; animation-iteration-count:infinite;}
+@keyframes zc-fall{ from{ transform:translate(0,-20px); } to{ transform:translate(30px,105vh); } }
+.login-card{
+  position:absolute; left:clamp(16px,2vw,48px); top:clamp(16px,6vh,120px);
+  width:clamp(240px,25vw,340px); max-width:calc(100% - 32px); box-sizing:border-box;
+  padding:26.4px; display:flex; flex-direction:column; gap:14px;
+  background:#ebddc5; border-radius:28px; box-shadow:0 12px 32px rgba(46,43,37,.22);
+  color:#201e1d;
+}
+.login-card .zc-tag{ align-self:flex-start; font-size:11px; letter-spacing:.02em; padding:3px 10px; border-radius:12px; background:#f0fae1; color:#3d472b; }
+.login-card h1{ font-family:'Caprasimo',serif; font-weight:400; font-size:40px; line-height:1.05; margin:8px 0 0; color:#201e1d; }
+.login-card .zc-sub{ font-family:'Figtree',sans-serif; color:#645c50; margin:0 0 6px; font-size:14px; }
+.zc-google-btn{
+  width:100%; display:flex; align-items:center; justify-content:center; gap:10px;
+  background:#c67139; color:#fff8f0; border:none; border-radius:999px;
+  padding:12px 18px; font-family:'Figtree',sans-serif; font-weight:700; font-size:15px; cursor:pointer;
+}
+.zc-google-btn:hover{ background:#b2622d; }
+.zc-google-btn:active{ background:#8c491a; }
+.zc-google-btn:disabled{ opacity:.45; cursor:not-allowed; }
+.zc-google-btn:focus-visible{ outline:2px solid #c67139; outline-offset:2px; }
+.zc-error{ font-family:'Figtree',sans-serif; color:#8c491a; font-size:12.5px; min-height:16px; text-align:center; }
+@media (max-width:700px){
+  .login-card{ left:16px; right:16px; top:auto; bottom:16px; width:auto; max-width:none; }
+}
+@media (prefers-reduced-motion: reduce){
+  .login-wrap .zc-snow{ display:none; }
+}
+</style>
+</head>
+<body>
+<div id="login-screen" class="login-wrap">
+  <div class="zc-bg">
+    <picture>
+      <source srcset="zermatt-scene.webp" type="image/webp">
+      <img src="zermatt-scene.jpg" alt="Two friends playing EA FC on a snowy mountainside at sunset, the Matterhorn behind them">
+    </picture>
+  </div>
+  <div class="zc-snow" id="zc-snow" aria-hidden="true"></div>
+  <div class="login-card">
+    <span class="zc-tag">Co-op Season · Zermatt</span>
+    <h1>FC Tracker</h1>
+    <p class="zc-sub">Sign in to log tonight's matches.</p>
+    <button type="button" class="zc-google-btn" id="google-signin-btn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#fff" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.87 2.69-6.62z" opacity="0"/><path fill="#fff8f0" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.96l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/><path fill="#fff8f0" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.87 2.69-6.62z" opacity=".85"/><path fill="#fff8f0" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.33A9 9 0 0 0 9 18z" opacity=".7"/><path fill="#fff8f0" d="M3.97 10.71A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.71V4.96H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.04l3.01-2.33z" opacity=".55"/></svg>
+      Sign in with Google
+    </button>
+    <div id="login-error" class="zc-error"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <nav class="rail">
+    <div class="rail-brand"><div class="crest">⚽</div><div class="brand">Matchday<br>Ledger</div></div>
+    <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
+    <button class="navbtn" data-tab="log"><span class="ic">＋</span> Log Match</button>
+    <button class="navbtn" data-tab="squad"><span class="ic">▤</span> Squad & Seasons</button>
+    <button class="navbtn" data-tab="history"><span class="ic">≡</span> Match History</button>
+    <div class="rail-foot">
+      <span id="syncstate">connecting…</span>
+      <span style="display:flex;gap:8px">
+        <button class="themebtn" id="themetoggle">theme</button>
+        <button class="themebtn" id="signout-btn">sign out</button>
+      </span>
+    </div>
+  </nav>
+
+  <main id="main"></main>
+
+  <nav class="tabbar">
+    <button data-tab="dashboard"><span class="ic">◆</span>Dashboard</button>
+    <button data-tab="log"><span class="ic">＋</span>Log</button>
+    <button data-tab="squad"><span class="ic">▤</span>Squad</button>
+    <button data-tab="history"><span class="ic">≡</span>History</button>
+  </nav>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+/* ======================================================================
+   PASTE YOUR FIREBASE CONFIG HERE — from Firebase Console → Project
+   settings → Your apps → the </> web app → the firebaseConfig object.
+   ====================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyCVOLlCNadBDYibxnyw2XmZZt3WwJ0rdBU",
+  authDomain: "ea-fc-tracker.firebaseapp.com",
+  projectId: "ea-fc-tracker",
+  storageBucket: "ea-fc-tracker.firebasestorage.app",
+  messagingSenderId: "934389803225",
+  appId: "1:934389803225:web:7259c17a9e30235b4576c8"
+};
+/* ====================================================================== */
+
+/* ============================= STATE ============================= */
+let db = null;
+let players = [];   // {id, name}
+let seasons = [];   // {id, number, gameVersion, team, squadIds[], champion, perfectSeason, createdAt}
+let games = [];      // {id, seasonId, gameNumber, opponentTeam, opponentGamertags[2], homeAway, scoreFor, scoreAgainst,
+                      //  rageQuit ('none'|'us'|'them'), disconnect(bool), motmPlayerId, teamStats:{for:{},against:{}},
+                      //  playerStats:[{playerId,position,rating,goals,assists}], createdAt}
+let currentTab = 'dashboard';
+
+const STAT_LABELS = ['Possession %','Shots','Expected Goals','Passes Attempted','Pass Accuracy %','Tackles','Tackles Won','Interceptions','Saves','Fouls Committed','Offsides','Corners','Free Kicks','Penalty Kicks','Yellow Cards','Dribble Success Rate','Shot Accuracy','Ball Recovery Time (Seconds)'];
+const STAT_LABEL_SYNONYMS = {
+  'passes':'Passes Attempted',
+  'pass accuracy':'Pass Accuracy %',
+  'shot accuracy %':'Shot Accuracy',
+  'ball recovery time':'Ball Recovery Time (Seconds)',
+  'ball recovery time (s)':'Ball Recovery Time (Seconds)',
+  'xg':'Expected Goals'
+};
+function canonicalStatLabel(label){
+  const norm = String(label).trim().toLowerCase().replace(/\s*%\s*$/,'').replace(/\s+/g,' ');
+  const exact = STAT_LABELS.find(l=> l.toLowerCase()===String(label).trim().toLowerCase());
+  if(exact) return exact;
+  if(STAT_LABEL_SYNONYMS[norm]) return STAT_LABEL_SYNONYMS[norm];
+  const fuzzy = STAT_LABELS.find(l=>{
+    const ln = l.toLowerCase().replace(/\s*%\s*$/,'').replace(/\s*\(.*\)\s*/,'').trim();
+    return ln===norm || ln.startsWith(norm) || norm.startsWith(ln);
+  });
+  return fuzzy || label;
+}
+
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg){
+  const el = document.createElement('div'); el.className='toast'; el.textContent = msg;
+  document.getElementById('toast-root').appendChild(el);
+  setTimeout(()=>el.remove(), 2600);
+}
+
+/* ============================= DB WIRING (Firebase Firestore) ============================= */
+try{
+  firebase.initializeApp(firebaseConfig);
+}catch(e){
+  console.error('Firebase init failed', e);
+}
+
+function initDb(){
+  try{
+    db = firebase.firestore();
+  }catch(e){
+    console.error('Firestore init failed', e);
+    document.getElementById('syncstate').textContent = 'config error — check firebaseConfig';
+    render();
+    return;
+  }
+  const col = (name, arr, sortFn) => {
+    db.collection(name).onSnapshot((snap)=>{
+      arr.length = 0;
+      snap.forEach(doc=>{ const data = doc.data(); if(data) arr.push({id:doc.id, ...data}); });
+      if(sortFn) arr.sort(sortFn);
+      document.getElementById('syncstate') && (document.getElementById('syncstate').textContent = 'synced');
+      render();
+    }, (err)=>{
+      console.error(name, 'sync error', err);
+      if(err.code === 'permission-denied'){
+        const email = currentUser && currentUser.email ? ` (${currentUser.email})` : '';
+        document.getElementById('login-error').textContent = `This Google account${email} doesn't have access to this tracker.`;
+        firebase.auth().signOut();
+        return;
+      }
+      document.getElementById('syncstate') && (document.getElementById('syncstate').textContent = 'sync error — check Firestore rules');
+    });
+  };
+  col('players', players, (a,b)=> a.name.localeCompare(b.name));
+  col('seasons', seasons, (a,b)=> (b.number||0)-(a.number||0));
+  col('games', games, (a,b)=> (b.createdAt||0)-(a.createdAt||0));
+}
+
+async function dbAdd(collection, data){
+  const ref = await db.collection(collection).add(data);
+  const arr = collection==='players'?players:collection==='seasons'?seasons:games;
+  arr.push({id: ref.id, ...data}); // optimistic — the live snapshot reconciles right after
+  return ref.id;
+}
+async function dbSet(collection, id, data){
+  await db.collection(collection).doc(id).set(data);
+}
+async function dbDelete(collection, id){
+  await db.collection(collection).doc(id).delete();
+}
+
+/* ============================= DERIVED / COMPUTE ============================= */
+function playerName(id){ const p = players.find(p=>p.id===id); return p ? p.name : '—'; }
+function normalizeName(n){ return n.toLowerCase().replace(/^[a-z]\.\s*/,'').trim(); }
+async function resolveOrCreatePlayer(rawName){
+  const name = rawName.trim();
+  const norm = normalizeName(name);
+  const existing = players.find(p=>{
+    const pn = p.name.toLowerCase();
+    return pn===name.toLowerCase() || normalizeName(pn)===norm || pn.endsWith(norm) || norm.endsWith(normalizeName(pn));
+  });
+  if(existing) return existing.id;
+  const id = await dbAdd('players', {name});
+  return id;
+}
+function seasonById(id){ return seasons.find(s=>s.id===id); }
+function gamesFor(seasonId){ return games.filter(g=>g.seasonId===seasonId); }
+
+function outcome(g){
+  if(g.scoreFor>g.scoreAgainst) return 'win';
+  if(g.scoreFor<g.scoreAgainst) return 'loss';
+  return 'draw';
+}
+
+function seasonRecord(seasonId){
+  const gs = gamesFor(seasonId);
+  let w=0,d=0,l=0,gf=0,ga=0,rq=0,dc=0;
+  gs.forEach(g=>{
+    const o = outcome(g);
+    if(o==='win')w++; else if(o==='draw')d++; else l++;
+    gf+=Number(g.scoreFor||0); ga+=Number(g.scoreAgainst||0);
+    if(g.rageQuit==='them') rq++;
+    if(g.disconnect) dc++;
+  });
+  return {games:gs.length, w,d,l, gf,ga, points: w*3+d, rq, dc};
+}
+
+function careerTotals(){
+  let gf=0,ga=0,w=0,d=0,l=0,rq=0,dc=0;
+  games.forEach(g=>{
+    const o = outcome(g);
+    if(o==='win')w++; else if(o==='draw')d++; else l++;
+    gf+=Number(g.scoreFor||0); ga+=Number(g.scoreAgainst||0);
+    if(g.rageQuit==='them') rq++;
+    if(g.disconnect) dc++;
+  });
+  return {games:games.length, w,d,l, gf,ga, rq, dc};
+}
+
+function playerCareer(playerId, seasonId){
+  let goals=0, assists=0, motm=0, apps=0, ratingSum=0, ratingN=0;
+  games.forEach(g=>{
+    if(seasonId && g.seasonId!==seasonId) return;
+    const ps = (g.playerStats||[]).find(p=>p.playerId===playerId);
+    if(!ps) return;
+    apps++;
+    goals += Number(ps.goals||0); assists += Number(ps.assists||0);
+    if(g.motmPlayerId===playerId) motm++;
+    if(ps.rating!=null && ps.rating!=='' ){ ratingSum += Number(ps.rating); ratingN++; }
+  });
+  return {goals, assists, points: goals+assists, motm, apps, avgRating: ratingN? (ratingSum/ratingN) : null};
+}
+
+function leaderboard(seasonId){
+  return players.map(p=>({player:p, ...playerCareer(p.id, seasonId)}))
+    .filter(r=>r.apps>0)
+    .sort((a,b)=> b.points-a.points || b.goals-a.goals);
+}
+
+function bestWorstSeasons(filterTeam){
+  const list = seasons.filter(s=> !filterTeam || s.team===filterTeam).map(s=>{
+    const r = seasonRecord(s.id);
+    return {season:s, ...r, gd: r.gf-r.ga};
+  }).filter(x=>x.games>0);
+  if(!list.length) return {best:null, worst:null};
+  const best = [...list].sort((a,b)=> b.points-a.points || b.gd-a.gd)[0];
+  const worst = [...list].sort((a,b)=> a.points-b.points || a.gd-b.gd)[0];
+  return {best, worst};
+}
+
+/* ============================= RENDER SHELL ============================= */
+function setTab(t){ currentTab = t; render(); }
+document.addEventListener('click', (e)=>{
+  const b = e.target.closest('[data-tab]');
+  if(b){ setTab(b.dataset.tab); }
+});
+document.getElementById('themetoggle').addEventListener('click', ()=>{
+  const r = document.documentElement;
+  const cur = r.getAttribute('data-theme');
+  r.setAttribute('data-theme', cur==='light' ? 'dark' : 'light');
+});
+
+function render(){
+  document.querySelectorAll('.navbtn, nav.tabbar button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab===currentTab);
+  });
+  const main = document.getElementById('main');
+  if(currentTab==='dashboard') main.innerHTML = renderDashboard();
+  else if(currentTab==='log') main.innerHTML = renderLog();
+  else if(currentTab==='squad') main.innerHTML = renderSquad();
+  else if(currentTab==='history') main.innerHTML = renderHistory();
+  wireTabHandlers();
+}
+
+/* ============================= DASHBOARD ============================= */
+function renderDashboard(){
+  const ct = careerTotals();
+  const {best, worst} = bestWorstSeasons();
+  const lb = leaderboard().slice(0,8);
+  const activeSeason = seasons[0];
+  const winPct = ct.games ? Math.round(ct.w/ct.games*100) : 0;
+
+  return `
+  <div class="pagehead"><div><h1>Dashboard</h1><div class="sub">Career overview across every season logged</div></div></div>
+
+  <div class="grid g4">
+    <div class="card stat"><div class="num">${ct.games}</div><div class="lbl">Games played</div></div>
+    <div class="card stat"><div class="num">${winPct}%</div><div class="lbl">Win rate · ${ct.w}W ${ct.d}D ${ct.l}L</div></div>
+    <div class="card stat"><div class="num gold">${ct.gf}</div><div class="lbl">Goals scored · ${ct.games? (ct.gf/ct.games).toFixed(2):'0.00'} / game</div></div>
+    <div class="card stat"><div class="num red">${ct.ga}</div><div class="lbl">Goals conceded · ${ct.rq} rage quits by them</div></div>
+  </div>
+
+  <div class="section-title">Best & worst season overall</div>
+  <div class="grid g2">
+    ${seasonSummaryCard(best, 'Best season', 'turf')}
+    ${seasonSummaryCard(worst, 'Worst season', 'red')}
+  </div>
+
+  ${activeSeason ? `
+  <div class="section-title">Current season · #${activeSeason.number} ${esc(activeSeason.team)} <span class="tag">${esc(activeSeason.gameVersion||'')}</span></div>
+  ${seasonPanel(activeSeason)}
+  ` : ''}
+
+  <div class="section-title">All-time leaderboard <span class="subtle">(goals + assists)</span></div>
+  <div class="card tablewrap">
+    ${lb.length ? `
+    <table>
+      <tr><th>Player</th><th class="right">Apps</th><th class="right">Goals</th><th class="right">Assists</th><th class="right">Pts</th><th class="right">MOTM</th><th class="right">Avg rating</th></tr>
+      ${lb.map(r=>`<tr>
+        <td>${esc(r.player.name)}</td>
+        <td class="right">${r.apps}</td>
+        <td class="right">${r.goals}</td>
+        <td class="right">${r.assists}</td>
+        <td class="right" style="color:var(--turf);font-weight:700">${r.points}</td>
+        <td class="right">${r.motm}</td>
+        <td class="right">${r.avgRating!=null? r.avgRating.toFixed(1) : '—'}</td>
+      </tr>`).join('')}
+    </table>` : `<div class="empty">No games logged yet — head to <b>Log Match</b> to add your first one.</div>`}
+  </div>
+  `;
+}
+
+function seasonSummaryCard(entry, title, color){
+  if(!entry) return `<div class="card"><div class="section-title" style="margin-top:0">${title}</div><div class="empty">Not enough data yet</div></div>`;
+  const s = entry.season;
+  return `<div class="card">
+    <div class="section-title" style="margin-top:0">${title}</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div class="num" style="font-size:22px">#${s.number} · ${esc(s.team)}</div>
+      <div class="num" style="font-size:26px;color:var(--${color})">${entry.points} pts</div>
+    </div>
+    <div class="subtle" style="margin-top:6px">${entry.w}W ${entry.d}D ${entry.l}L &nbsp;·&nbsp; ${entry.gf}–${entry.ga} goals &nbsp;·&nbsp; GD ${entry.gd>=0?'+':''}${entry.gd}</div>
+    ${s.champion? `<div class="badge-champ" style="margin-top:6px">🏆 Champions</div>`:''}
+  </div>`;
+}
+
+function seasonPanel(s){
+  const r = seasonRecord(s.id);
+  const lb = leaderboard(s.id).slice(0,5);
+  return `<div class="card">
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="stat" style="padding:0"><div class="num" style="font-size:24px">${r.games}</div><div class="lbl">Games</div></div>
+      <div class="stat" style="padding:0"><div class="num" style="font-size:24px">${r.points}</div><div class="lbl">Points</div></div>
+      <div class="stat" style="padding:0"><div class="num gold" style="font-size:24px">${r.gf}</div><div class="lbl">Scored</div></div>
+      <div class="stat" style="padding:0"><div class="num red" style="font-size:24px">${r.ga}</div><div class="lbl">Conceded</div></div>
+    </div>
+    <div class="tablewrap">
+    <table><tr><th>Player</th><th class="right">Goals</th><th class="right">Assists</th><th class="right">Pts</th><th class="right">Avg rating</th></tr>
+    ${lb.map(row=>`<tr><td>${esc(row.player.name)}</td><td class="right">${row.goals}</td><td class="right">${row.assists}</td><td class="right" style="color:var(--turf);font-weight:700">${row.points}</td><td class="right">${row.avgRating!=null?row.avgRating.toFixed(1):'—'}</td></tr>`).join('') || `<tr><td colspan="5" class="empty">No games in this season yet</td></tr>`}
+    </table>
+    </div>
+  </div>`;
+}
+
+/* ============================= LOG MATCH ============================= */
+let logDraft = null; // in-progress match object while filling the form
+
+function freshDraft(){
+  const s = seasons[0];
+  return {
+    seasonId: s ? s.id : '',
+    opponentTeam:'', opponentGamertags:['',''], homeAway:'home',
+    scoreFor:0, scoreAgainst:0, rageQuit:'none', disconnect:false, motmPlayerId:'',
+    playerStats: s ? (s.squadIds||[]).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
+    teamStats: {for:{}, against:{}}
+  };
+}
+
+function renderLog(){
+  if(!logDraft) logDraft = freshDraft();
+  const s = seasonById(logDraft.seasonId);
+  if(!seasons.length){
+    return `<div class="pagehead"><h1>Log Match</h1></div><div class="card empty">Create a season first (with a squad) under <b>Squad & Seasons</b> before logging a match.</div>`;
+  }
+  return `
+  <div class="pagehead"><div><h1>Log Match</h1><div class="sub">Scan the in-game screens or enter it manually — review before saving</div></div></div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="row">
+      <div class="field"><label>Season</label>
+        <select id="f-season">${seasons.map(x=>`<option value="${x.id}" ${x.id===logDraft.seasonId?'selected':''}>#${x.number} · ${esc(x.team)} (${esc(x.gameVersion||'')})</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Opponent team</label><input type="text" id="f-opp" placeholder="e.g. Liverpool" value="${esc(logDraft.opponentTeam)}"></div>
+      <div class="field"><label>Home / Away</label>
+        <select id="f-homeaway"><option value="home" ${logDraft.homeAway==='home'?'selected':''}>Home</option><option value="away" ${logDraft.homeAway==='away'?'selected':''}>Away</option></select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Their gamertag 1</label><input type="text" id="f-tag1" value="${esc(logDraft.opponentGamertags[0])}"></div>
+      <div class="field"><label>Their gamertag 2</label><input type="text" id="f-tag2" value="${esc(logDraft.opponentGamertags[1])}"></div>
+      <div class="field"><label>Score (us – them)</label>
+        <div class="row" style="gap:6px">
+          <input type="number" min="0" id="f-scorefor" value="${logDraft.scoreFor}">
+          <input type="number" min="0" id="f-scoreagainst" value="${logDraft.scoreAgainst}">
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Rage quit</label>
+        <select id="f-rq"><option value="none" ${logDraft.rageQuit==='none'?'selected':''}>No rage quit</option><option value="them" ${logDraft.rageQuit==='them'?'selected':''}>They rage quit</option><option value="us" ${logDraft.rageQuit==='us'?'selected':''}>We rage quit</option></select>
+      </div>
+      <div class="field"><label>Disconnect</label>
+        <select id="f-dc"><option value="0" ${!logDraft.disconnect?'selected':''}>No</option><option value="1" ${logDraft.disconnect?'selected':''}>Yes</option></select>
+      </div>
+      <div class="field"><label>Man of the Match</label>
+        <select id="f-motm"><option value="">—</option>${(logDraft.playerStats||[]).map(ps=>`<option value="${ps.playerId}" ${logDraft.motmPlayerId===ps.playerId?'selected':''}>${esc(playerName(ps.playerId))}</option>`).join('')}</select>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Player performance</div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="scanbox" id="scan-players" tabindex="0">
+      📸 <b>Click here, then paste a screenshot</b> (Ctrl+V)<br>
+      <span style="font-size:12px">Paste again for more — starting XI and subs screens both work, one row per player</span>
+      <div style="margin-top:10px"><input type="file" id="scan-players-input" accept="image/*" multiple>&nbsp;<span class="hint" style="display:inline">or choose files</span></div>
+      <div id="scan-players-progress"></div>
+    </div>
+    <div style="margin-top:14px" class="tablewrap">
+      <div class="ocr-head"><span>Pos</span><span>Player</span><span>Rating</span><span>Goals</span><span>Ast</span><span></span></div>
+      <div id="playerstat-rows">${(logDraft.playerStats||[]).map((ps,i)=>playerStatRow(ps,i)).join('')}</div>
+      <button class="btn ghost small" id="add-playerstat" style="margin-top:6px">+ Add player to this game</button>
+    </div>
+  </div>
+
+  <div class="section-title">Team stats <span class="subtle">(optional — us vs. them)</span></div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="scanbox" id="scan-team" tabindex="0">
+      📸 <b>Click here, then paste</b> (Ctrl+V) <b>the Match Facts / Summary screen</b>
+      <div style="margin-top:10px"><input type="file" id="scan-team-input" accept="image/*">&nbsp;<span class="hint" style="display:inline">or choose a file</span></div>
+      <div id="scan-team-progress"></div>
+    </div>
+    <div style="margin-top:14px" id="teamstat-rows">${STAT_LABELS.map(l=>teamStatLine(l)).join('')}</div>
+    <button class="btn ghost small" id="add-teamstat" style="margin-top:4px">+ Add custom stat</button>
+    <div id="teamstat-custom"></div>
+  </div>
+
+  <button class="btn" id="save-match" style="width:100%; justify-content:center; padding:14px">Save match</button>
+  `;
+}
+
+function playerStatRow(ps, i){
+  return `<div class="ocr-row" data-idx="${i}">
+    <input type="text" data-f="position" value="${esc(ps.position||'')}" placeholder="POS">
+    <select data-f="playerId">${players.map(p=>`<option value="${p.id}" ${p.id===ps.playerId?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
+    <input type="text" data-f="rating" value="${esc(ps.rating)}" placeholder="7.4">
+    <input type="number" data-f="goals" value="${ps.goals||0}">
+    <input type="number" data-f="assists" value="${ps.assists||0}">
+    <button class="del" data-remove="${i}">×</button>
+  </div>`;
+}
+function teamStatLine(label, forVal, againstVal){
+  const key = label.toLowerCase().replace(/[^a-z0-9]+/g,'_');
+  return `<div class="statline" data-key="${key}" data-label="${esc(label)}">
+    <input type="text" data-side="for" value="${forVal!=null?esc(forVal):''}">
+    <div class="lbl">${esc(label)}</div>
+    <input type="text" data-side="against" value="${againstVal!=null?esc(againstVal):''}">
+  </div>`;
+}
+
+function readDraftFromForm(){
+  const g = logDraft;
+  const val = id => document.getElementById(id)?.value;
+  g.seasonId = val('f-season');
+  g.opponentTeam = val('f-opp');
+  g.homeAway = val('f-homeaway');
+  g.opponentGamertags = [val('f-tag1')||'', val('f-tag2')||''];
+  g.scoreFor = Number(val('f-scorefor')||0);
+  g.scoreAgainst = Number(val('f-scoreagainst')||0);
+  g.rageQuit = val('f-rq');
+  g.disconnect = val('f-dc')==='1';
+  g.motmPlayerId = val('f-motm');
+  document.querySelectorAll('#playerstat-rows .ocr-row').forEach((row,i)=>{
+    const ps = g.playerStats[i]; if(!ps) return;
+    ps.position = row.querySelector('[data-f=position]').value;
+    ps.playerId = row.querySelector('[data-f=playerId]').value;
+    ps.rating = row.querySelector('[data-f=rating]').value;
+    ps.goals = Number(row.querySelector('[data-f=goals]').value||0);
+    ps.assists = Number(row.querySelector('[data-f=assists]').value||0);
+  });
+  const stats = {for:{}, against:{}};
+  document.querySelectorAll('#teamstat-rows .statline, #teamstat-custom .statline').forEach(row=>{
+    const label = row.dataset.label;
+    const fv = row.querySelector('[data-side=for]').value;
+    const av = row.querySelector('[data-side=against]').value;
+    if(fv!=='') stats.for[label] = fv;
+    if(av!=='') stats.against[label] = av;
+  });
+  g.teamStats = stats;
+}
+
+function wireLogHandlers(){
+  const seasonSel = document.getElementById('f-season');
+  if(seasonSel) seasonSel.addEventListener('change', (e)=>{
+    logDraft.seasonId = e.target.value;
+    const s = seasonById(logDraft.seasonId);
+    logDraft.playerStats = s ? (s.squadIds||[]).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [];
+    render();
+  });
+  document.getElementById('add-playerstat')?.addEventListener('click', async ()=>{
+    readDraftFromForm();
+    const name = prompt('Player name (new names are added to the player list automatically):');
+    if(!name || !name.trim()) return;
+    const playerId = await resolveOrCreatePlayer(name);
+    logDraft.playerStats.push({playerId, position:'', rating:'', goals:0, assists:0});
+    render();
+  });
+  document.getElementById('playerstat-rows')?.addEventListener('click', (e)=>{
+    const rm = e.target.closest('[data-remove]');
+    if(rm){ readDraftFromForm(); logDraft.playerStats.splice(Number(rm.dataset.remove),1); render(); }
+  });
+  document.getElementById('add-teamstat')?.addEventListener('click', ()=>{
+    const label = prompt('Stat name (e.g. "Corners")'); if(!label) return;
+    document.getElementById('teamstat-custom').insertAdjacentHTML('beforeend', teamStatLine(label));
+  });
+  document.getElementById('save-match')?.addEventListener('click', async ()=>{
+    readDraftFromForm();
+    if(!logDraft.seasonId){ toast('Pick a season first'); return; }
+    const {seasonId, ...rest} = logDraft;
+    const existingCount = gamesFor(seasonId).length;
+    await dbAdd('games', {seasonId, ...rest, gameNumber: existingCount+1, createdAt: Date.now()});
+    const s = seasonById(seasonId);
+    if(s){
+      const playedIds = (rest.playerStats||[]).map(p=>p.playerId).filter(Boolean);
+      const combined = Array.from(new Set([...(s.squadIds||[]), ...playedIds]));
+      if(combined.length !== (s.squadIds||[]).length){
+        await dbSet('seasons', s.id, {...stripId(s), squadIds: combined});
+      }
+    }
+    toast('Match saved');
+    logDraft = null;
+    setTab('history');
+  });
+
+  wireScan('scan-players-input','scan-players','scan-players-progress', scanPlayerImages);
+  wireScan('scan-team-input','scan-team','scan-team-progress', scanTeamImage);
+}
+
+/* ---- Scanning, via Tesseract.js OCR (works normally here — no restrictive CSP on GitHub Pages) ---- */
+let ocrWorkerPromise = null;
+let ocrLoggerTarget = null;
+
+const OCR_PHASE_LABELS = {
+  'loading tesseract core': 'Loading OCR engine (first time only)…',
+  'initializing tesseract': 'Starting OCR engine…',
+  'loading language traineddata': 'Downloading language data (first time only)…',
+  'initializing api': 'Preparing scan…',
+  'recognizing text': 'Reading image…'
+};
+function ocrLogger(m){
+  if(!ocrLoggerTarget) return;
+  const label = OCR_PHASE_LABELS[m.status] || m.status;
+  const pct = m.progress!=null ? Math.round(m.progress*100) : null;
+  ocrLoggerTarget.innerHTML = `<div class="hint">${esc(label)}${pct!=null?' '+pct+'%':''}</div><div class="progress"><div style="width:${pct||0}%"></div></div>`;
+}
+function getOcrWorker(){
+  if(!ocrWorkerPromise){
+    ocrWorkerPromise = Tesseract.createWorker('eng', 1, { logger: ocrLogger }).catch(err=>{ ocrWorkerPromise = null; throw err; });
+  }
+  return ocrWorkerPromise;
+}
+function withTimeout(promise, ms, label){
+  let t;
+  const timeout = new Promise((_,reject)=>{ t = setTimeout(()=> reject(new Error(`${label} timed out`)), ms); });
+  return Promise.race([promise.finally(()=>clearTimeout(t)), timeout]);
+}
+async function ocrReadFiles(files, progId){
+  const prog = document.getElementById(progId);
+  ocrLoggerTarget = prog;
+  const worker = await withTimeout(getOcrWorker(), 45000, 'Loading the OCR engine');
+  let allText = '';
+  for(let i=0;i<files.length;i++){
+    const {data} = await withTimeout(worker.recognize(files[i]), 45000, 'Reading the image');
+    allText += '\n' + data.text;
+  }
+  ocrLoggerTarget = null;
+  return allText;
+}
+
+async function scanPlayerImages(files, progId){
+  const prog = document.getElementById(progId);
+  prog.innerHTML = `<div class="hint">Starting…</div>`;
+  try{
+    if(typeof Tesseract === 'undefined') throw new Error('OCR engine did not load');
+    const text = await ocrReadFiles(files, progId);
+    const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+    const rowRe = /^([A-Z]{2,4})?\s*([A-Za-z][A-Za-z.'\-\u00C0-\u017F ]{1,30}?)\s+(N\/?A|\d{1,2}[.,]\d)\s+(\d{1,2})\s+(\d{1,2})\s*$/i;
+    const found = [];
+    lines.forEach(line=>{
+      const m = line.match(rowRe);
+      if(!m) return;
+      if(/^(pos|name)/i.test(m[2])) return;
+      const rating = /n\/?a/i.test(m[3]) ? '' : m[3].replace(',', '.');
+      found.push({position:(m[1]||'').toUpperCase(), name:m[2].trim(), rating, goals:Number(m[4]), assists:Number(m[5])});
+    });
+    if(!found.length){
+      prog.innerHTML = `<div class="hint" style="color:var(--red)">No player rows recognized — check image clarity or enter manually.</div>`;
+      return;
+    }
+    readDraftFromForm();
+    for(const f of found){
+      const playerId = await resolveOrCreatePlayer(f.name);
+      const row = {playerId, position:f.position, rating:f.rating, goals:f.goals, assists:f.assists};
+      const idx = logDraft.playerStats.findIndex(ps=>ps.playerId===playerId);
+      if(idx>-1) logDraft.playerStats[idx] = row; else logDraft.playerStats.push(row);
+    }
+    render();
+    toast(`Filled in ${found.length} player row(s) — new names were added automatically`);
+    const prog2 = document.getElementById(progId);
+    if(prog2) prog2.innerHTML = `<div class="hint" style="color:var(--turf)">Scan complete — review the rows below, then paste another screenshot or save.</div>`;
+  }catch(err){
+    const timedOut = /timed out/.test(err.message||'');
+    prog.innerHTML = `<div class="hint" style="color:var(--red)">${timedOut ? "This is taking too long — check your connection." : `Couldn't read that image automatically (${esc(err.message||'scan failed')}).`} Just type the values in below for now.</div>`;
+  }
+}
+
+async function scanTeamImage(files, progId){
+  const prog = document.getElementById(progId);
+  prog.innerHTML = `<div class="hint">Starting…</div>`;
+  try{
+    if(typeof Tesseract === 'undefined') throw new Error('OCR engine did not load');
+    const text = await ocrReadFiles(files, progId);
+    const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+    const pairRe = /^([\d.]+)\s*%?\s+([A-Za-z][A-Za-z %()]{2,30}?)\s+([\d.]+)\s*%?$/;
+    const map = {};
+    lines.forEach(line=>{
+      const m = line.match(pairRe);
+      if(!m) return;
+      map[m[2].trim().replace(/\s+/g,' ')] = {for:m[1], against:m[3]};
+    });
+    if(!Object.keys(map).length){
+      prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized — check image clarity or enter manually.</div>`;
+      return;
+    }
+    Object.entries(map).forEach(([rawLabel, vals])=>{
+      const label = canonicalStatLabel(rawLabel);
+      let row = document.querySelector(`#teamstat-rows .statline[data-label="${CSS.escape(label)}"]`);
+      if(!row){
+        document.getElementById('teamstat-custom').insertAdjacentHTML('beforeend', teamStatLine(label, vals.for, vals.against));
+      }else{
+        row.querySelector('[data-side=for]').value = vals.for;
+        row.querySelector('[data-side=against]').value = vals.against;
+      }
+    });
+    toast('Filled in team stats — double check before saving');
+    prog.innerHTML = `<div class="hint" style="color:var(--turf)">Scan complete — review the numbers above, then save.</div>`;
+  }catch(err){
+    const timedOut = /timed out/.test(err.message||'');
+    prog.innerHTML = `<div class="hint" style="color:var(--red)">${timedOut ? "This is taking too long — check your connection." : `Couldn't read that image automatically (${esc(err.message||'scan failed')}).`} Just type the values in below for now.</div>`;
+  }
+}
+
+function wireScan(inputId, boxId, progId, scanFn){
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  if(!input || !box) return;
+  const run = async (files)=>{
+    if(!files.length) return;
+    box.classList.add('active');
+    try{ await scanFn(files, progId); } finally { box.classList.remove('active'); }
+  };
+  input.addEventListener('change', async (e)=>{ const files = Array.from(e.target.files||[]); await run(files); e.target.value=''; });
+  box.addEventListener('click', (e)=>{ if(e.target.tagName!=='INPUT') box.focus(); });
+  box.addEventListener('paste', async (e)=>{
+    const items = Array.from(e.clipboardData?.items || []);
+    const files = items.filter(it=>it.type && it.type.startsWith('image/')).map(it=>it.getAsFile()).filter(Boolean);
+    if(!files.length) return;
+    e.preventDefault();
+    await run(files);
+  });
+}
+
+/* ============================= SQUAD & SEASONS ============================= */
+function renderSquad(){
+  return `
+  <div class="pagehead"><div><h1>Squad & Seasons</h1><div class="sub">Manage the player pool and each season's roster</div></div>
+    <button class="btn" id="new-season-btn">+ New season</button>
+  </div>
+
+  <div class="section-title">All players <span class="subtle">(${players.length})</span></div>
+  <div class="card" style="margin-bottom:22px">
+    <div class="row" style="align-items:flex-end; margin-bottom:${players.length?'14px':'0'}">
+      <div class="field" style="margin-bottom:0"><label>Add player</label><input type="text" id="new-player-name" placeholder="Player name"></div>
+      <button class="btn small" id="add-player-btn" style="flex:0 0 auto">Add</button>
+    </div>
+    ${players.length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
+      ${players.map(p=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(p.name)} <button data-del-player="${p.id}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('')}
+    </div>` : ''}
+  </div>
+
+  <div class="section-title">Seasons</div>
+  ${seasons.length ? seasons.map(s=>seasonEditCard(s)).join('') : `<div class="card empty">No seasons yet — click "+ New season" to start one.</div>`}
+  `;
+}
+
+function seasonEditCard(s){
+  const r = seasonRecord(s.id);
+  return `<div class="card" style="margin-bottom:14px" data-season-card="${s.id}">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px">
+      <div>
+        <div class="num" style="font-size:20px">#${s.number} · ${esc(s.team)}</div>
+        <div class="subtle">${esc(s.gameVersion||'')} &nbsp;·&nbsp; ${r.games} games logged &nbsp;·&nbsp; ${r.w}W ${r.d}D ${r.l}L</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;margin:0"><input type="checkbox" data-champ="${s.id}" ${s.champion?'checked':''}> Champions</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;margin:0"><input type="checkbox" data-perfect="${s.id}" ${s.perfectSeason?'checked':''}> Perfect season</label>
+        <button class="link-btn" data-del-season="${s.id}" style="color:var(--red)">Delete</button>
+      </div>
+    </div>
+    <div class="section-title" style="margin:16px 0 8px">Squad (${(s.squadIds||[]).length})</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px">
+      ${(s.squadIds||[]).map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rm-squad="${s.id}|${pid}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('') || `<span class="subtle">Empty — add players below</span>`}
+    </div>
+    <div class="row" style="align-items:flex-end">
+      <div class="field" style="margin-bottom:0"><label>Add to squad</label>
+        <select data-squad-add="${s.id}"><option value="">Choose player…</option>${players.filter(p=>!(s.squadIds||[]).includes(p.id)).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+      </div>
+    </div>
+  </div>`;
+}
+
+function wireSquadHandlers(){
+  document.getElementById('add-player-btn')?.addEventListener('click', async ()=>{
+    const inp = document.getElementById('new-player-name');
+    const name = inp.value.trim(); if(!name) return;
+    await dbAdd('players', {name});
+    inp.value='';
+  });
+  document.getElementById('new-player-name')?.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('add-player-btn').click(); });
+  document.querySelectorAll('[data-del-player]').forEach(b=> b.addEventListener('click', ()=>{
+    if(confirm('Remove this player from the pool? Past game stats referencing them are kept.')) dbDelete('players', b.dataset.delPlayer);
+  }));
+  document.getElementById('new-season-btn')?.addEventListener('click', openNewSeasonModal);
+  document.querySelectorAll('[data-del-season]').forEach(b=> b.addEventListener('click', ()=>{
+    if(confirm('Delete this season? Its logged games stay but lose their season link.')) dbDelete('seasons', b.dataset.delSeason);
+  }));
+  document.querySelectorAll('[data-champ]').forEach(cb=> cb.addEventListener('change', ()=>{
+    const s = seasonById(cb.dataset.champ); dbSet('seasons', s.id, {...stripId(s), champion:cb.checked});
+  }));
+  document.querySelectorAll('[data-perfect]').forEach(cb=> cb.addEventListener('change', ()=>{
+    const s = seasonById(cb.dataset.perfect); dbSet('seasons', s.id, {...stripId(s), perfectSeason:cb.checked});
+  }));
+  document.querySelectorAll('[data-rm-squad]').forEach(b=> b.addEventListener('click', ()=>{
+    const [sid,pid] = b.dataset.rmSquad.split('|');
+    const s = seasonById(sid);
+    dbSet('seasons', sid, {...stripId(s), squadIds:(s.squadIds||[]).filter(x=>x!==pid)});
+  }));
+  document.querySelectorAll('[data-squad-add]').forEach(sel=> sel.addEventListener('change', ()=>{
+    const sid = sel.dataset.squadAdd; const pid = sel.value; if(!pid) return;
+    const s = seasonById(sid);
+    dbSet('seasons', sid, {...stripId(s), squadIds:[...(s.squadIds||[]), pid]});
+  }));
+}
+function stripId(obj){ const {id, ...rest} = obj; return rest; }
+
+function openNewSeasonModal(){
+  const nextNum = seasons.length ? Math.max(...seasons.map(s=>s.number||0))+1 : 1;
+  const lastTeam = seasons[0]?.team || '';
+  const html = `<div class="modal-bg" id="modal"><div class="modal">
+    <div class="modal-head"><h3>New season</h3><button class="xbtn" id="modal-close">×</button></div>
+    <div class="row">
+      <div class="field"><label>Season number</label><input type="number" id="ns-num" value="${nextNum}"></div>
+      <div class="field"><label>Game version</label><input type="text" id="ns-ver" placeholder="FC26" value="${seasons[0]?.gameVersion||'FC26'}"></div>
+    </div>
+    <div class="field"><label>Team</label><input type="text" id="ns-team" placeholder="Real Madrid" value="${esc(lastTeam)}"></div>
+    <div class="field"><label>Carry squad over from last season?</label>
+      <select id="ns-carry"><option value="1">Yes — copy squad from #${seasons[0]?.number||'-'}</option><option value="0">No — start empty</option></select>
+    </div>
+    <button class="btn" id="ns-save" style="width:100%; justify-content:center; margin-top:6px">Create season</button>
+  </div></div>`;
+  document.getElementById('modal-root').innerHTML = html;
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('modal').addEventListener('click', e=>{ if(e.target.id==='modal') closeModal(); });
+  document.getElementById('ns-save').addEventListener('click', async ()=>{
+    const number = Number(document.getElementById('ns-num').value||1);
+    const gameVersion = document.getElementById('ns-ver').value.trim();
+    const team = document.getElementById('ns-team').value.trim();
+    const carry = document.getElementById('ns-carry').value==='1';
+    if(!team){ toast('Enter a team name'); return; }
+    const squadIds = carry && seasons[0] ? [...(seasons[0].squadIds||[])] : [];
+    await dbAdd('seasons', {number, gameVersion, team, squadIds, champion:false, perfectSeason:false, createdAt:Date.now()});
+    closeModal();
+    toast('Season created');
+  });
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+/* ============================= HISTORY ============================= */
+let historyFilterSeason = '';
+function renderHistory(){
+  const filtered = games.filter(g=> !historyFilterSeason || g.seasonId===historyFilterSeason);
+  return `
+  <div class="pagehead"><div><h1>Match History</h1><div class="sub">${games.length} matches logged</div></div>
+    <select id="history-filter">
+      <option value="">All seasons</option>
+      ${seasons.map(s=>`<option value="${s.id}" ${historyFilterSeason===s.id?'selected':''}>#${s.number} · ${esc(s.team)}</option>`).join('')}
+    </select>
+  </div>
+  ${filtered.length ? filtered.map(g=>historyRow(g)).join('') : `<div class="card empty">No matches ${historyFilterSeason?'in this season':'logged'} yet.</div>`}
+  `;
+}
+
+function historyRow(g){
+  const s = seasonById(g.seasonId);
+  const o = outcome(g);
+  const scorers = (g.playerStats||[]).filter(p=>p.goals>0).map(p=>`${playerName(p.playerId)} ${p.goals>1?'×'+p.goals:''}`).join(', ');
+  const assisters = (g.playerStats||[]).filter(p=>p.assists>0).map(p=>`${playerName(p.playerId)} ${p.assists>1?'×'+p.assists:''}`).join(', ');
+  const stats = g.teamStats || {for:{}, against:{}};
+  const statRows = Object.keys(stats.for||{}).length ? Object.entries(stats.for).map(([label,fv])=>{
+    const av = stats.against?.[label];
+    const fn = parseFloat(fv)||0, an = parseFloat(av)||0; const tot = fn+an || 1;
+    return `<div class="vs-bar"><div class="val">${esc(fv)}</div><div class="track"><div class="fill-a" style="width:${fn/tot*100}%"></div><div class="fill-b" style="width:${an/tot*100}%"></div></div><div class="val right">${esc(av||'')}</div></div><div class="vs-label">${esc(label)}</div>`;
+  }).join('') : '';
+  return `<div class="card" style="margin-bottom:12px" data-game="${g.id}">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
+      <div>
+        <span class="pill ${o}">${o.toUpperCase()}</span>
+        <span style="margin-left:8px; font-weight:600">vs ${esc(g.opponentTeam||'—')}</span>
+        <span class="subtle"> · ${g.homeAway==='home'?'Home':'Away'} · #${s?s.number:'?'} game ${g.gameNumber||''}</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px">
+        <div class="num" style="font-size:22px">${g.scoreFor} – ${g.scoreAgainst}</div>
+        <button class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
+      </div>
+    </div>
+    ${g.rageQuit==='them' ? `<div class="tag" style="margin-top:8px;color:var(--red);border-color:var(--red)">They rage quit</div>` : ''}
+    ${g.disconnect ? `<div class="tag" style="margin-top:8px">Disconnect</div>` : ''}
+    ${scorers ? `<div class="subtle" style="margin-top:8px">⚽ ${esc(scorers)}</div>` : ''}
+    ${assisters ? `<div class="subtle" style="margin-top:2px">🅰️ ${esc(assisters)}</div>` : ''}
+    ${g.motmPlayerId ? `<div class="subtle" style="margin-top:2px">⭐ MOTM: ${esc(playerName(g.motmPlayerId))}</div>` : ''}
+    ${statRows ? `<div class="section-title" style="margin:14px 0 6px">Team stats</div>${statRows}` : ''}
+  </div>`;
+}
+
+function wireHistoryHandlers(){
+  document.getElementById('history-filter')?.addEventListener('change', e=>{ historyFilterSeason = e.target.value; render(); });
+  document.querySelectorAll('[data-del-game]').forEach(b=> b.addEventListener('click', ()=>{
+    if(confirm('Delete this match permanently?')) dbDelete('games', b.dataset.delGame);
+  }));
+}
+
+/* ============================= DISPATCH ============================= */
+function wireTabHandlers(){
+  if(currentTab==='log') wireLogHandlers();
+  if(currentTab==='squad') wireSquadHandlers();
+  if(currentTab==='history') wireHistoryHandlers();
+}
+
+/* ============================= AUTH ============================= */
+/* No email list here on purpose — real enforcement lives in your private
+   Firestore rule (Firebase Console → Firestore → Rules), which isn't part
+   of this public repo. If Firestore rejects a signed-in account, we just
+   show a generic message and sign them out below. */
+let currentUser = null;
+let dbStarted = false;
+
+function initAuth(){
+  firebase.auth().onAuthStateChanged(user=>{
+    currentUser = user;
+    document.getElementById('login-screen').style.display = user ? 'none' : 'flex';
+    document.getElementById('app').style.display = user ? 'flex' : 'none';
+    if(user && !dbStarted){ dbStarted = true; initDb(); }
+    if(!user){ dbStarted = false; }
+  });
+}
+
+document.getElementById('google-signin-btn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('google-signin-btn');
+  errEl.textContent = '';
+  btn.disabled = true;
+  try{
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await firebase.auth().signInWithPopup(provider);
+  }catch(err){
+    errEl.textContent = err.code==='auth/popup-closed-by-user' ? '' :
+      err.code==='auth/unauthorized-domain' ? "This site isn't authorized in Firebase yet — add its domain under Authentication → Settings → Authorized domains." :
+      (err.message || 'Sign-in failed.');
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('signout-btn').addEventListener('click', ()=> firebase.auth().signOut());
+
+function initSnowfall(){
+  const root = document.getElementById('zc-snow');
+  if(!root) return;
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const frag = document.createDocumentFragment();
+  for(let i=0;i<70;i++){
+    const d = document.createElement('div');
+    d.className = 'flake';
+    const size = 2 + Math.random()*4;
+    d.style.left = (Math.random()*100)+'%';
+    d.style.width = size+'px';
+    d.style.height = size+'px';
+    d.style.opacity = (0.5 + Math.random()*0.5).toFixed(2);
+    const dur = 8 + Math.random()*10;
+    d.style.animationDuration = dur+'s';
+    d.style.animationDelay = (-Math.random()*dur)+'s';
+    frag.appendChild(d);
+  }
+  root.appendChild(frag);
+}
+
+initAuth();
+initSnowfall();
+render();
+</script>
+</body>
+</html>
