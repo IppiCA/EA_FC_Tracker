@@ -935,7 +935,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v3';
+const SCAN_BUILD = 'v4';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1454,9 +1454,11 @@ async function scanTeamImage(files, progId){
     const results = await ocrReadFiles(files, progId, [{}, {binarize:true}]);
     const homeAway = (logDraft && logDraft.homeAway) ? logDraft.homeAway : 'home';
     const left={}, right={};
+    let lastWords = [];
     results.forEach(data=>{
       const lists = (data._variantWords && data._variantWords.length) ? data._variantWords : [flattenWords(data)];
       const words = mergeWords(lists);
+      lastWords = words;
       const parsed = parseSummaryScreen(words);
       if(parsed){ Object.assign(left, parsed.left); Object.assign(right, parsed.right); }
       // Fallback: the old "[num] label [num]" heuristic (works on other screen variants)
@@ -1470,7 +1472,17 @@ async function scanTeamImage(files, progId){
     const labels = Array.from(new Set([...Object.keys(left), ...Object.keys(right)]));
     if(!labels.length){
       const totalWords = results.reduce((s,d)=> s + (d._procWords||flattenWords(d).length), 0);
-      prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized (OCR read ${totalWords} word(s)) [build ${SCAN_BUILD}] — check image clarity or enter manually.</div>`;
+      const thumb = (blob, label)=>{
+        if(!blob || typeof URL.createObjectURL !== 'function') return '';
+        return `<div><div class="sub" style="margin-bottom:4px">${label}</div><img src="${URL.createObjectURL(blob)}" style="max-width:150px; max-height:200px; border-radius:8px; border:1px solid var(--line); display:block"></div>`;
+      };
+      const previews = results.map((d,i)=>{
+        const a = thumb(d._src, `Image ${i+1}: as OCR saw it`);
+        const b = (d._orig && d._src !== d._orig) ? thumb(d._orig, `Image ${i+1}: original file`) : '';
+        return (a||b) ? `<div style="margin-top:10px; display:flex; gap:14px; align-items:flex-start">${a}${b}</div>` : '';
+      }).join('');
+      const sample = lastWords.slice(0, 40).map(w=>esc(w.text)).join(' · ');
+      prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized (OCR read ${totalWords} word(s)) [build ${SCAN_BUILD}] — check image clarity or enter manually. If it keeps failing, send us this screen (preview + word sample) and we'll see exactly what the scanner received.</div>${sample ? `<div class="hint" style="margin-top:8px; font-size:12px">Words OCR read (first 40): ${sample}</div>` : ''}${previews}`;
       return;
     }
     // Home team is always the LEFT column in the game → map to us/them via Home/Away.
