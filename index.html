@@ -828,17 +828,115 @@ function withTimeout(promise, ms, label){
   const timeout = new Promise((_,reject)=>{ t = setTimeout(()=> reject(new Error(`${label} timed out`)), ms); });
   return Promise.race([promise.finally(()=>clearTimeout(t)), timeout]);
 }
+
+/* Returns one `data` result (with .blocks word-position tree) per image — NOT concatenated text,
+   because reconstructing table rows needs each word's actual pixel position, not Tesseract's own
+   line-breaking (which falls apart on UIs with big gaps between columns like this one). */
 async function ocrReadFiles(files, progId){
   const prog = document.getElementById(progId);
   ocrLoggerTarget = prog;
   const worker = await withTimeout(getOcrWorker(), 45000, 'Loading the OCR engine');
-  let allText = '';
+  const results = [];
   for(let i=0;i<files.length;i++){
     const {data} = await withTimeout(worker.recognize(files[i]), 45000, 'Reading the image');
-    allText += '\n' + data.text;
+    results.push(data);
   }
   ocrLoggerTarget = null;
-  return allText;
+  return results;
+}
+
+/* Walk Tesseract's blocks→paragraphs→lines→words tree and flatten to a plain word list with bbox,
+   ignoring Tesseract's own line grouping entirely. */
+function flattenWords(data){
+  const words = [];
+  (data.blocks||[]).forEach(block=>{
+    (block.paragraphs||[]).forEach(par=>{
+      (par.lines||[]).forEach(line=>{
+        (line.words||[]).forEach(w=>{
+          const t = (w.text||'').trim();
+          if(t) words.push({text:t, bbox:w.bbox});
+        });
+      });
+    });
+  });
+  return words;
+}
+
+/* Reconstruct visual rows purely from each word's vertical position — this is what makes
+   wide-gapped table UIs work, since it ignores wherever Tesseract itself decided a line broke. */
+function clusterRows(words){
+  const sorted = [...words].sort((a,b)=> a.bbox.y0 - b.bbox.y0);
+  const rows = [];
+  let current = null;
+  sorted.forEach(w=>{
+    const cy = (w.bbox.y0 + w.bbox.y1)/2;
+    const h = w.bbox.y1 - w.bbox.y0;
+    if(!current || Math.abs(cy - current.cy) > Math.max(current.h, h) * 0.65){
+      current = {cy, h, words:[]};
+      rows.push(current);
+    }else{
+      current.cy = (current.cy*current.words.length + cy)/(current.words.length+1);
+      current.h = Math.max(current.h, h);
+    }
+    current.words.push(w);
+  });
+  rows.forEach(r=> r.words.sort((a,b)=> a.bbox.x0 - b.bbox.x0));
+  return rows;
+}
+
+/* A player-performance row is: [optional POS] Name (one or more words) [Rating|N/A] Goals Assists */
+function parsePlayerRow(rowWords){
+  const toks = rowWords.map(w=>w.text).filter(Boolean);
+  if(toks.length < 3) return null;
+  let goalsIdx=-1, assistsIdx=-1;
+  for(let i=toks.length-1;i>=0;i--){
+    if(/^\d{1,2}$/.test(toks[i])){
+      if(assistsIdx===-1) assistsIdx=i;
+      else { goalsIdx=i; break; }
+    }
+  }
+  if(goalsIdx===-1 || assistsIdx===-1 || goalsIdx>=assistsIdx) return null;
+  const assists = Number(toks[assistsIdx]);
+  const goals = Number(toks[goalsIdx]);
+  let ratingIdx = goalsIdx-1;
+  let rating = '', hasRating = false;
+  if(ratingIdx>=0){
+    const rt = toks[ratingIdx];
+    if(/^n\/?a$/i.test(rt)){ rating=''; hasRating=true; }
+    else if(/^\d{1,2}[.,]\d$/.test(rt)){ rating = rt.replace(',','.'); hasRating=true; }
+  }
+  const nameEnd = hasRating ? ratingIdx : goalsIdx;
+  let nameTokens = toks.slice(0, nameEnd);
+  let position = '';
+  if(nameTokens.length>1 && /^[A-Z]{2,4}$/.test(nameTokens[0])){
+    position = nameTokens[0];
+    nameTokens = nameTokens.slice(1);
+  }
+  const name = nameTokens.join(' ').replace(/[^A-Za-z.'\-\u00C0-\u017F ]/g,'').trim();
+  if(!name || /^(pos|name|rr|g|ast)$/i.test(name)) return null;
+  return {position, name, rating, goals, assists};
+}
+
+/* A team-stat row is: [for value] Label text… [against value] */
+function parseTeamStatRow(rowWords){
+  const toks = rowWords.map(w=>w.text).filter(Boolean);
+  if(toks.length < 3) return null;
+  const isNum = t => /^[\d.]+%?$/.test(t);
+  if(!isNum(toks[0]) || !isNum(toks[toks.length-1])) return null;
+  const forVal = toks[0].replace('%','');
+  const againstVal = toks[toks.length-1].replace('%','');
+  const label = toks.slice(1, toks.length-1).join(' ').trim();
+  if(!label) return null;
+  return {label, for:forVal, against:againstVal};
+}
+
+function recomputeMotmGuess(){
+  let best = null;
+  (logDraft.playerStats||[]).forEach(ps=>{
+    const r = parseFloat(ps.rating);
+    if(!isNaN(r) && (!best || r > best.r)) best = {r, playerId: ps.playerId};
+  });
+  if(best) logDraft.motmPlayerId = best.playerId;
 }
 
 async function scanPlayerImages(files, progId){
@@ -846,16 +944,14 @@ async function scanPlayerImages(files, progId){
   prog.innerHTML = `<div class="hint">Starting…</div>`;
   try{
     if(typeof Tesseract === 'undefined') throw new Error('OCR engine did not load');
-    const text = await ocrReadFiles(files, progId);
-    const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
-    const rowRe = /^([A-Z]{2,4})?\s*([A-Za-z][A-Za-z.'\-\u00C0-\u017F ]{1,30}?)\s+(N\/?A|\d{1,2}[.,]\d)\s+(\d{1,2})\s+(\d{1,2})\s*$/i;
+    const results = await ocrReadFiles(files, progId);
     const found = [];
-    lines.forEach(line=>{
-      const m = line.match(rowRe);
-      if(!m) return;
-      if(/^(pos|name)/i.test(m[2])) return;
-      const rating = /n\/?a/i.test(m[3]) ? '' : m[3].replace(',', '.');
-      found.push({position:(m[1]||'').toUpperCase(), name:m[2].trim(), rating, goals:Number(m[4]), assists:Number(m[5])});
+    results.forEach(data=>{
+      const rows = clusterRows(flattenWords(data));
+      rows.forEach(row=>{
+        const parsed = parsePlayerRow(row.words);
+        if(parsed) found.push(parsed);
+      });
     });
     if(!found.length){
       prog.innerHTML = `<div class="hint" style="color:var(--red)">No player rows recognized — check image clarity or enter manually.</div>`;
@@ -868,10 +964,11 @@ async function scanPlayerImages(files, progId){
       const idx = logDraft.playerStats.findIndex(ps=>ps.playerId===playerId);
       if(idx>-1) logDraft.playerStats[idx] = row; else logDraft.playerStats.push(row);
     }
+    recomputeMotmGuess();
     render();
-    toast(`Filled in ${found.length} player row(s) — new names were added automatically`);
+    toast(`Filled in ${found.length} player row(s) — MOTM guessed as the highest rating, check it's right`);
     const prog2 = document.getElementById(progId);
-    if(prog2) prog2.innerHTML = `<div class="hint" style="color:var(--turf)">Scan complete — review the rows below, then paste another screenshot or save.</div>`;
+    if(prog2) prog2.innerHTML = `<div class="hint" style="color:var(--turf)">Scan complete — review the rows below (and the Man of the Match pick), then paste another screenshot or save.</div>`;
   }catch(err){
     const timedOut = /timed out/.test(err.message||'');
     prog.innerHTML = `<div class="hint" style="color:var(--red)">${timedOut ? "This is taking too long — check your connection." : `Couldn't read that image automatically (${esc(err.message||'scan failed')}).`} Just type the values in below for now.</div>`;
@@ -883,14 +980,14 @@ async function scanTeamImage(files, progId){
   prog.innerHTML = `<div class="hint">Starting…</div>`;
   try{
     if(typeof Tesseract === 'undefined') throw new Error('OCR engine did not load');
-    const text = await ocrReadFiles(files, progId);
-    const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
-    const pairRe = /^([\d.]+)\s*%?\s+([A-Za-z][A-Za-z %()]{2,30}?)\s+([\d.]+)\s*%?$/;
+    const results = await ocrReadFiles(files, progId);
     const map = {};
-    lines.forEach(line=>{
-      const m = line.match(pairRe);
-      if(!m) return;
-      map[m[2].trim().replace(/\s+/g,' ')] = {for:m[1], against:m[3]};
+    results.forEach(data=>{
+      const rows = clusterRows(flattenWords(data));
+      rows.forEach(row=>{
+        const parsed = parseTeamStatRow(row.words);
+        if(parsed) map[parsed.label] = {for:parsed.for, against:parsed.against};
+      });
     });
     if(!Object.keys(map).length){
       prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized — check image clarity or enter manually.</div>`;
@@ -933,6 +1030,7 @@ function wireScan(inputId, boxId, progId, scanFn){
     await run(files);
   });
 }
+
 
 /* ============================= SQUAD & SEASONS ============================= */
 function renderSquad(){
