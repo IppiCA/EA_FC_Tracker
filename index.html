@@ -1089,7 +1089,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v9';
+const SCAN_BUILD = 'v10';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1885,12 +1885,37 @@ function renderCountryList(d, q){
   });
 })();
 
-/* OCR gives all-caps names ("CLUB BRUGGE"); tidy to "Club Brugge" but keep short acronyms (FC, PSG). */
+/* OCR gives all-caps names ("CLUB BRUGGE"); tidy to "Club Brugge" but keep short acronyms (FC, PSG).
+   Tesseract sometimes glues a club into one word ("FCBARCELONA") — known fusions map to the
+   proper name, and any all-caps word starting with a club prefix (FC, CF, …) gets split. */
+/* Word-level lookups for clubs OCR glues into one all-caps word. */
+const WORD_TEAMS = {
+  FCBARCELONA:'FC Barcelona', REALMADRID:'Real Madrid', ATLETICOMADRID:'Atlético Madrid',
+  MANCHESTERUNITED:'Manchester United', MANCHESTERCITY:'Manchester City', TOTTENHAMHOTSPUR:'Tottenham Hotspur',
+  BAYERNMUNCHEN:'Bayern München', BAYERNMUNCHEN:'Bayern München', ACMAILAND:'AC Milan',
+  INTERMILAN:'Inter Milan', CHELSEAFC:'Chelsea', NEWCASTLEUNITED:'Newcastle United',
+  ASTONVILLA:'Aston Villa', SEVILLACF:'Sevilla', VILLARREALCF:'Villarreal', VALENCIACF:'Valencia'
+};
+/* Full-name lookups (applied after per-word tidy, so "FC BARCELONA" and "FCBARCELONA" both land here). */
+const KNOWN_TEAMS = {
+  'FC BARCELONA':'FC Barcelona', 'REAL MADRID':'Real Madrid', 'ATLETICO MADRID':'Atlético Madrid',
+  'MANCHESTER UNITED':'Manchester United', 'MANCHESTER CITY':'Manchester City',
+  'TOTTENHAM HOTSPUR':'Tottenham Hotspur', 'BAYERN MUNCHEN':'Bayern München', 'BAYERN MUNCHEN':'Bayern München',
+  'AC MAILAND':'AC Milan', 'NEWCASTLE UNITED':'Newcastle United', 'ASTON VILLA':'Aston Villa',
+  'SEVILLA FC':'Sevilla', 'VILLARREAL CF':'Villarreal', 'VALENCIA CF':'Valencia'
+};
 function titleTeam(s){
-  return (s||'').split(/\s+/).filter(Boolean).map(w=>{
+  const words = (s||'').split(/\s+/).filter(Boolean).map(w=>{
+    const wkey = w.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(WORD_TEAMS[wkey]) return WORD_TEAMS[wkey];
+    const m = w.match(/^(FC|CF|AC|AS|RC|SC|SSC|AFC)([A-Z]{3,})$/); // glued all-caps: "FCBAYERN" → "FC Bayern"
+    if(m) return m[1] + ' ' + m[2].charAt(0) + m[2].slice(1).toLowerCase();
     if(w === w.toUpperCase() && /^[A-Z0-9.\-]+$/.test(w) && w.length <= 4) return w;
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-  }).join(' ');
+  });
+  const out = words.join(' ');
+  const hit = KNOWN_TEAMS[out.toUpperCase().replace(/[^A-Z0-9 ]/g,'')];
+  return hit || out;
 }
 
 /* Pure parser: from OCR'd words + positions on the PLAYERS screen, work out
