@@ -743,7 +743,7 @@ function renderLog(){
       <div class="field"><label>Season</label>
         <select id="f-season">${seasons.map(x=>`<option value="${x.id}" ${x.id===logDraft.seasonId?'selected':''}>#${x.number} · ${esc(seasonTeamName(x))} (${esc(x.gameVersion||'')})</option>`).join('')}</select>
       </div>
-      <div class="field"><label>Team <span class="hint" style="display:inline">— switching mid-season adds it to this season</span></label>
+      <div class="field"><label>Team</label>
         <select id="f-team">
           ${!logDraft.teamId ? `<option value="" disabled selected>No team (legacy season)</option>` : ''}
           ${teams.map(t=>`<option value="${t.id}" ${t.id===(logDraft.teamId||'')?'selected':''}>${esc(t.name)}</option>`).join('')}
