@@ -362,7 +362,8 @@ let teams = [];     // {id, name, playerIds[]} — team sheets, managed in Setti
 let seasons = [];   // {id, number, gameVersion, team, teamId?, squadIds[], champion, perfectSeason, createdAt}
 let seedingTeams = false;
 let games = [];      // {id, seasonId, gameNumber, opponentTeam, opponentGamertags[2], opponentPlatforms[2], opponentCountries[2], homeAway, scoreFor, scoreAgainst,
-                      //  rageQuit ('none'|'us'|'them'), disconnect(bool), motmPlayerId, teamStats:{for:{},against:{}},
+                      //  rageQuit ('none'|'us'|'them'), rageQuitMin (number|null — match clock at the end, e.g. 87.7),
+                      //  disconnect(bool), motmPlayerId, teamStats:{for:{},against:{}},
                       //  playerStats:[{playerId,position,rating,goals,assists}], createdAt}
 let currentTab = 'dashboard';
 
@@ -733,7 +734,7 @@ function freshDraft(){
     seasonId: s ? s.id : '',
     teamId: s ? seasonPrimaryTeamId(s) : '',
     opponentTeam:'', opponentGamertags:['',''], opponentPlatforms:['',''], opponentCountries:['',''], homeAway:'home',
-    scoreFor:0, scoreAgainst:0, rageQuit:'none', disconnect:false, motmPlayerId:'',
+    scoreFor:0, scoreAgainst:0, rageQuit:'none', rageQuitMin:null, disconnect:false, motmPlayerId:'',
     playerStats: s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
     teamStats: {for:{}, against:{}}
   };
@@ -751,6 +752,7 @@ function gameToDraft(g){
     scoreFor: g.scoreFor||0,
     scoreAgainst: g.scoreAgainst||0,
     rageQuit: g.rageQuit||'none',
+    rageQuitMin: (g.rageQuitMin!=null) ? Number(g.rageQuitMin) : null,
     disconnect: !!g.disconnect,
     motmPlayerId: g.motmPlayerId||'',
     playerStats: (g.playerStats||[]).map(p=>({playerId:p.playerId, position:p.position||'', rating:p.rating||'', goals:p.goals||0, assists:p.assists||0})),
@@ -810,10 +812,13 @@ function renderLog(){
       </div>
     </div>
     <div class="row">
-      <div class="field"><label>Rage quit</label>
+      <div class="field" style="flex:1.6"><label>Rage quit</label>
         <select id="f-rq"><option value="none" ${logDraft.rageQuit==='none'?'selected':''}>No rage quit</option><option value="them" ${logDraft.rageQuit==='them'?'selected':''}>They rage quit</option><option value="us" ${logDraft.rageQuit==='us'?'selected':''}>We rage quit</option></select>
       </div>
-      <div class="field"><label>Disconnect</label>
+      <div class="field" style="flex:1"><label>Rage quit time (min)</label>
+        <input type="number" min="0" step="0.1" id="f-rqmin" value="${logDraft.rageQuitMin!=null?logDraft.rageQuitMin:''}">
+      </div>
+      <div class="field" style="flex:1"><label>Disconnect</label>
         <select id="f-dc"><option value="0" ${!logDraft.disconnect?'selected':''}>No</option><option value="1" ${logDraft.disconnect?'selected':''}>Yes</option></select>
       </div>
     </div>
@@ -943,6 +948,8 @@ function readDraftFromForm(){
   g.scoreFor = Number(val('f-scorefor')||0);
   g.scoreAgainst = Number(val('f-scoreagainst')||0);
   g.rageQuit = val('f-rq');
+  const rqm = val('f-rqmin');
+  g.rageQuitMin = (rqm==='') ? null : Number(rqm);
   g.disconnect = val('f-dc')==='1';
   const motmBox = document.querySelector('#playerstat-rows .ocr-row [data-f=motm]:checked');
   g.motmPlayerId = motmBox ? motmBox.closest('.ocr-row').querySelector('[data-f=playerId]').value : '';
@@ -1111,7 +1118,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v13';
+const SCAN_BUILD = 'v14';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1908,7 +1915,10 @@ async function scanTeamImage(files, progId){
         const rq = document.getElementById('f-rq');
         if(rq) rq.value = 'them';
         if(logDraft) logDraft.rageQuit = 'them';
-        bits.push(`ended at ${header.clockMin}:${String(header.clockSec||0).padStart(2,'0')} → marked as their rage quit`);
+        /* Store the clock as minutes (one decimal) — later we can average rage-quit times. */
+        const rm = document.getElementById('f-rqmin');
+        if(rm) rm.value = Math.round((header.clockMin + (header.clockSec||0)/60)*10)/10;
+        bits.push(`ended at ${header.clockMin}:${String(header.clockSec||0).padStart(2,'0')} → marked as their rage quit (time saved in minutes)`);
       }
       if(bits.length) toast('From the top of the screen: ' + bits.join(' · '));
     }
