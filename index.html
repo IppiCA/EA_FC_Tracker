@@ -190,6 +190,35 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .hint{font-size:12px; color:var(--ink-faint); margin-top:4px}
 .scanbox{border:1.5px dashed var(--line); border-radius:14px; padding:16px; text-align:center; color:var(--ink-dim); font-size:13px}
 .scanbox.active{border-color:var(--turf); color:var(--turf)}
+/* ---- slim PLAYERS-screen scan box (top of Log Match) ---- */
+.scanbox.meta{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 14px; text-align:left; font-size:13px}
+.scanbox.meta .meta-spacer{flex:1}
+/* ---- gamertag row: tag input + Console/PC + country droppers, all the same height ---- */
+.tagrow{display:flex; gap:6px; align-items:stretch}
+.tagrow > *{height:40px}
+.tagrow .tg-in{flex:1; min-width:84px}
+.ddrop{position:relative; flex:0 0 auto; width:112px}
+.ddrop.cty{width:124px}
+.ddrop-btn{width:100%; height:40px; display:flex; align-items:center; gap:7px; background:var(--panel-2); border:1px solid var(--line);
+  border-radius:10px; padding:0 10px; font-size:13.5px; color:var(--ink); text-align:left; font-family:inherit; white-space:nowrap; overflow:hidden}
+.ddrop-btn .chev{margin-left:auto; color:var(--ink-faint); font-size:11px; flex:0 0 auto}
+.ddrop-btn svg{width:16px; height:16px; flex:0 0 auto}
+.ddrop-btn img{width:22px; border-radius:4px; flex:0 0 auto}
+.ddrop-btn .ph{color:var(--ink-faint)}
+.ddrop-btn .nm{overflow:hidden; text-overflow:ellipsis}
+.ddrop-pop{display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:60; background:rgba(16,23,32,.98);
+  border:1px solid var(--line); border-radius:12px; padding:6px; box-shadow:0 18px 44px rgba(0,0,0,.55)}
+.ddrop.pop-open .ddrop-pop{display:block}
+.ddrop.pop-open .ddrop-btn{border-color:var(--turf)}
+.ddrop-opt{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; font-size:13.5px; cursor:pointer; white-space:nowrap}
+.ddrop-opt:hover{background:var(--panel-2)}
+.ddrop-opt.sel{color:var(--turf); background:rgba(60,255,154,.08)}
+.ddrop-opt svg{width:16px; height:16px; flex:0 0 auto}
+.ddrop-opt img{width:22px; border-radius:4px; flex:0 0 auto}
+.ddrop-opt .chk{margin-left:auto; font-size:12px}
+.ddrop.cty .ddrop-pop{width:200px}
+.ddrop-search{width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font-size:12.5px; color:var(--ink); margin-bottom:5px; font-family:inherit}
+.ddrop-list{max-height:230px; overflow-y:auto}
 .ocr-row{display:grid; grid-template-columns:64px minmax(0,1fr) 54px 42px 42px 30px 24px 28px; gap:6px; align-items:center; margin-bottom:6px}
 .ocr-row input{padding:6px 7px; font-size:13px}
 .ocr-row .del{background:none;border:none;color:var(--red);font-size:16px}
@@ -332,7 +361,7 @@ let players = [];   // {id, name}
 let teams = [];     // {id, name, playerIds[]} — team sheets, managed in Settings
 let seasons = [];   // {id, number, gameVersion, team, teamId?, squadIds[], champion, perfectSeason, createdAt}
 let seedingTeams = false;
-let games = [];      // {id, seasonId, gameNumber, opponentTeam, opponentGamertags[2], homeAway, scoreFor, scoreAgainst,
+let games = [];      // {id, seasonId, gameNumber, opponentTeam, opponentGamertags[2], opponentPlatforms[2], opponentCountries[2], homeAway, scoreFor, scoreAgainst,
                       //  rageQuit ('none'|'us'|'them'), disconnect(bool), motmPlayerId, teamStats:{for:{},against:{}},
                       //  playerStats:[{playerId,position,rating,goals,assists}], createdAt}
 let currentTab = 'dashboard';
@@ -702,7 +731,7 @@ function freshDraft(){
   return {
     seasonId: s ? s.id : '',
     teamId: s ? seasonPrimaryTeamId(s) : '',
-    opponentTeam:'', opponentGamertags:['',''], homeAway:'home',
+    opponentTeam:'', opponentGamertags:['',''], opponentPlatforms:['',''], opponentCountries:['',''], homeAway:'home',
     scoreFor:0, scoreAgainst:0, rageQuit:'none', disconnect:false, motmPlayerId:'',
     playerStats: s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
     teamStats: {for:{}, against:{}}
@@ -715,6 +744,8 @@ function gameToDraft(g){
     teamId: g.teamId || seasonPrimaryTeamId(seasonById(g.seasonId)),
     opponentTeam: g.opponentTeam||'',
     opponentGamertags: g.opponentGamertags||['',''],
+    opponentPlatforms: (Array.isArray(g.opponentPlatforms)&&g.opponentPlatforms.length===2)?g.opponentPlatforms:['',''],
+    opponentCountries: (Array.isArray(g.opponentCountries)&&g.opponentCountries.length===2)?g.opponentCountries:['',''],
     homeAway: g.homeAway||'home',
     scoreFor: g.scoreFor||0,
     scoreAgainst: g.scoreAgainst||0,
@@ -739,6 +770,14 @@ function renderLog(){
   <div class="pagehead"><div><h1>${isEditing?'Edit Match':'Log Match'}</h1><div class="sub">${isEditing?'Update the details below and save your changes':'Scan the in-game screens or enter it manually — review before saving'}</div></div></div>
 
   <div class="card" style="margin-bottom:16px">
+    <div class="scanbox meta" id="scan-meta" tabindex="0">
+      📸 <span><b>Paste the PLAYERS screen</b> (Ctrl+V) — fills in opponent, home/away &amp; gamertags</span>
+      <span class="meta-spacer"></span>
+      <span class="hint" style="display:inline">or choose a file…</span>
+      <button type="button" class="link-btn" id="scan-meta-choose">choose</button>
+      <input type="file" id="scan-meta-input" accept="image/*" style="display:none">
+      <div id="scan-meta-progress" style="width:100%"></div>
+    </div>
     <div class="row">
       <div class="field"><label>Season</label>
         <select id="f-season">${seasons.map(x=>`<option value="${x.id}" ${x.id===logDraft.seasonId?'selected':''}>#${x.number} · ${esc(seasonTeamName(x))} (${esc(x.gameVersion||'')})</option>`).join('')}</select>
@@ -755,10 +794,10 @@ function renderLog(){
         <select id="f-homeaway"><option value="home" ${logDraft.homeAway==='home'?'selected':''}>Home</option><option value="away" ${logDraft.homeAway==='away'?'selected':''}>Away</option></select>
       </div>
     </div>
-    <div class="row">
-      <div class="field"><label>Their gamertag 1</label><input type="text" id="f-tag1" value="${esc(logDraft.opponentGamertags[0])}"></div>
-      <div class="field"><label>Their gamertag 2</label><input type="text" id="f-tag2" value="${esc(logDraft.opponentGamertags[1])}"></div>
-      <div class="field"><label>Score (us – them)</label>
+    <div class="row" style="align-items:flex-end">
+      ${gamertagField(1)}
+      ${gamertagField(2)}
+      <div class="field" style="flex:1.3; min-width:150px"><label>Score (us – them)</label>
         <div class="row" style="gap:6px">
           <input type="number" min="0" id="f-scorefor" value="${logDraft.scoreFor}">
           <input type="number" min="0" id="f-scoreagainst" value="${logDraft.scoreAgainst}">
@@ -830,6 +869,34 @@ function playerStatRow(ps, i){
     <button class="del" data-remove="${i}" title="Remove this row">×</button>
   </div>`;
 }
+/* Their gamertag + Console/PC pick + country pick — all controls the same height. */
+function gamertagField(i){
+  const idx = i-1;
+  const plat = (logDraft.opponentPlatforms&&logDraft.opponentPlatforms[idx])||'';
+  const cty = (logDraft.opponentCountries&&logDraft.opponentCountries[idx])||'';
+  return `<div class="field" style="flex:2.3; min-width:300px">
+    <label>Their gamertag ${i}</label>
+    <div class="tagrow">
+      <input type="text" id="f-tag${i}" class="tg-in" value="${esc(logDraft.opponentGamertags[idx]||'')}">
+      <span class="ddrop" data-kind="plat" data-idx="${i}">
+        <button type="button" class="ddrop-btn" id="dd-plat-${i}" title="Console or PC"><span class="ddrop-val"></span><span class="chev">▾</span></button>
+        <span class="ddrop-pop">
+          <span class="ddrop-opt" data-val="console">${ICONS.gamepad}<span>Console</span></span>
+          <span class="ddrop-opt" data-val="pc">${ICONS.monitor}<span>PC</span></span>
+        </span>
+      </span>
+      <span class="ddrop cty" data-kind="cty" data-idx="${i}">
+        <button type="button" class="ddrop-btn" id="dd-cty-${i}" title="Country (flag only)"><span class="ddrop-val"></span><span class="chev">▾</span></button>
+        <span class="ddrop-pop">
+          <input type="text" class="ddrop-search" placeholder="Search country…" autocomplete="off">
+          <div class="ddrop-list"></div>
+        </span>
+      </span>
+      <input type="hidden" id="f-plat${i}" value="${esc(plat)}">
+      <input type="hidden" id="f-cty${i}" value="${esc(cty)}">
+    </div>
+  </div>`;
+}
 /* Highlight cells that hold a real value (rating entered, or goals/assists > 0),
    so played vs. sat-out players are instantly visible. */
 function paintStatHighlights(){
@@ -857,6 +924,8 @@ function readDraftFromForm(){
   g.opponentTeam = val('f-opp');
   g.homeAway = val('f-homeaway');
   g.opponentGamertags = [val('f-tag1')||'', val('f-tag2')||''];
+  g.opponentPlatforms = [val('f-plat1')||'', val('f-plat2')||''];
+  g.opponentCountries = [val('f-cty1')||'', val('f-cty2')||''];
   g.scoreFor = Number(val('f-scorefor')||0);
   g.scoreAgainst = Number(val('f-scoreagainst')||0);
   g.rageQuit = val('f-rq');
@@ -991,6 +1060,28 @@ function wireLogHandlers(){
 
   wireScan('scan-players-input','scan-players','scan-players-progress', scanPlayerImages);
   wireScan('scan-team-input','scan-team','scan-team-progress', scanTeamImage);
+
+  /* Slim PLAYERS-screen scan box (paste or choose a file). */
+  const metaBox = document.getElementById('scan-meta');
+  const metaInput = document.getElementById('scan-meta-input');
+  if(metaBox && metaInput){
+    const run = async (files)=>{
+      if(!files.length) return;
+      metaBox.classList.add('active');
+      try{ await scanPlayersScreen(files, 'scan-meta-progress'); } finally { metaBox.classList.remove('active'); }
+    };
+    metaInput.addEventListener('change', async (e)=>{ const files=Array.from(e.target.files||[]); await run(files); e.target.value=''; });
+    document.getElementById('scan-meta-choose')?.addEventListener('click', (e)=>{ e.stopPropagation(); metaInput.click(); });
+    metaBox.addEventListener('click', (e)=>{ if(e.target.closest && e.target.closest('button')) return; metaInput.click(); });
+    metaBox.addEventListener('paste', async (e)=>{
+      const items = Array.from(e.clipboardData?.items || []);
+      const files = items.filter(it=>it.type && it.type.startsWith('image/')).map(it=>it.getAsFile()).filter(Boolean);
+      if(!files.length) return;
+      e.preventDefault();
+      await run(files);
+    });
+  }
+  paintDdrops();
 }
 
 /* ---- Scanning, via Tesseract.js OCR (works normally here — no restrictive CSP on GitHub Pages) ---- */
@@ -998,7 +1089,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v6';
+const SCAN_BUILD = 'v7';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1620,6 +1711,393 @@ function wireScan(inputId, boxId, progId, scanFn){
     await run(files);
   });
 }
+
+
+/* ============================= PLAYERS-SCREEN SCAN (GAMERTAGS) =============================
+   Paste the in-game PLAYERS screen → it finds our two gamertags to work out which side is
+   ours, then fills opponent team, home/away, their two gamertags — and (best-effort) the
+   Console/PC pick by shape-matching the little icon left of each tag. Everything stays editable. */
+
+/* Small inline icons for the Console/PC picker (stroke inherits the button colour). */
+const ICONS = {
+  gamepad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 8.5h11A4.5 4.5 0 0 1 22 13v.5a3 3 0 0 1-5.5 1.7L15.3 13H8.7l-1.2 2.2A3 3 0 0 1 2 13.5V13a4.5 4.5 0 0 1 4.5-4.5z"/><path d="M7.5 11.2v2.6M6.2 12.5h2.6"/><circle cx="15.8" cy="11.8" r=".6" fill="currentColor"/><circle cx="17.8" cy="13.2" r=".6" fill="currentColor"/></svg>',
+  monitor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M9 20h6M12 16v4"/></svg>'
+};
+
+/* ---- our gamertags, matched with OCR-confusion tolerance (I/L read as 1; case & punctuation ignored) ---- */
+const OUR_TAGS = ['Ippi90','SteBo1339'];
+function normTag(s){ return (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/I|L/g,'1'); }
+const OUR_TAG_SET = new Set(OUR_TAGS.map(normTag));
+
+/* Near-miss readings of the "Player" column heading (Tesseract on dark game UI). */
+const HEADING_WORDS = new Set(['player','pleyer','plyer','piayer','piayr','playr','pleier','plaver','piaycr']);
+
+/* ISO 3166-1 countries (UN members + 2 observers), alphabetical. Stored as ISO code. */
+const COUNTRIES = [
+  ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
+  ['AG','Antigua and Barbuda'],['AR','Argentina'],['AM','Armenia'],['AU','Australia'],['AT','Austria'],
+  ['AZ','Azerbaijan'],['BS','Bahamas'],['BH','Bahrain'],['BD','Bangladesh'],['BB','Barbados'],
+  ['BY','Belarus'],['BE','Belgium'],['BZ','Belize'],['BJ','Benin'],['BT','Bhutan'],
+  ['BO','Bolivia'],['BA','Bosnia and Herzegovina'],['BW','Botswana'],['BR','Brazil'],['BN','Brunei'],
+  ['BG','Bulgaria'],['BF','Burkina Faso'],['BI','Burundi'],['CV','Cabo Verde'],['KH','Cambodia'],
+  ['CM','Cameroon'],['CA','Canada'],['CF','Central African Republic'],['TD','Chad'],['CL','Chile'],
+  ['CN','China'],['CO','Colombia'],['KM','Comoros'],['CG','Congo'],['CI','Côte d’Ivoire'],
+  ['CR','Costa Rica'],['HR','Croatia'],['CU','Cuba'],['CY','Cyprus'],['CZ','Czechia'],
+  ['CD','Democratic Republic of the Congo'],['DK','Denmark'],['DJ','Djibouti'],['DM','Dominica'],['DO','Dominican Republic'],
+  ['EC','Ecuador'],['EG','Egypt'],['SV','El Salvador'],['GQ','Equatorial Guinea'],['ER','Eritrea'],
+  ['EE','Estonia'],['SZ','Eswatini'],['ET','Ethiopia'],['FJ','Fiji'],['FI','Finland'],
+  ['FR','France'],['GA','Gabon'],['GM','Gambia'],['GE','Georgia'],['DE','Germany'],
+  ['GH','Ghana'],['GR','Greece'],['GD','Grenada'],['GT','Guatemala'],['GN','Guinea'],
+  ['GW','Guinea-Bissau'],['GY','Guyana'],['HT','Haiti'],['HN','Honduras'],['HU','Hungary'],
+  ['IS','Iceland'],['IN','India'],['ID','Indonesia'],['IR','Iran'],['IQ','Iraq'],
+  ['IE','Ireland'],['IL','Israel'],['IT','Italy'],['JM','Jamaica'],['JP','Japan'],
+  ['JO','Jordan'],['KZ','Kazakhstan'],['KE','Kenya'],['KI','Kiribati'],['KW','Kuwait'],
+  ['KG','Kyrgyzstan'],['LA','Laos'],['LV','Latvia'],['LB','Lebanon'],['LS','Lesotho'],
+  ['LR','Liberia'],['LY','Libya'],['LI','Liechtenstein'],['LT','Lithuania'],['LU','Luxembourg'],
+  ['MG','Madagascar'],['MW','Malawi'],['MY','Malaysia'],['MV','Maldives'],['ML','Mali'],
+  ['MT','Malta'],['MH','Marshall Islands'],['MR','Mauritania'],['MU','Mauritius'],['MX','Mexico'],
+  ['FM','Micronesia'],['MD','Moldova'],['MC','Monaco'],['MN','Mongolia'],['ME','Montenegro'],
+  ['MA','Morocco'],['MZ','Mozambique'],['MM','Myanmar'],['NA','Namibia'],['NR','Nauru'],
+  ['NP','Nepal'],['NL','Netherlands'],['NZ','New Zealand'],['NI','Nicaragua'],['NE','Niger'],
+  ['NG','Nigeria'],['KP','North Korea'],['MK','North Macedonia'],['NO','Norway'],['OM','Oman'],
+  ['PK','Pakistan'],['PW','Palau'],['PS','Palestine'],['PA','Panama'],['PG','Papua New Guinea'],
+  ['PY','Paraguay'],['PE','Peru'],['PH','Philippines'],['PL','Poland'],['PT','Portugal'],
+  ['QA','Qatar'],['RO','Romania'],['RU','Russia'],['RW','Rwanda'],['KN','Saint Kitts and Nevis'],
+  ['LC','Saint Lucia'],['VC','Saint Vincent and the Grenadines'],['WS','Samoa'],['SM','San Marino'],
+  ['ST','São Tomé and Príncipe'],['SA','Saudi Arabia'],['SN','Senegal'],['RS','Serbia'],['SC','Seychelles'],
+  ['SL','Sierra Leone'],['SG','Singapore'],['SK','Slovakia'],['SI','Slovenia'],['SB','Solomon Islands'],
+  ['SO','Somalia'],['ZA','South Africa'],['KR','South Korea'],['SS','South Sudan'],['ES','Spain'],
+  ['LK','Sri Lanka'],['SD','Sudan'],['SR','Suriname'],['SE','Sweden'],['CH','Switzerland'],
+  ['SY','Syria'],['TJ','Tajikistan'],['TZ','Tanzania'],['TH','Thailand'],['TL','Timor-Leste'],
+  ['TG','Togo'],['TO','Tonga'],['TT','Trinidad and Tobago'],['TR','Turkey'],['TM','Turkmenistan'],
+  ['TV','Tuvalu'],['UG','Uganda'],['UA','Ukraine'],['AE','United Arab Emirates'],['GB','United Kingdom'],
+  ['US','United States'],['UY','Uruguay'],['UZ','Uzbekistan'],['VU','Vanuatu'],['VA','Vatican City'],
+  ['VE','Venezuela'],['VN','Vietnam'],['YE','Yemen'],['ZM','Zambia'],['ZW','Zimbabwe']
+];
+function countryName(code){
+  const c = String(code||'').toLowerCase();
+  const e = COUNTRIES.find(x=> x[0].toLowerCase()===c);
+  return e ? e[1] : String(code||'').toUpperCase();
+}
+function countryFlag(code){ return 'https://flagcdn.com/w40/' + String(code||'').toLowerCase() + '.png'; }
+
+/* Re-paint every dropper button from its hidden input (the source of truth) and mark the
+   selected option. Called after renders, option picks, and scans. */
+function paintDdrops(){
+  document.querySelectorAll('.ddrop[data-kind="plat"]').forEach(d=>{
+    const v = (document.getElementById('f-plat'+d.dataset.idx)||{}).value || '';
+    const val = d.querySelector('.ddrop-val');
+    if(!val) return;
+    if(v==='console') val.innerHTML = ICONS.gamepad + '<span class="nm">Console</span>';
+    else if(v==='pc') val.innerHTML = ICONS.monitor + '<span class="nm">PC</span>';
+    else val.innerHTML = '<span class="ph nm">Console/PC</span>';
+    d.querySelectorAll('.ddrop-opt').forEach(o=> o.classList.toggle('sel', o.dataset.val===v));
+  });
+  document.querySelectorAll('.ddrop[data-kind="cty"]').forEach(d=>{
+    const v = (document.getElementById('f-cty'+d.dataset.idx)||{}).value || '';
+    const val = d.querySelector('.ddrop-val');
+    const btn = d.querySelector('.ddrop-btn');
+    if(!val) return;
+    if(v){
+      val.innerHTML = '<img src="' + countryFlag(v) + '" alt="' + esc(v) + '" loading="lazy"><span class="nm">' + esc(countryName(v)) + '</span>';
+      if(btn) btn.title = countryName(v);
+    } else {
+      val.innerHTML = '<span class="ph nm">Country</span>';
+      if(btn) btn.title = 'Country (flag only)';
+    }
+    const s = d.querySelector('.ddrop-search');
+    renderCountryList(d, s ? s.value : '');
+  });
+}
+
+/* Filtered country list for one open dropper (diacritic-insensitive search). */
+function renderCountryList(d, q){
+  const list = d.querySelector('.ddrop-list');
+  if(!list) return;
+  const sel = (document.getElementById('f-cty'+d.dataset.idx)||{}).value || '';
+  const strip = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const needle = strip(q).trim();
+  const rows = COUNTRIES.filter(c=> !needle || strip(c[1]).includes(needle) || c[0].toLowerCase()===needle);
+  list.innerHTML = rows.map(c=>
+    '<span class="ddrop-opt' + (c[0]===sel ? ' sel' : '') + '" data-val="' + c[0] + '">' +
+    '<img src="' + countryFlag(c[0]) + '" alt="' + c[0] + '" loading="lazy"><span>' + esc(c[1]) + '</span>' +
+    (c[0]===sel ? '<span class="chk">✓</span>' : '') +
+    '</span>'
+  ).join('') || '<span class="hint" style="display:block;padding:8px 10px">No match</span>';
+}
+
+/* One-time document-level delegation (render() rebuilds #main, so per-node listeners would die). */
+(function wireDdropsOnce(){
+  document.addEventListener('click', (e)=>{
+    const opt = e.target && e.target.closest ? e.target.closest('.ddrop-opt') : null;
+    if(opt){
+      const d = opt.closest('.ddrop');
+      const input = d ? document.getElementById('f-' + d.dataset.kind + d.dataset.idx) : null;
+      if(d && input) input.value = opt.dataset.val;
+      if(d){
+        d.classList.remove('pop-open');
+        const s = d.querySelector('.ddrop-search');
+        if(s) s.value = '';
+      }
+      paintDdrops();
+      return;
+    }
+    const btn = e.target && e.target.closest ? e.target.closest('.ddrop-btn') : null;
+    if(btn){
+      const d = btn.closest('.ddrop');
+      if(!d) return;
+      const willOpen = !d.classList.contains('pop-open');
+      document.querySelectorAll('.ddrop.pop-open').forEach(x=> x.classList.remove('pop-open'));
+      if(willOpen){
+        d.classList.add('pop-open');
+        if(d.dataset.kind==='cty'){
+          const s = d.querySelector('.ddrop-search');
+          renderCountryList(d, s ? s.value : '');
+          setTimeout(()=>{ if(s && s.focus) s.focus(); }, 0);
+        }
+      }
+      return;
+    }
+    if(e.target && e.target.closest && !e.target.closest('.ddrop')){
+      document.querySelectorAll('.ddrop.pop-open').forEach(x=> x.classList.remove('pop-open'));
+    }
+  });
+  document.addEventListener('input', (e)=>{
+    const t = e.target;
+    if(t && t.classList && t.classList.contains('ddrop-search')){
+      const d = t.closest && t.closest('.ddrop');
+      if(d) renderCountryList(d, t.value);
+    }
+  });
+})();
+
+/* OCR gives all-caps names ("CLUB BRUGGE"); tidy to "Club Brugge" but keep short acronyms (FC, PSG). */
+function titleTeam(s){
+  return (s||'').split(/\s+/).filter(Boolean).map(w=>{
+    if(w === w.toUpperCase() && /^[A-Z0-9.\-]+$/.test(w) && w.length <= 4) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+/* Pure parser: from OCR'd words + positions on the PLAYERS screen, work out
+   opponent team, home/away and the opponent's two gamertags.
+   Layout (fixed-ratio game UI): "PLAYERS" title top-centre; two team names below it (left/right);
+   a small "Player" heading under each team; then each side's gamertags, with a tiny
+   console/PC icon to the left of each. */
+function parsePlayersScreen(words, W, H){
+  const fail = (reason, extra)=> Object.assign({ok:false, reason}, extra||{});
+  if(!words || words.length < 6 || !W || !H) return fail('too-few-words', {read:(words||[]).slice(0,25).map(w=>w.text)});
+  const mid = W/2;
+  const isLetter = c => (c>='a'&&c<='z') || (c>='A'&&c<='Z');
+  const texty = w=>{
+    const s = w.text||'';
+    if(s.length < 2) return false;
+    let letters = 0;
+    for(let i=0;i<s.length;i++) if(isLetter(s[i])) letters++;
+    // letters>=2 so short real parts like "FC" survive; glyph noise (1–3 symbols) still drops out
+    return letters >= 2 && letters/s.length >= 0.5;
+  };
+
+  /* 1) "PLAYERS" title — top of the screen (anchors the band below it) */
+  const title = words.find(w=> w.t==='players' && w.cy < H*0.2) || null;
+  const titleBottom = title ? title.bbox.y1 : 0;
+
+  /* 2) "Player" heading(s) — mid screen, one per side */
+  const isHeading = w=>{
+    const c = (w.t||'').replace(/[^a-z]/g,'');
+    const match = HEADING_WORDS.has(c) || (c.indexOf('play')===0 && c.length>=4 && c.length<=8);
+    return match && w.cy > H*0.28 && w.cy < H*0.55;
+  };
+  const headings = words.filter(isHeading);
+  let headingTop, headingBottom;
+  if(headings.length){
+    headingTop = Math.min.apply(null, headings.map(h=> h.bbox.y0));
+    headingBottom = Math.max.apply(null, headings.map(h=> h.bbox.y1));
+  } else {
+    headingTop = H*0.40; headingBottom = H*0.47; // fallback: the screen is fixed-ratio
+  }
+
+  /* 3) team names: clean words between the title and the headings; on each side the name
+     starts to the right of that side's "Player" heading (crests live further out) */
+  const headL = headings.filter(h=> h.cx < mid);
+  const headR = headings.filter(h=> h.cx >= mid);
+  function sideTeam(side){
+    const isL = side==='L';
+    const heads = isL ? headL : headR;
+    const xEdge = heads.length ? Math.max.apply(null, heads.map(h=> h.bbox.x1)) : null;
+    const cands = words.filter(w=>
+      w.cy > titleBottom + H*0.02 && w.cy < headingTop &&
+      w.cx > W*0.06 && w.cx < W*0.89 &&
+      ((isL && w.cx < mid) || (!isL && w.cx >= mid)) &&
+      (xEdge == null || w.bbox.x0 > xEdge) &&
+      texty(w));
+    if(!cands.length) return '';
+    const rows = [];
+    for(const w of cands.slice().sort((a,b)=> a.cy-b.cy || a.bbox.x0-b.bbox.x0)){
+      const r = rows[rows.length-1];
+      if(r && (w.cy - r.cy0) <= 0.5 * Math.max(r.maxh, w.h)){ r.words.push(w); r.maxh = Math.max(r.maxh, w.h); }
+      else rows.push({words:[w], cy0:w.cy, maxh:w.h});
+    }
+    const kept = [];
+    for(const r of rows){
+      const hs = r.words.map(x=> x.h).sort((a,b)=> a-b);
+      const med = hs[Math.floor(hs.length/2)];
+      for(const w of r.words) if(w.h >= med*0.6 && w.h <= med*1.6) kept.push(w);
+    }
+    if(!kept.length) return '';
+    kept.sort((a,b)=> a.cy-b.cy || a.bbox.x0-b.bbox.x0);
+    return kept.map(w=> w.text).join(' ');
+  }
+  const teamLeft = sideTeam('L'), teamRight = sideTeam('R');
+
+  /* 4) gamertags: tag-shaped words just below the heading row (icons/badges are 1–3 symbols) */
+  const headingH = Math.min(60, Math.max(20, headingBottom - headingTop)); // cap: the no-heading fallback band is ~78px and would over-filter tag height
+  function pickTags(minLen){
+    return words.filter(w=>{
+      if(w.bbox.y0 < headingBottom - 4 || w.cy >= headingBottom + H*0.20) return false;
+      const s = w.text||'';
+      if(s.length < minLen || w.h < headingH*0.45) return false;
+      let alnum = 0;
+      for(let i=0;i<s.length;i++){ const c=s[i]; if(isLetter(c)||(c>='0'&&c<='9')||c==='_') alnum++; }
+      return alnum >= Math.min(4, s.length) && alnum/s.length >= 0.5;
+    });
+  }
+  let tags = pickTags(4);
+  if(!tags.length) tags = pickTags(3); // short gamertags — try again, more relaxed
+  const sideL = tags.filter(w=> w.cx < mid).sort((a,b)=> a.bbox.y0-b.bbox.y0 || a.bbox.x0-b.bbox.x0);
+  const sideR = tags.filter(w=> w.cx >= mid).sort((a,b)=> a.bbox.y0-b.bbox.y0 || a.bbox.x0-b.bbox.x0);
+  const oursInL = sideL.filter(w=> OUR_TAG_SET.has(normTag(w.text))).length;
+  const oursInR = sideR.filter(w=> OUR_TAG_SET.has(normTag(w.text))).length;
+  if(!oursInL && !oursInR) return fail('no-our-tag', {read: sideL.concat(sideR).map(w=> w.text)});
+  let ourSide;
+  if(oursInL > oursInR) ourSide = 'L';
+  else if(oursInR > oursInL) ourSide = 'R';
+  else ourSide = sideL.length >= sideR.length ? 'L' : 'R';
+  const opp = ourSide==='L' ? sideR : sideL;
+  const oppTeam = ourSide==='L' ? teamRight : teamLeft;
+  const oppTop2 = opp.slice(0,2);
+  return {
+    ok: true,
+    homeAway: ourSide==='L' ? 'home' : 'away',
+    opponentTeam: oppTeam || '',
+    opponentGamertags: oppTop2.map(w=> w.text),
+    oppTagBboxes: oppTop2.map(w=> ({text: w.text, bbox: w.bbox})),
+    ourSide
+  };
+}
+
+/* ---- Console/PC icon guessing (best-effort, never blocks the fill) ----
+   Two small template icons (gamepad / monitor) cropped from a real in-game screenshot.
+   The region just left of each gamertag is shape-compared (normalized cross-correlation);
+   a confident win fills the pick, anything doubtful stays blank for you to choose. */
+const ICON_TPL_B64 = {
+  console: 'iVBORw0KGgoAAAANSUhEUgAAAD4AAAA6CAIAAABnMn0FAAAIXklEQVR4nO1Zf2xV1R3/fG/v62vffa8tKJZaagulrW1BbKgUBBUT5xBFI2wajEv2x5bMXyFREtyCE/wBaqMSE/3LxJj9tchkYUMUllXmjE5MjG6DVYljjpXygNb+esjrs2d/3HPPPb/ufeUZURNPXm659/M93/P5fM/3fM+5F2ruug7fzeZ80wRKb99T/yaaS2UMAMAAsl19SG4Exlw3AYZCoVDmliXcRKFQKHw5yc3tjQw/UMc610aO2k1mLHsk7SERMQAEImKMTbEplTfZepEBMRtkJ2o8Ye4Xw4NgABEYA0nuQrcSxAjEAHwR+ArnhQHEIlxRAEU4nCakcnMAAgGM8SuIXwkWiPsgTpwxacqCXtxQchVCdod2iAxI5eYYRI2BDQ1hGlGogQdMHhKIZGMGxYRgapC4gTlGAOx2il815GHgo4JtsjGDgoixFHsmE3BConpnFgkhCDzzs1yOkNBgOrRNrJUoNMiwBxMVRhdk1wCJb7iY5GyfnvI4SFo4Yv3okEgYzUKxIwsEsVAZX65EoOBaVHmMBhgQ12DlBleaXXmyJaIAQCuu7OlovzThujiP7UQ2u3PX7lADKdxoTnNHBF3ID/f98Xd1dbPLnPN6cBgbG+u5+nr7zIO5EcH2ryE0p/7i80nab5lMJpob5AQIiUr7mAwhe/LUyuvXFJ2irw7Vzrqwb98fJAOdIa8wYjkIC7F8DMjvSmKLsyqXq2NpEFPc2ns5PlHw0qpEQ4YQCckehTBZnqq6VMicMYeCpBa49Se7IcUfSddQhCRPlcwjGkDKjmxsz/qdUvZdEJFuHdsoZElBxYKqh29b/FSjDRzGgYEfnkWFt02yEhS57Lu6v6LMldSz+oU/DQxCl7Is9C3DJkuc68Q/TMsS67TGw0St02hkVClNUD/n3dEkbVZdAMGBNuhFFPQ1OSsZHD0gtxSjlBh1nagqJjjeUPhaor2TIHjGxD0TfxiD7Jg/UXVNK2GiZtYebKlPmJpSxnM9ISQMjVUcjEMqIMYqTt1cwdZgKw/N1UmE4NDIEaVGK8JJGZYFVYy0pVKEurmkrLufhoq+ZpYw9db3weSEUvcRUbLkuuRfiyxTa9GU45Vw3aU93Zct6LR2t55aNCcTudxrr+/PZk9ah1VnIAxlZIWxRtRkw4C62bU/WX/78it7rH6m086ezefOnPntK7ukZLZsS9q4kQkTs0NpCTO79qL2S1tL5g0gmSzfuOFeUodUj19K3orpclggwvxZ4y6hSCbLly1dMnPmjK9CHYDnpa5Zsdw4LilNW0UEOLxs2n58+TDj3dkvs4wlKyqW9VwhkLNn831/efvofz4rgf0d638csc8qVV9+6ghzOZxMNdJuhafLFy5YuKBDQCOjo/du2Lhn7/7pcM3nJ/fs3bfz1d1Dw58D6Gxvm9vYyBjjQRNUefiAABM/V9qy+Ukv+CSlfDuUyQuDH629WSMUlWZmGx8ff+LpHfl8oWHOxT1LuisrK1deveLTo0eldaj4In4Xvr5RQ3On/E0y0ADtc+WhD94F8OXU1OnTQ2L4GTXViUQCwC8feuSdvx2cmpo6dfq053leqhKgN/kbmr1NTOS2Pv7kyZOntjz0YOMlDYyxXO7MRC7no2WOc8EFMwF0dC01uPGAuupxigV7hHzQYQQaGx/3Uqkyx7lo1oVWKvLZPNCst/6PP9m85bGa6ppneh/PpNNPbdsadifyvJTnpWT7fH4yghtjIBfqowg7PLh565rVq5LJpO8rk/YWXbbADzmA7Y/+GsFL90/vXH/PL35mlTcyOnZ8MDs8PFIoFKwGJ05kj3z6b8H40OF/RXADwFyZaIyGvgN/7TvwlpivlVctf3LbFkF9mq29rWXTAxvS6XTa86wG/Z8ceWx777GBQZEb1lD6kKsR1eykj7ZK5+7uyyuCGRCtuqrq+R29TY0NUdQzmcyaG1fFaOtatLC+vv7YwHEAcm6oNDjkQM9vfr5WP4DLB0/W2d62bMkSM+TJZPm116yY29QYQy6+ZTKZRQs7yxOJ4Jyo57fPwoccmZO5RhF8igk1ELW2tNTV1ZbML77d8MMfpFKeGS+oDAlw5Pqt2anzwKGqqqrFXYtqqqu/JuptrfMbL6nX4uWPr4XSDXZGLbH8q6yBP6ydNatlfnPUwENDw39+860T2Ww8v54rFncv7opCb1t364d/P+QTsK09zs2vMCTbqRY6lMtNHPvfQFtrS3m5nuuFQuFPfQeefe75kdFx9ROMtpuwvW/sf+apba0tlhCMjIwefP8DgygEARFKmtPcaRAFWVRyqMwp81KV69bect9dP6+oqJBHPXS4//5Nv/rsvwNWh+p/TLK5TU0vv/iCv2XKHp54eseHH/2zMJmXlZsOAfjUEUGUYqC62bU7ere1zJ/nC+j/+MjdGzYODg7GKxcaXIduXL3q4c2b/CI7NDS8c9funa/+/tjAoI2oPm8MRA3NHbIdwvwprqEimbht3dpb1qxOJpOPbu997+D7VrrWsBGQSafvvOP2m2+64fjxwRdf+s3b775XdM6DsyARGDU0d0bZ2YbUofKEO29uk+elPvrH4cLkZPTs2R3OqJnR1jr/cH//5yNj8URNSOQ6r0BFtZYg72uCHOlQHr5DaakiEgZ62ohmJOL0IFtaxkPhQ8eqEuHXD6sGq7xIohKk9yomz19+em3xmxNY6FeEne2TGD1FctOVR0OwOQwU2+RN/0uvRZ4QGQVRkb7n6lC+ZQ7ApA1fu0IP4reokRMxyxCSVD3ip5nFQDAeIjZezPpQhFJQdeTjl7REKKiVUZDcC7GQnOAhD235qqfA0N6QJ/zw87o5ZAzRKAhWyKgbYVCMwiV6WWqa4RD/B/fAHH32F+qjAAAAAElFTkSuQmCC',
+  pc: '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'
+};
+let iconTplCache = null;
+function iconTplNorm(b64){
+  return new Promise(res=>{
+    try{
+      const img = new Image();
+      img.onload = ()=>{
+        try{
+          const N = 48, cv = document.createElement('canvas'); cv.width=N; cv.height=N;
+          const ctx = cv.getContext('2d');
+          ctx.drawImage(img, 0, 0, N, N);
+          const d = ctx.getImageData(0,0,N,N).data;
+          const g = new Float32Array(N*N);
+          let m = 0;
+          for(let i=0;i<N*N;i++){ const v=(d[i*4]*299+d[i*4+1]*587+d[i*4+2]*114)/10; g[i]=v; m+=v; }
+          m /= (N*N);
+          let sd = 0;
+          for(let i=0;i<N*N;i++){ const dl=g[i]-m; sd += dl*dl; }
+          sd = Math.sqrt(sd/(N*N)) || 1;
+          for(let i=0;i<N*N;i++) g[i] = (g[i]-m)/sd;
+          res(g);
+        }catch(e){ res(null); }
+      };
+      img.onerror = ()=> res(null);
+      img.src = 'data:image/png;base64,' + b64;
+    }catch(e){ res(null); }
+  });
+}
+function iconTplReady(){
+  if(iconTplCache) return Promise.resolve(iconTplCache);
+  return Promise.all([iconTplNorm(ICON_TPL_B64.console), iconTplNorm(ICON_TPL_B64.pc)])
+    .then(([consoleTpl, pcTpl])=>{ iconTplCache = {console: consoleTpl, pc: pcTpl}; return iconTplCache; });
+}
+async function guessPlatformIcons(file, ocrW, tagBboxes){
+  const out = ['',''];
+  try{
+    const t = await iconTplReady();
+    if(!t.console || !t.pc || !file) return out;
+    const bmp = await createImageBitmap(file);
+    const s = (ocrW && bmp.width) ? ocrW/bmp.width : 1;
+    for(let i=0;i<Math.min(2, tagBboxes.length);i++){
+      const b = tagBboxes[i] && tagBboxes[i].bbox;
+      if(!b) continue;
+      const h = Math.max(8, b.y1-b.y0), cy = (b.y0+b.y1)/2;
+      let x0 = Math.max(0,(b.x0 - 1.8*h)/s), x1 = Math.min(bmp.width,(b.x0 - 0.25*h)/s);
+      let y0 = Math.max(0,(cy - 0.8*h)/s), y1 = Math.min(bmp.height,(cy + 0.8*h)/s);
+      if(x1-x0 < 12 || y1-y0 < 12) continue;
+      const N = 48, cv = document.createElement('canvas'); cv.width=N; cv.height=N;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(bmp, x0, y0, x1-x0, y1-y0, 0, 0, N, N);
+      const d = ctx.getImageData(0,0,N,N).data;
+      const g = new Float32Array(N*N);
+      let m = 0;
+      for(let i2=0;i2<N*N;i2++){ const v=(d[i2*4]*299+d[i2*4+1]*587+d[i2*4+2]*114)/10; g[i2]=v; m+=v; }
+      m /= (N*N);
+      let sd = 0;
+      for(let i2=0;i2<N*N;i2++){ const dl=g[i2]-m; sd += dl*dl; }
+      sd = Math.sqrt(sd/(N*N)) || 1;
+      for(let i2=0;i2<N*N;i2++) g[i2] = (g[i2]-m)/sd;
+      let sC = 0, sP = 0, nC = 0, nP = 0;
+      for(let i2=0;i2<N*N;i2++){ sC += g[i2]*t.console[i2]; sP += g[i2]*t.pc[i2]; nC += t.console[i2]*t.console[i2]; nP += t.pc[i2]*t.pc[i2]; }
+      const cScore = sC/Math.sqrt(nC) || 0; // templates are normalized; this is the NCC
+      const pScore = sP/Math.sqrt(nP) || 0;
+      const best = cScore > pScore ? ['console', cScore] : ['pc', pScore];
+      if(best[1] > 0.45 && Math.abs(cScore - pScore) > 0.15) out[i] = best[0];
+    }
+  }catch(e){ /* icon guessing is a bonus — never let it block the main fill */ }
+  return out;
+}
+
+/* Read the PLAYERS screen and fill the Log Match draft. */
+async function scanPlayersScreen(files, progId){
+  const line = html => { const p = document.getElementById(progId); if(p) p.innerHTML = html; };
+  try{
+    const results = await ocrReadFiles(files.slice(0,1), progId, [{}]);
+    const data = results[0];
+    const words = mergeWords((data && data._variantWords) || [flattenWords(data)]);
+    const res = parsePlayersScreen(words, data.width||0, data.height||0);
+    if(!res.ok){
+      const read = (res.read || words.slice(0,25).map(w=> w.text)).join(', ');
+      const msg = res.reason==='no-our-tag'
+        ? `Couldn't find your gamertag (${OUR_TAGS.join(' / ')}) on that screen, so I don't know which side is yours. What I could read: ${esc(read)||'—'}. Fill the boxes by hand for now.`
+        : `Couldn't read that PLAYERS screen automatically. What I could read: ${esc(read)||'nothing'}. Fill the boxes by hand for now.`;
+      line('<div class="hint" style="color:var(--red)">' + msg + '</div>');
+      return;
+    }
+    readDraftFromForm();
+    logDraft.homeAway = res.homeAway;
+    if(res.opponentTeam) logDraft.opponentTeam = titleTeam(res.opponentTeam);
+    logDraft.opponentGamertags = [res.opponentGamertags[0]||'', res.opponentGamertags[1]||''];
+    logDraft.opponentPlatforms = await guessPlatformIcons(files[0], data.width||0, res.oppTagBboxes||[]);
+    logDraft.opponentCountries = ['',''];
+    render();
+    const n = res.opponentGamertags.length;
+    line('<div class="hint" style="color:var(--turf)">✓ Scanned — <b>' + esc(titleTeam(res.opponentTeam)||'opponent team') +
+         '</b> · ' + (res.homeAway==='home' ? 'Home' : 'Away') +
+         (n ? ' · ' + n + ' gamertag' + (n===1?'':'s') + ' filled in below' : '') + '</div>');
+    toast('PLAYERS screen read — review the boxes below');
+  }catch(err){
+    line('<div class="hint" style="color:var(--red)">Couldn\'t read that image (' +
+         esc((err && err.message) || 'scan failed') + ') [build ' + SCAN_BUILD +
+         ']. Just fill the boxes by hand for now.</div>');
+  }
+}
+
 
 
 /* ============================= SQUAD & SEASONS ============================= */
