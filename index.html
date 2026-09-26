@@ -766,6 +766,23 @@ let logDraft = null; // in-progress match object while filling the form
 let editingGameId = null; // set while editing an already-logged match
 let playerSort = null; // {key:'rating'|'goals'|'assists', dir:1|-1} — last header sort applied
 
+const p2 = n => String(n).padStart(2,'0');
+/* Current PC (Pacific) time "HH:MM" + date "YYYY-MM-DD" — the defaults for the match-time row. */
+function nowHM(){ const d = new Date(); return p2(d.getHours())+':'+p2(d.getMinutes()); }
+function nowISODate(){ const d = new Date(); return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()); }
+/* The Time/Date row is stamped with the moment the FIRST screenshot arrives in either scan
+   box (once per logged match; re-editing an existing match never re-stamps). The user can
+   still click into either field and change the time or date. */
+let firstShotStamped = false;
+function stampFirstScreenshot(){
+  if(!logDraft || firstShotStamped) return;
+  firstShotStamped = true;
+  logDraft.matchTime = nowHM();
+  logDraft.matchDate = nowISODate();
+  const t = document.getElementById('f-matchtime'); if(t) t.value = logDraft.matchTime;
+  const d = document.getElementById('f-matchdate'); if(d) d.value = logDraft.matchDate;
+}
+
 function freshDraft(){
   const s = seasons[0];
   return {
@@ -773,6 +790,9 @@ function freshDraft(){
     teamId: s ? seasonPrimaryTeamId(s) : '',
     opponentTeam:'', opponentGamertags:['',''], opponentPlatforms:['',''], opponentCountries:['',''], homeAway:'home',
     scoreFor:0, scoreAgainst:0, rageQuit:'none', rageQuitMin:null, disconnect:false, motmPlayerId:'',
+    pingIppi:'', pingStebo:'',
+    matchTime: nowHM(), matchDate: nowISODate(),
+    top100:'', top100Wins:0, top100Draws:0, top100Losses:0,
     playerStats: s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
     teamStats: {for:{}, against:{}}
   };
@@ -786,6 +806,9 @@ function gameToDraft(g){
     opponentGamertags: g.opponentGamertags||['',''],
     opponentPlatforms: (Array.isArray(g.opponentPlatforms)&&g.opponentPlatforms.length===2)?g.opponentPlatforms:['',''],
     opponentCountries: (Array.isArray(g.opponentCountries)&&g.opponentCountries.length===2)?g.opponentCountries:['',''],
+    pingIppi: g.pingIppi||'', pingStebo: g.pingStebo||'',
+    matchTime: g.matchTime||'', matchDate: g.matchDate||'',
+    top100: g.top100||'', top100Wins: Number(g.top100Wins)||0, top100Draws: Number(g.top100Draws)||0, top100Losses: Number(g.top100Losses)||0,
     homeAway: g.homeAway||'home',
     scoreFor: g.scoreFor||0,
     scoreAgainst: g.scoreAgainst||0,
@@ -799,7 +822,10 @@ function gameToDraft(g){
 }
 
 function renderLog(){
-  if(!logDraft) logDraft = editingGameId ? gameToDraft(games.find(g=>g.id===editingGameId)) : freshDraft();
+  if(!logDraft){
+    logDraft = editingGameId ? gameToDraft(games.find(g=>g.id===editingGameId)) : freshDraft();
+    firstShotStamped = !!editingGameId; // re-editing: a new paste must not re-stamp the saved time
+  }
   const isEditing = !!editingGameId;
   const s = seasonById(logDraft.seasonId);
   const dTeam = (logDraft.teamId && teamById(logDraft.teamId)) || (s ? seasonTeams(s)[0] : null) || null;
@@ -850,7 +876,7 @@ function renderLog(){
       </div>
     </div>
     <div class="row">
-      <div class="field" style="flex:1.6"><label>Rage quit</label>
+      <div class="field" style="flex:1.4"><label>Rage quit</label>
         <select id="f-rq"><option value="none" ${logDraft.rageQuit==='none'?'selected':''}>No rage quit</option><option value="them" ${logDraft.rageQuit==='them'?'selected':''}>They rage quit</option><option value="us" ${logDraft.rageQuit==='us'?'selected':''}>We rage quit</option></select>
       </div>
       <div class="field" style="flex:1"><label>Rage quit time (min)</label>
@@ -859,6 +885,31 @@ function renderLog(){
       <div class="field" style="flex:1"><label>Disconnect</label>
         <select id="f-dc"><option value="0" ${!logDraft.disconnect?'selected':''}>No</option><option value="1" ${logDraft.disconnect?'selected':''}>Yes</option></select>
       </div>
+      <div class="field" style="flex:1"><label>Ippi90</label>
+        <select id="f-ping-ippi"><option value="" ${!logDraft.pingIppi?'selected':''}>—</option><option value="low" ${logDraft.pingIppi==='low'?'selected':''}>Low</option><option value="mid" ${logDraft.pingIppi==='mid'?'selected':''}>Mid</option><option value="high" ${logDraft.pingIppi==='high'?'selected':''}>High</option></select>
+      </div>
+      <div class="field" style="flex:1"><label>SteBo1339</label>
+        <select id="f-ping-stebo"><option value="" ${!logDraft.pingStebo?'selected':''}>—</option><option value="low" ${logDraft.pingStebo==='low'?'selected':''}>Low</option><option value="mid" ${logDraft.pingStebo==='mid'?'selected':''}>Mid</option><option value="high" ${logDraft.pingStebo==='high'?'selected':''}>High</option></select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1"><label>Time (Pacific)</label>
+        <input type="time" id="f-matchtime" value="${esc(logDraft.matchTime||'')}">
+      </div>
+      <div class="field" style="flex:1.2"><label>Date</label>
+        <input type="date" id="f-matchdate" value="${esc(logDraft.matchDate||'')}">
+      </div>
+      <div class="field" style="flex:1.4"><label>Top100</label>
+        <select id="f-top100">
+          <option value="" ${!logDraft.top100?'selected':''}>—</option>
+          <option value="Co-Op Seasons" ${logDraft.top100==='Co-Op Seasons'?'selected':''}>Co-Op Seasons</option>
+          <option value="Top 100 Overall" ${logDraft.top100==='Top 100 Overall'?'selected':''}>Top 100 Overall</option>
+          <option value="Top 100 Monthly" ${logDraft.top100==='Top 100 Monthly'?'selected':''}>Top 100 Monthly</option>
+        </select>
+      </div>
+      <div class="field t100-wdl" style="flex:.6"><label>Wins</label><input type="number" min="0" id="f-t100w" value="${logDraft.top100Wins||0}"></div>
+      <div class="field t100-wdl" style="flex:.6"><label>Draws</label><input type="number" min="0" id="f-t100d" value="${logDraft.top100Draws||0}"></div>
+      <div class="field t100-wdl" style="flex:.6"><label>Losses</label><input type="number" min="0" id="f-t100l" value="${logDraft.top100Losses||0}"></div>
     </div>
   </div>
 
@@ -1007,6 +1058,14 @@ function readDraftFromForm(){
   g.opponentGamertags = [val('f-tag1')||'', val('f-tag2')||''];
   g.opponentPlatforms = [val('f-plat1')||'', val('f-plat2')||''];
   g.opponentCountries = [val('f-cty1')||'', val('f-cty2')||''];
+  g.pingIppi = val('f-ping-ippi')||'';
+  g.pingStebo = val('f-ping-stebo')||'';
+  g.matchTime = val('f-matchtime')||'';
+  g.matchDate = val('f-matchdate')||'';
+  g.top100 = val('f-top100')||'';
+  g.top100Wins = Math.max(0, Number(val('f-t100w'))||0);
+  g.top100Draws = Math.max(0, Number(val('f-t100d'))||0);
+  g.top100Losses = Math.max(0, Number(val('f-t100l'))||0);
   g.scoreFor = Number(val('f-scorefor')||0);
   g.scoreAgainst = Number(val('f-scoreagainst')||0);
   g.rageQuit = val('f-rq');
@@ -1166,6 +1225,7 @@ function wireLogHandlers(){
   if(metaBox && metaInput){
     const run = async (files)=>{
       if(!files.length) return;
+      stampFirstScreenshot();
       metaBox.classList.add('active');
       try{ await scanPlayersScreen(files, 'scan-meta-progress'); } finally { metaBox.classList.remove('active'); }
     };
@@ -1180,6 +1240,19 @@ function wireLogHandlers(){
       await run(files);
     });
   }
+  /* Top100: the Wins/Draws/Losses boxes only appear once a Top100 type is picked; clearing
+     the pick hides them and zeroes them so we never save an orphaned record. */
+  const t100 = document.getElementById('f-top100');
+  const syncTop100 = ()=>{
+    const show = !!(t100 && t100.value);
+    document.querySelectorAll('.t100-wdl').forEach(el=>{ el.style.display = show ? '' : 'none'; });
+    if(!show){
+      ['f-t100w','f-t100d','f-t100l'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = 0; });
+      if(logDraft){ logDraft.top100Wins = 0; logDraft.top100Draws = 0; logDraft.top100Losses = 0; }
+    }
+  };
+  if(t100) t100.addEventListener('change', syncTop100);
+  syncTop100();
   paintDdrops();
 }
 
@@ -1188,7 +1261,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v18';
+const SCAN_BUILD = 'v19';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -2037,6 +2110,7 @@ function wireScan(inputId, boxId, progId, scanFn){
   if(!input || !box) return;
   const run = async (files)=>{
     if(!files.length) return;
+    stampFirstScreenshot();
     box.classList.add('active');
     try{ await scanFn(files, progId); } finally { box.classList.remove('active'); }
   };
