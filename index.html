@@ -902,8 +902,8 @@ function gamertagField(i){
     </div>
   </div>`;
 }
-/* Sort the player table in place by Rating / Goals / Ast. One click = ascending,
-   another = descending — no UI decoration, just the rows re-ordered (and the
+/* Sort the player table in place by Rating / Goals / Ast. First click = descending
+   (highest on top), next click = ascending — no UI decoration, just the rows re-ordered (and the
    underlying draft reordered too, so Save writes the same players either way). */
 function sortPlayerRows(key, dir){
   const val = ps => key==='rating'
@@ -1020,10 +1020,10 @@ function wireLogHandlers(){
     if(e.target.checked) document.querySelectorAll('#playerstat-rows [data-f=motm]').forEach(cb=>{ if(cb!==e.target) cb.checked=false; });
     readDraftFromForm();
   });
-  /* Header sort: click Rating / Goals / Ast → ascending, click again → descending. */
+  /* Header sort: first click → descending (highest on top), click again → ascending. */
   document.querySelectorAll('.ocr-head [data-sort]').forEach(h=> h.addEventListener('click', ()=>{
     const key = h.dataset.sort;
-    const dir = (playerSort && playerSort.key===key && playerSort.dir===1) ? -1 : 1;
+    const dir = (playerSort && playerSort.key===key && playerSort.dir===-1) ? 1 : -1;
     playerSort = {key, dir};
     sortPlayerRows(key, dir);
     render();
