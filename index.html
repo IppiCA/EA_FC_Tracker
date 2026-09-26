@@ -238,6 +238,16 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .statline{display:grid; grid-template-columns:60px 1fr 60px; gap:8px; align-items:center; margin-bottom:6px; font-size:13px}
 .statline input{text-align:center}
 .statline .lbl{color:var(--ink-dim); font-size:12.5px; text-align:center}
+/* US / THEM header row above the team-stats table (sides follow Home/Away) */
+.stathead{display:flex; align-items:center; gap:10px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--line)}
+.stathead .hs{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center}
+.stathead .badge{font-size:10px; font-weight:800; letter-spacing:.08em; padding:2px 9px; border-radius:99px; font-family:'Rajdhani',sans-serif}
+.stathead .badge.us{background:rgba(60,255,154,.16); color:var(--turf)}
+.stathead .badge.them{background:rgba(139,108,255,.18); color:#b7a3ff}
+.stathead .hs-in{width:100%; max-width:230px; text-align:center; font-size:12px; padding:5px 8px; background:transparent; border:1px dashed var(--line); color:var(--ink); border-radius:8px}
+.stathead .hs-tags{font-size:12px; color:var(--ink-dim); word-break:break-word}
+.stathead .mid{flex:0 0 auto; color:var(--ink-faint); font-size:11px; font-weight:700; letter-spacing:.14em}
+.statsep{height:1px; background:var(--line); margin:12px 0}
 .toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--panel); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid var(--line); padding:10px 18px; border-radius:12px; font-size:13px; z-index:200; box-shadow:0 12px 30px rgba(0,0,0,.4)}
 .progress{height:5px; background:var(--panel-2); border-radius:99px; overflow:hidden; margin-top:8px}
 .progress > div{height:100%; background:linear-gradient(90deg,var(--turf),var(--violet)); transition:width .2s}
@@ -362,12 +372,17 @@ let teams = [];     // {id, name, playerIds[]} — team sheets, managed in Setti
 let seasons = [];   // {id, number, gameVersion, team, teamId?, squadIds[], champion, perfectSeason, createdAt}
 let seedingTeams = false;
 let games = [];      // {id, seasonId, gameNumber, opponentTeam, opponentGamertags[2], opponentPlatforms[2], opponentCountries[2], homeAway, scoreFor, scoreAgainst,
-                      //  rageQuit ('none'|'us'|'them'), rageQuitMin (number|null — match clock at the end, e.g. 87.7),
+                      //  rageQuit ('none'|'us'|'them'), rageQuitMin (number|null — match clock at the end in minutes, e.g. 87.68),
                       //  disconnect(bool), motmPlayerId, teamStats:{for:{},against:{}},
                       //  playerStats:[{playerId,position,rating,goals,assists}], createdAt}
 let currentTab = 'dashboard';
 
 const STAT_LABELS = ['Possession %','Shots','Expected Goals','Passes Attempted','Pass Accuracy %','Tackles','Tackles Won','Interceptions','Saves','Fouls Committed','Offsides','Corners','Free Kicks','Penalty Kicks','Yellow Cards','Red Cards','Def Line Breaks Through','Def Line Breaks Around','Def Line Breaks Over','Def Line Breaks Attempted','Dribble Success Rate','Shot Accuracy','Ball Recovery Time (Seconds)'];
+/* Display order for the Team stats table — the three "accuracy" ring stats first, a
+   divider, then the rest in the exact order EA FC shows them in-game. STAT_LABELS above
+   is deliberately untouched: the scanner matches by label text, so its order is irrelevant. */
+const STAT_DISPLAY_ORDER = ['Dribble Success Rate','Shot Accuracy','Pass Accuracy %','Possession %','Ball Recovery Time (Seconds)','Shots','Expected Goals','Passes Attempted','Tackles','Tackles Won','Interceptions','Saves','Fouls Committed','Offsides','Corners','Free Kicks','Penalty Kicks','Yellow Cards','Red Cards','Def Line Breaks Through','Def Line Breaks Around','Def Line Breaks Over','Def Line Breaks Attempted'];
+const STAT_RING_COUNT = 3; // first N labels are the ring stats, shown above the divider
 const STAT_LABEL_SYNONYMS = {
   'passes':'Passes Attempted',
   'pass accuracy':'Pass Accuracy %',
@@ -469,9 +484,24 @@ async function renamePlayer(id){
   toast(dupe ? `Renamed — but "${dupe.name}" already exists; delete the one you don't need below` : 'Player renamed everywhere');
 }
 function normalizeName(n){ return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^[a-z]\.\s*/,'').trim(); }
+
+/* The EA FC UI truncates long surnames with an ellipsis — "T. Alexander-Arnold" shows
+   up as "Alexander-Arn…" / "Alexander-Am…" / "Alexander-Arn...". Map those truncated
+   readings straight to the full name so the scanner resolves to the existing player
+   instead of spawning a duplicate. Only returns a real, already-existing player. */
+function aliasPlayer(rawName){
+  const n = normalizeName(rawName).replace(/\s+/g,'').replace(/[…\.]+$/,'').toLowerCase();
+  if(!n.startsWith('alexander') || !/arn|am/.test(n.replace('alexander',''))) return null;
+  const target = 'alexander-arnold';
+  const p = players.find(pp=> normalizeName(pp.name).replace(/\s+/g,'')===target);
+  return p ? p.id : null;
+}
+
 async function resolveOrCreatePlayer(rawName){
   const name = rawName.trim();
   const norm = normalizeName(name);
+  const aliasId = aliasPlayer(name);
+  if(aliasId) return aliasId;
   // OCR frequently confuses l/I ("A.lsak" vs "A.Isak") — fold them together for comparison only
   const fold = s => s.replace(/\s+/g,'').replace(/l/g,'i');
   const pnorm = p => normalizeName(p.name);
@@ -733,7 +763,7 @@ function freshDraft(){
   return {
     seasonId: s ? s.id : '',
     teamId: s ? seasonPrimaryTeamId(s) : '',
-    opponentTeam:'', opponentGamertags:['',''], opponentPlatforms:['',''], opponentCountries:['',''], homeAway:'home',
+    opponentTeam:'', myGamertags:'', opponentGamertags:['',''], opponentPlatforms:['',''], opponentCountries:['',''], homeAway:'home',
     scoreFor:0, scoreAgainst:0, rageQuit:'none', rageQuitMin:null, disconnect:false, motmPlayerId:'',
     playerStats: s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
     teamStats: {for:{}, against:{}}
@@ -745,6 +775,7 @@ function gameToDraft(g){
     seasonId: g.seasonId,
     teamId: g.teamId || seasonPrimaryTeamId(seasonById(g.seasonId)),
     opponentTeam: g.opponentTeam||'',
+    myGamertags: g.myGamertags||'',
     opponentGamertags: g.opponentGamertags||['',''],
     opponentPlatforms: (Array.isArray(g.opponentPlatforms)&&g.opponentPlatforms.length===2)?g.opponentPlatforms:['',''],
     opponentCountries: (Array.isArray(g.opponentCountries)&&g.opponentCountries.length===2)?g.opponentCountries:['',''],
@@ -816,7 +847,7 @@ function renderLog(){
         <select id="f-rq"><option value="none" ${logDraft.rageQuit==='none'?'selected':''}>No rage quit</option><option value="them" ${logDraft.rageQuit==='them'?'selected':''}>They rage quit</option><option value="us" ${logDraft.rageQuit==='us'?'selected':''}>We rage quit</option></select>
       </div>
       <div class="field" style="flex:1"><label>Rage quit time (min)</label>
-        <input type="number" min="0" step="0.1" id="f-rqmin" value="${logDraft.rageQuitMin!=null?logDraft.rageQuitMin:''}">
+        <input type="number" min="0" step="0.01" id="f-rqmin" value="${logDraft.rageQuitMin!=null?logDraft.rageQuitMin:''}">
       </div>
       <div class="field" style="flex:1"><label>Disconnect</label>
         <select id="f-dc"><option value="0" ${!logDraft.disconnect?'selected':''}>No</option><option value="1" ${logDraft.disconnect?'selected':''}>Yes</option></select>
@@ -855,7 +886,14 @@ function renderLog(){
       <div id="scan-team-progress"></div>
       <div style="margin-top:6px; font-size:10px; opacity:.45">scanner ${SCAN_BUILD}</div>
     </div>
-    <div style="margin-top:14px" id="teamstat-rows">${STAT_LABELS.map(l=>teamStatLine(l, ts.for[l], ts.against[l])).join('')}</div>
+    <div style="margin-top:14px">
+      ${teamStatHeader()}
+      <div id="teamstat-rows">
+        ${STAT_DISPLAY_ORDER.slice(0,STAT_RING_COUNT).map(l=>teamStatLine(l, ts.for[l], ts.against[l])).join('')}
+        <div class="statsep" role="separator"></div>
+        ${STAT_DISPLAY_ORDER.slice(STAT_RING_COUNT).map(l=>teamStatLine(l, ts.for[l], ts.against[l])).join('')}
+      </div>
+    </div>
     <button class="btn ghost small" id="add-teamstat" style="margin-top:4px">+ Add custom stat</button>
     <div id="teamstat-custom">${customStats.map(l=>teamStatLine(l, ts.for[l], ts.against[l])).join('')}</div>
   </div>
@@ -928,11 +966,28 @@ function paintStatHighlights(){
 }
 function teamStatLine(label, forVal, againstVal){
   const key = label.toLowerCase().replace(/[^a-z0-9]+/g,'_');
+  // US sits on the side it's on in-game: home = left, away = right. (data-side stays
+  // 'for'/'against' so the scanner + save logic keep working regardless of position.)
+  const usLeft = (typeof logDraft!=='undefined' && logDraft && logDraft.homeAway!=='away');
+  const leftVal  = usLeft ? forVal : againstVal;
+  const rightVal = usLeft ? againstVal : forVal;
+  const leftSide = usLeft ? 'for' : 'against';
+  const rightSide= usLeft ? 'against' : 'for';
   return `<div class="statline" data-key="${key}" data-label="${esc(label)}">
-    <input type="text" data-side="for" value="${forVal!=null?esc(forVal):''}">
+    <input type="text" data-side="${leftSide}" value="${leftVal!=null?esc(leftVal):''}">
     <div class="lbl">${esc(label)}</div>
-    <input type="text" data-side="against" value="${againstVal!=null?esc(againstVal):''}">
+    <input type="text" data-side="${rightSide}" value="${rightVal!=null?esc(rightVal):''}">
   </div>`;
+}
+/* US / THEM header above the stats. US side (with an editable "your tags" box) and the
+   opponent's tags from the form above; left/right follow Home/Away to match in-game. */
+function teamStatHeader(){
+  const usLeft = (logDraft && logDraft.homeAway!=='away');
+  const myTags = (logDraft && logDraft.myGamertags) || '';
+  const opp = (logDraft && logDraft.opponentGamertags) ? logDraft.opponentGamertags.filter(Boolean).join(' / ') : '';
+  const cellUS   = `<div class="hs"><span class="badge us">US</span><input type="text" id="f-mytags" class="hs-in" placeholder="your tags (e.g. Ippi90 / Stebo)" value="${esc(myTags)}"></div>`;
+  const cellTHEM = `<div class="hs"><span class="badge them">THEM</span><span class="hs-tags">${esc(opp)||'\u2014'}</span></div>`;
+  return `<div class="stathead">${usLeft?cellUS:cellTHEM}<div class="mid">VS</div>${usLeft?cellTHEM:cellUS}</div>`;
 }
 
 function readDraftFromForm(){
@@ -945,6 +1000,7 @@ function readDraftFromForm(){
   g.opponentGamertags = [val('f-tag1')||'', val('f-tag2')||''];
   g.opponentPlatforms = [val('f-plat1')||'', val('f-plat2')||''];
   g.opponentCountries = [val('f-cty1')||'', val('f-cty2')||''];
+  g.myGamertags = val('f-mytags')||'';
   g.scoreFor = Number(val('f-scorefor')||0);
   g.scoreAgainst = Number(val('f-scoreagainst')||0);
   g.rageQuit = val('f-rq');
@@ -981,6 +1037,14 @@ function wireLogHandlers(){
     if(!editingGameId){
       logDraft.playerStats = s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [];
     }
+    render();
+  });
+  /* Flipping Home/Away moves US between the left and right columns (home=left, away=right),
+     matching how the match looks in-game. Capture the form first so nothing is lost. */
+  const haSel = document.getElementById('f-homeaway');
+  if(haSel) haSel.addEventListener('change', (e)=>{
+    readDraftFromForm();
+    logDraft.homeAway = e.target.value;
     render();
   });
   const teamSel = document.getElementById('f-team');
@@ -1118,7 +1182,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v14';
+const SCAN_BUILD = 'v15';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1915,9 +1979,9 @@ async function scanTeamImage(files, progId){
         const rq = document.getElementById('f-rq');
         if(rq) rq.value = 'them';
         if(logDraft) logDraft.rageQuit = 'them';
-        /* Store the clock as minutes (one decimal) — later we can average rage-quit times. */
+        /* Store the clock as minutes (two decimals) — later we can average rage-quit times. */
         const rm = document.getElementById('f-rqmin');
-        if(rm) rm.value = Math.round((header.clockMin + (header.clockSec||0)/60)*10)/10;
+        if(rm) rm.value = Math.round((header.clockMin + (header.clockSec||0)/60)*100)/100;
         bits.push(`ended at ${header.clockMin}:${String(header.clockSec||0).padStart(2,'0')} → marked as their rage quit (time saved in minutes)`);
       }
       if(bits.length) toast('From the top of the screen: ' + bits.join(' · '));
@@ -2095,6 +2159,31 @@ function renderCountryList(d, q){
   ).join('') || '<span class="hint" style="display:block;padding:8px 10px">No match</span>';
 }
 
+/* Position an open dropper's popup so the long country list is never clipped by the
+   card's overflow:hidden. We switch it to position:fixed and place it just under the
+   button (flipping left if it would run off the right edge, and capping the list height
+   to whatever room is left on screen). */
+function placeDdropPop(d){
+  const pop = d.querySelector('.ddrop-pop');
+  const btn = d.querySelector('.ddrop-btn');
+  if(!pop || !btn) return;
+  const r = btn.getBoundingClientRect();
+  const vw = window.innerWidth || document.documentElement.clientWidth;
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  pop.style.position = 'fixed';
+  pop.style.top = (r.bottom + 6) + 'px';
+  const W = pop.offsetWidth || r.width;
+  let left = r.left;
+  if(left + W > vw - 8) left = Math.max(8, vw - W - 8);
+  pop.style.left = left + 'px';
+  pop.style.right = 'auto';
+  const list = d.querySelector('.ddrop-list');
+  if(list){
+    const avail = vh - (r.bottom + 6) - 58; // leave room for the search box + padding
+    list.style.maxHeight = Math.max(110, Math.min(260, avail)) + 'px';
+  }
+}
+
 /* One-time document-level delegation (render() rebuilds #main, so per-node listeners would die). */
 (function wireDdropsOnce(){
   document.addEventListener('click', (e)=>{
@@ -2119,6 +2208,7 @@ function renderCountryList(d, q){
       document.querySelectorAll('.ddrop.pop-open').forEach(x=> x.classList.remove('pop-open'));
       if(willOpen){
         d.classList.add('pop-open');
+        placeDdropPop(d);
         if(d.dataset.kind==='cty'){
           const s = d.querySelector('.ddrop-search');
           renderCountryList(d, s ? s.value : '');
@@ -2138,6 +2228,14 @@ function renderCountryList(d, q){
       if(d) renderCountryList(d, t.value);
     }
   });
+  /* The popup is position:fixed, so it would float in the wrong spot if the page scrolls
+     while it's open — close it on any scroll except scrolling inside the list itself. */
+  window.addEventListener('scroll', (e)=>{
+    const t = e.target;
+    if(t && t.closest && t.closest('.ddrop-list')) return;
+    if(document.querySelector('.ddrop.pop-open'))
+      document.querySelectorAll('.ddrop.pop-open').forEach(x=> x.classList.remove('pop-open'));
+  }, true);
 })();
 
 /* OCR gives all-caps names ("CLUB BRUGGE"); tidy to "Club Brugge" but keep short acronyms (FC, PSG).
