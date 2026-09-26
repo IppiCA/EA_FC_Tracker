@@ -1089,7 +1089,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v8';
+const SCAN_BUILD = 'v9';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1114,6 +1114,17 @@ function withTimeout(promise, ms, label){
   let t;
   const timeout = new Promise((_,reject)=>{ t = setTimeout(()=> reject(new Error(`${label} timed out`)), ms); });
   return Promise.race([promise.finally(()=>clearTimeout(t)), timeout]);
+}
+
+/* Tesseract's result object does NOT include the image width/height, but the parser and the
+   icon cropper need them — measure them from the very image that was fed to OCR. */
+async function imageDims(src){
+  try{
+    const bmp = await createImageBitmap(src);
+    const w = bmp.width, h = bmp.height;
+    if(bmp.close) bmp.close();
+    return {w, h};
+  }catch(e){ return {w:0, h:0}; }
 }
 
 /* Preprocess the screenshot before OCR. Tesseract is far more accurate on crisp dark-on-light
@@ -1193,6 +1204,8 @@ async function ocrReadFiles(files, progId, variants){
       try{
         const src = await preprocessForOcr(files[i], v);
         const data = (await withTimeout(worker.recognize(src), 45000, 'Reading the image')).data;
+        const dim = await imageDims(src); // tesseract omits these — the parsers need the OCR-space size
+        data.width = dim.w; data.height = dim.h;
         data._orig = files[i]; data._src = src; data._procWords = countWords(data);
         passes.push(data);
       }catch(e){
@@ -1207,6 +1220,7 @@ async function ocrReadFiles(files, progId, variants){
     if(data._procWords < 20){
       try{
         const raw = (await withTimeout(worker.recognize(files[i]), 45000, 'Reading the image')).data;
+        const dim0 = await imageDims(files[i]); raw.width = dim0.w; raw.height = dim0.h;
         if(countWords(raw) > data._procWords){
           data = raw; data._procWords = countWords(data); data._usedRaw = true; data._src = files[i]; data._orig = files[i];
         }
@@ -1924,7 +1938,11 @@ function parsePlayersScreen(words, W, H){
   function sideTeam(side){
     const isL = side==='L';
     const heads = isL ? headL : headR;
-    const xEdge = heads.length ? Math.max.apply(null, heads.map(h=> h.bbox.x1)) : null;
+    /* Left side: the name starts right of the heading's RIGHT edge (crest glyphs live further left).
+       Right side: only require starting right of the heading's LEFT edge — a prefix word like "FC"
+       may start slightly left of the heading's right edge ("FC BARCELONA" reads FC at ~x1174 while
+       the right "Player" heading ends at ~x1205). Crest noise is handled by the name-row pick below. */
+    const xEdge = heads.length ? (isL ? Math.max.apply(null, heads.map(h=> h.bbox.x1)) : Math.min.apply(null, heads.map(h=> h.bbox.x0))) : null;
     const cands = words.filter(w=>
       w.cy > titleBottom + H*0.02 && w.cy < headingTop &&
       w.cx > W*0.06 && w.cx < W*0.89 &&
@@ -1938,12 +1956,13 @@ function parsePlayersScreen(words, W, H){
       if(r && (w.cy - r.cy0) <= 0.5 * Math.max(r.maxh, w.h)){ r.words.push(w); r.maxh = Math.max(r.maxh, w.h); }
       else rows.push({words:[w], cy0:w.cy, maxh:w.h});
     }
-    const kept = [];
-    for(const r of rows){
-      const hs = r.words.map(x=> x.h).sort((a,b)=> a-b);
-      const med = hs[Math.floor(hs.length/2)];
-      for(const w of r.words) if(w.h >= med*0.6 && w.h <= med*1.6) kept.push(w);
-    }
+    /* The team-name row is the widest one — crest/edge glyphs form their own narrow rows above/below. */
+    const rowWidth = r => r.words.reduce((a,x)=> a + (x.bbox.x1 - x.bbox.x0), 0);
+    let nameRow = rows[0];
+    for(const r of rows) if(rowWidth(r) > rowWidth(nameRow)) nameRow = r;
+    const hs = nameRow.words.map(x=> x.h).sort((a,b)=> a-b);
+    const med = hs[Math.floor(hs.length/2)];
+    const kept = nameRow.words.filter(w=> w.h >= med*0.6 && w.h <= med*1.6);
     if(!kept.length) return '';
     kept.sort((a,b)=> a.cy-b.cy || a.bbox.x0-b.bbox.x0);
     return kept.map(w=> w.text).join(' ');
@@ -2070,7 +2089,9 @@ async function scanPlayersScreen(files, progId){
     const results = await ocrReadFiles(files.slice(0,1), progId, [{}]);
     const data = results[0];
     const words = mergeWords((data && data._variantWords) || [flattenWords(data)]);
-    const res = parsePlayersScreen(words, data.width||0, data.height||0);
+    let W = data.width||0, H = data.height||0;
+    if(!W || !H){ const d0 = await imageDims(files[0]); W = d0.w; H = d0.h; } // belt & braces: ratios are scale-invariant
+    const res = parsePlayersScreen(words, W, H);
     if(!res.ok){
       const read = (res.read || words.slice(0,25).map(w=> w.text)).join(', ');
       const msg = res.reason==='no-our-tag'
