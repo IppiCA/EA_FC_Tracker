@@ -105,8 +105,12 @@ nav.tabbar{display:none}
 }
 
 /* ---- shared bits ---- */
-.card{background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid var(--line); border-radius:var(--radius); padding:18px; position:relative; overflow:hidden; box-shadow:0 12px 30px rgba(0,0,0,.25)}
-.card::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9}
+.card{background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid var(--line); border-radius:var(--radius); padding:18px; position:relative; box-shadow:0 12px 30px rgba(0,0,0,.25)}
+/* NOTE: .card no longer clips its contents (overflow:hidden removed) — that clipping is what
+   forced the country dropdown into a floating reposition-on-scroll panel, which looped with the
+   search-box auto-focus and shook the whole page. The top gradient stripe still rounds correctly
+   because border-radius alone clips it. */
+.card::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; border-radius:15px 15px 0 0}
 .card.accent-gold::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
 .card.accent-red::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
 .card.accent-plain::before{display:none}
@@ -216,7 +220,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .ddrop-opt svg{width:16px; height:16px; flex:0 0 auto}
 .ddrop-opt img{width:22px; border-radius:4px; flex:0 0 auto}
 .ddrop-opt .chk{margin-left:auto; font-size:12px}
-.ddrop.cty .ddrop-pop{width:200px}
+.ddrop.cty .ddrop-pop{width:200px; left:auto; right:0} /* anchor to the button's right edge so the wide list grows leftward, never off-screen on the right */
 .ddrop-search{width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font-size:12.5px; color:var(--ink); margin-bottom:5px; font-family:inherit}
 .ddrop-list{max-height:230px; overflow-y:auto}
 .ocr-row{display:grid; grid-template-columns:64px minmax(0,1fr) 54px 42px 42px 30px 24px 28px; gap:6px; align-items:center; margin-bottom:6px}
@@ -763,7 +767,7 @@ function freshDraft(){
   return {
     seasonId: s ? s.id : '',
     teamId: s ? seasonPrimaryTeamId(s) : '',
-    opponentTeam:'', myGamertags:'', opponentGamertags:['',''], opponentPlatforms:['',''], opponentCountries:['',''], homeAway:'home',
+    opponentTeam:'', opponentGamertags:['',''], opponentPlatforms:['',''], opponentCountries:['',''], homeAway:'home',
     scoreFor:0, scoreAgainst:0, rageQuit:'none', rageQuitMin:null, disconnect:false, motmPlayerId:'',
     playerStats: s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
     teamStats: {for:{}, against:{}}
@@ -775,7 +779,6 @@ function gameToDraft(g){
     seasonId: g.seasonId,
     teamId: g.teamId || seasonPrimaryTeamId(seasonById(g.seasonId)),
     opponentTeam: g.opponentTeam||'',
-    myGamertags: g.myGamertags||'',
     opponentGamertags: g.opponentGamertags||['',''],
     opponentPlatforms: (Array.isArray(g.opponentPlatforms)&&g.opponentPlatforms.length===2)?g.opponentPlatforms:['',''],
     opponentCountries: (Array.isArray(g.opponentCountries)&&g.opponentCountries.length===2)?g.opponentCountries:['',''],
@@ -979,13 +982,13 @@ function teamStatLine(label, forVal, againstVal){
     <input type="text" data-side="${rightSide}" value="${rightVal!=null?esc(rightVal):''}">
   </div>`;
 }
-/* US / THEM header above the stats. US side (with an editable "your tags" box) and the
-   opponent's tags from the form above; left/right follow Home/Away to match in-game. */
+/* US / THEM header above the stats. US side shows the two player tags as a fixed label
+   (not a text field); THEM side shows the opponent's tags from the form above.
+   Left/right follow Home/Away to match in-game. */
 function teamStatHeader(){
   const usLeft = (logDraft && logDraft.homeAway!=='away');
-  const myTags = (logDraft && logDraft.myGamertags) || '';
   const opp = (logDraft && logDraft.opponentGamertags) ? logDraft.opponentGamertags.filter(Boolean).join(' / ') : '';
-  const cellUS   = `<div class="hs"><span class="badge us">US</span><input type="text" id="f-mytags" class="hs-in" placeholder="your tags (e.g. Ippi90 / Stebo)" value="${esc(myTags)}"></div>`;
+  const cellUS   = `<div class="hs"><span class="badge us">US</span><span class="hs-in">Ippi90 / SteBo1339</span></div>`;
   const cellTHEM = `<div class="hs"><span class="badge them">THEM</span><span class="hs-tags">${esc(opp)||'\u2014'}</span></div>`;
   return `<div class="stathead">${usLeft?cellUS:cellTHEM}<div class="mid">VS</div>${usLeft?cellTHEM:cellUS}</div>`;
 }
@@ -1000,7 +1003,6 @@ function readDraftFromForm(){
   g.opponentGamertags = [val('f-tag1')||'', val('f-tag2')||''];
   g.opponentPlatforms = [val('f-plat1')||'', val('f-plat2')||''];
   g.opponentCountries = [val('f-cty1')||'', val('f-cty2')||''];
-  g.myGamertags = val('f-mytags')||'';
   g.scoreFor = Number(val('f-scorefor')||0);
   g.scoreAgainst = Number(val('f-scoreagainst')||0);
   g.rageQuit = val('f-rq');
@@ -1182,7 +1184,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v16';
+const SCAN_BUILD = 'v17';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -2159,30 +2161,11 @@ function renderCountryList(d, q){
   ).join('') || '<span class="hint" style="display:block;padding:8px 10px">No match</span>';
 }
 
-/* Position an open dropper's popup so the long country list is never clipped by the
-   card's overflow:hidden. We switch it to position:fixed and place it just under the
-   button (flipping left if it would run off the right edge, and capping the list height
-   to whatever room is left on screen). */
-function placeDdropPop(d){
-  const pop = d.querySelector('.ddrop-pop');
-  const btn = d.querySelector('.ddrop-btn');
-  if(!pop || !btn) return;
-  const r = btn.getBoundingClientRect();
-  const vw = window.innerWidth || document.documentElement.clientWidth;
-  const vh = window.innerHeight || document.documentElement.clientHeight;
-  pop.style.position = 'fixed';
-  pop.style.top = (r.bottom + 6) + 'px';
-  const W = pop.offsetWidth || r.width;
-  let left = r.left;
-  if(left + W > vw - 8) left = Math.max(8, vw - W - 8);
-  pop.style.left = left + 'px';
-  pop.style.right = 'auto';
-  const list = d.querySelector('.ddrop-list');
-  if(list){
-    const avail = vh - (r.bottom + 6) - 58; // leave room for the search box + padding
-    list.style.maxHeight = Math.max(110, Math.min(260, avail)) + 'px';
-  }
-}
+/* The dropper popup used to be a floating position:fixed panel (because .card clipped
+   contents) that got repositioned on every scroll. That looped with the search box's
+   auto-focus nudge and shook the whole page. .card no longer clips, so the popup is a
+   plain position:absolute child that drops straight under its button — see .ddrop-pop
+   in the CSS. No repositioning, no scroll listener. */
 
 /* One-time document-level delegation (render() rebuilds #main, so per-node listeners would die). */
 (function wireDdropsOnce(){
@@ -2208,7 +2191,6 @@ function placeDdropPop(d){
       document.querySelectorAll('.ddrop.pop-open').forEach(x=> x.classList.remove('pop-open'));
       if(willOpen){
         d.classList.add('pop-open');
-        placeDdropPop(d);
         if(d.dataset.kind==='cty'){
           const s = d.querySelector('.ddrop-search');
           renderCountryList(d, s ? s.value : '');
@@ -2228,15 +2210,6 @@ function placeDdropPop(d){
       if(d) renderCountryList(d, t.value);
     }
   });
-  /* The popup is position:fixed, so if the page moves while it's open (including the tiny
-     scroll the browser does when it auto-focuses the search box), just re-glue it to its
-     button instead of closing it. Scrolling inside the list itself is left alone. */
-  window.addEventListener('scroll', (e)=>{
-    const t = e.target;
-    if(t && t.closest && t.closest('.ddrop-list')) return;
-    const open = document.querySelector('.ddrop.pop-open');
-    if(open) placeDdropPop(open);
-  }, true);
 })();
 
 /* OCR gives all-caps names ("CLUB BRUGGE"); tidy to "Club Brugge" but keep short acronyms (FC, PSG).
