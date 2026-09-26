@@ -1089,7 +1089,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v10';
+const SCAN_BUILD = 'v12';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1144,7 +1144,7 @@ async function preprocessForOcr(file, opts){
     const gray = new Float32Array(n);
     let mean = 0;
     for(let i=0;i<n;i++){
-      const v = (d[i*4]*299 + d[i*4+1]*587 + d[i*4+2]*114)/10;
+      const v = (d[i*4]*299 + d[i*4+1]*587 + d[i*4+2]*114)/1000;
       gray[i] = v; mean += v;
     }
     const invert = mean/n < 128; // mostly-dark UI screenshot → flip to dark text on light bg
@@ -1202,7 +1202,9 @@ async function ocrReadFiles(files, progId, variants){
     const passes = [];
     for(const v of variants){
       try{
-        const src = await preprocessForOcr(files[i], v);
+        // `{raw:true}` = OCR the original file untouched (some screens read ratings
+        // better without preprocessing; the caller decides how to combine the passes).
+        const src = (v && v.raw) ? files[i] : await preprocessForOcr(files[i], v);
         const data = (await withTimeout(worker.recognize(src), 45000, 'Reading the image')).data;
         const dim = await imageDims(src); // tesseract omits these — the parsers need the OCR-space size
         data.width = dim.w; data.height = dim.h;
@@ -1217,7 +1219,8 @@ async function ocrReadFiles(files, progId, variants){
     let data = passes.slice().sort((a,b)=> b._procWords-a._procWords)[0];
     // Self-heal: if everything came out nearly empty (some browser pastes mangle the
     // colors), re-read the ORIGINAL file and keep whichever actually worked.
-    if(data._procWords < 20){
+    // (Skipped when a raw pass was already requested — that IS the original file.)
+    if(data._procWords < 20 && !variants.some(v=>v && v.raw)){
       try{
         const raw = (await withTimeout(worker.recognize(files[i]), 45000, 'Reading the image')).data;
         const dim0 = await imageDims(files[i]); raw.width = dim0.w; raw.height = dim0.h;
@@ -1226,10 +1229,12 @@ async function ocrReadFiles(files, progId, variants){
         }
         // NOTE: wrap in an extra array — concat() would otherwise splice the raw
         // word objects in as top-level entries (they must stay one list among others).
-        data._variantWords = passes.map(p=>flattenWords(p)).concat([flattenWords(raw)]);
+        // Each entry keeps its pass's pixel width so callers can scale positions
+        // when combining passes of different sizes.
+        data._variantWords = passes.map(p=>({words:flattenWords(p), width:p.width||0})).concat([{words:flattenWords(raw), width:raw.width||0}]);
       }catch(e){ /* keep the preprocessed result */ }
     } else {
-      data._variantWords = passes.map(p=>flattenWords(p));
+      data._variantWords = passes.map(p=>({words:flattenWords(p), width:p.width||0}));
     }
     results.push(data);
   }
@@ -1250,6 +1255,32 @@ function mergeWords(lists){
       out.push({text:t, t:t.toLowerCase(), bbox:w.bbox, cx, cy, h});
     });
   });
+  return out;
+}
+
+/* Positional fill-merge for the player-performance screen: the first pass is PRIMARY
+   (its tokens win at every position) and the later passes only add tokens at positions
+   where the primary has nothing. Each pass is in its own pixel space, so coordinates are
+   scaled into the primary's space first. This recovers the ratings one pass drops
+   (preprocessed drops some ratings; the raw pass drops some goal/assist digits) without
+   letting the weaker pass's misread junk ("[0]", "(3)") clobber values the primary got right. */
+function mergePlayerWords(variants){
+  const base = (variants && variants[0]) || {words:[], width:0};
+  const out = (base.words||[]).map(w=>({text:w.text, bbox:w.bbox, cx:(w.bbox.x0+w.bbox.x1)/2, cy:(w.bbox.y0+w.bbox.y1)/2, h:Math.max(4,w.bbox.y1-w.bbox.y0)}));
+  for(let v=1; v<(variants||[]).length; v++){
+    const list = variants[v];
+    if(!list || !Array.isArray(list.words)) continue;
+    const scale = (base.width && list.width) ? base.width/list.width : 1;
+    list.words.forEach(w=>{
+      const t = (w.text||'').trim(); if(!t) return;
+      const cx = (w.bbox.x0+w.bbox.x1)/2*scale, cy = (w.bbox.y0+w.bbox.y1)/2*scale;
+      const h = Math.max(4,(w.bbox.y1-w.bbox.y0)*scale);
+      // A degenerate primary token (a 1-2px speck like "|") must not block a real
+      // word landing next to it — the vertical overlap has to be meaningful.
+      if(out.some(o=> Math.abs(o.cx-cx) < h*0.9 && Math.abs(o.cy-cy) < Math.min(o.h, h)*0.9)) return; // primary already has a token here
+      out.push({text:t, bbox:{x0:w.bbox.x0*scale, y0:w.bbox.y0*scale, x1:w.bbox.x1*scale, y1:w.bbox.y1*scale}, cx, cy, h});
+    });
+  }
   return out;
 }
 
@@ -1305,7 +1336,8 @@ function findColumnAnchors(rows){
       const cx = (w.bbox.x0+w.bbox.x1)/2;
       if(t==='pos' && a.pos==null) a.pos = cx;
       else if(t==='name' && a.name==null) a.name = cx;
-      else if(t==='rr' && a.rr==null) a.rr = cx;
+      // The RR header's ▲ triangle is OCR'd as A/4/l etc. — accept those variants.
+      else if((t==='rr' || /^rr[0-9a-z]$/.test(t)) && a.rr==null) a.rr = cx;
       else if(t==='g' && a.g==null) a.g = cx;
       else if(t==='ast' && a.ast==null) a.ast = cx;
     });
@@ -1321,7 +1353,7 @@ function findColumnAnchors(rows){
 function parsePlayerRow(rowWords, anchors){
   // Tesseract spits out junk like "0)", "o", "oO", "(0" around digits — strip the junk
   // (keeping letters, digits, . - ' / and accented characters) before pattern matching.
-  const keep = ch => /[A-Za-z0-9.\/'-\u00C0-\u017F]/.test(ch);
+  const keep = ch => /[A-Za-z0-9.\/'\-\u00C0-\u017F]/.test(ch);
   const clean = s => {
     let i=0, j=s.length-1;
     while(i<j && !keep(s[i])) i++;
@@ -1330,8 +1362,13 @@ function parsePlayerRow(rowWords, anchors){
   };
   const toks = rowWords.map(w=>({text:clean(w.text), cx:(w.bbox.x0+w.bbox.x1)/2})).filter(t=>t.text);
   if(toks.length < 3) return null;
-  const isInt = t=>/^\d{1,3}$/.test(t) || /^[oO]$/.test(t);   // "O" is a misread zero
-  const isRate = t=>/^\d{1,2}[.,]\d$/.test(t) || /^n\/?a$/i.test(t);
+  const isInt = t=>/^\d{1,3}$/.test(t) || /^[oO]{1,2}$/.test(t);   // "O"/"oO" are misread zero(s)
+  // "N/A" comes back from OCR as NIA / NlA / N1A etc. (the slash becomes I, l or 1).
+  const isNA = t => t.toLowerCase().replace(/[^a-z]/g,'').replace(/[il]/g,'') === 'na';
+  // The decimal point can come back as a colon ("7:9" → 7.9).
+  const isRate = t=>/^\d{1,2}[.,:]\d$/.test(t) || isNA(t);
+  // Rating with the decimal dropped by OCR: "94" → 9.4 ("10" is ambiguous, so skip it).
+  const looksLikeRating = t => isRate(t) || /^\d{3}$/.test(t) || (/^\d{2}$/.test(t) && t!=='10');
   const col = t=>{
     if(!anchors) return null;
     let best=null, bd=Infinity;
@@ -1339,7 +1376,7 @@ function parsePlayerRow(rowWords, anchors){
       if(p[1]==null) return;
       const d=Math.abs(t.cx-p[1]); if(d<bd){bd=d;best=p[0];}
     });
-    return best;
+    return bd>110 ? null : best; // columns sit ~230px apart — reject anything further than half a column away
   };
   let goalsIdx=-1, assistsIdx=-1, ratingIdx=-1;
   if(anchors){
@@ -1347,31 +1384,39 @@ function parsePlayerRow(rowWords, anchors){
       const c = col(t);
       if(c==='ast' && isInt(t.text) && assistsIdx===-1) assistsIdx=i;
       else if(c==='g' && isInt(t.text) && goalsIdx===-1) goalsIdx=i;
-      else if(c==='rr' && (isRate(t.text) || /^\d{3}$/.test(t.text)) && ratingIdx===-1) ratingIdx=i;
+      else if(c==='rr' && looksLikeRating(t.text) && ratingIdx===-1) ratingIdx=i;
     });
-    if(goalsIdx===-1 && assistsIdx===-1 && ratingIdx===-1) return null;
-  } else {
+  }
+  if(goalsIdx===-1 && assistsIdx===-1){
+    // Column anchoring found nothing usable — fall back to the rightmost-two-integers heuristic.
     for(let i=toks.length-1;i>=0;i--){
       if(isInt(toks[i].text)){
         if(assistsIdx===-1) assistsIdx=i;
         else { goalsIdx=i; break; }
       }
     }
-    if(goalsIdx===-1 || assistsIdx===-1 || goalsIdx>=assistsIdx) return null;
-    if(goalsIdx-1>=0 && (isRate(toks[goalsIdx-1].text) || /^\d{3}$/.test(toks[goalsIdx-1].text))) ratingIdx = goalsIdx-1;
+    if(goalsIdx===-1 || assistsIdx===-1 || goalsIdx>=assistsIdx){ goalsIdx=-1; assistsIdx=-1; }
+    else if(goalsIdx-1>=0 && looksLikeRating(toks[goalsIdx-1].text)) ratingIdx = goalsIdx-1;
   }
+  if(goalsIdx===-1 && assistsIdx===-1 && ratingIdx===-1) return null;
   const idxs = [ratingIdx, goalsIdx, assistsIdx].filter(i=>i!==-1);
   const nameEnd = idxs.length ? Math.min(...idxs) : toks.length;
-  let nameTokens = toks.slice(0, nameEnd).filter(t=>!/^[oO]$/.test(t.text)); // lone "O" is a misread zero, never a name
+  // lone "O" is a misread zero, and pure i/l/1 pairs ("ll", "il") are rating misreads — neither is a name
+  let nameTokens = toks.slice(0, nameEnd).filter(t=>!/^[oO]$/.test(t.text) && !/^[il1]{2}$/i.test(t.text));
   let position = '';
-  if(nameTokens.length>1 && /^[A-Z]{2,4}$/.test(nameTokens[0].text)){
-    position = nameTokens[0].text.replace(/[^A-Za-z]/g,'');
-    nameTokens = nameTokens.slice(1);
+  // OCR sometimes prefixes the position with junk ("'RCB", "(ST)") — strip it before testing.
+  { const p0 = (nameTokens[0] ? nameTokens[0].text : '').replace(/[^A-Za-z]/g,'');
+    if(nameTokens.length>1 && /^[A-Z]{2,4}$/.test(p0)){ position = p0; nameTokens = nameTokens.slice(1); }
   }
   const name = nameTokens.map(t=>t.text).join(' ')
     .replace(/[^A-Za-z.'\-\u00C0-\u017F ]/g,'').replace(/\s+/g,' ').trim();
   if(!name || /^\d/.test(name) || /\d/.test(name) || /^(pos|name|rr|g|ast|player|performance)$/i.test(name)) return null;
-  const val = i => i===-1 ? 0 : (toks[i].text==='O' || toks[i].text==='o' ? 0 : Number(toks[i].text));
+  const val = i => {
+    if(i===-1) return 0;
+    if(/^[oO]{1,2}$/.test(toks[i].text)) return 0; // misread zero(s)
+    const v = Number(toks[i].text);
+    return Number.isFinite(v) ? v : 0;
+  };
   let goals = val(goalsIdx);
   let assists = val(assistsIdx);
   if(goals>30) goals=0;     // impossible in one match → misread number, drop it
@@ -1379,8 +1424,10 @@ function parsePlayerRow(rowWords, anchors){
   let rating = '';
   if(ratingIdx!==-1){
     const rt = toks[ratingIdx].text;
-    if(/^\d{1,2}[.,]\d$/.test(rt)) rating = rt.replace(',','.');
+    if(isNA(rt)) rating = ''; // sub / N/A row — leave blank so the "N/A" placeholder shows
+    else if(/^\d{1,2}[.,:]\d$/.test(rt)) rating = rt.replace(/[,:]/g,'.');
     else if(/^\d{3}$/.test(rt)){ const v = Number(rt)/10; if(v>=1 && v<=10) rating = v.toFixed(1); } // "100" → 10.0
+    else if(/^\d{2}$/.test(rt) && rt!=='10'){ const v = Number(rt)/10; if(v>=1 && v<=10) rating = v.toFixed(1); } // "94" → 9.4
   }
   return {position, name, rating, goals, assists};
 }
@@ -1591,15 +1638,100 @@ function recomputeMotmGuess(){
   if(best) logDraft.motmPlayerId = best.playerId;
 }
 
+/* The selected player's row is drawn as a bright, full-width band on the dark UI, and
+   Tesseract's page segmentation sometimes drops exactly that row when the player card
+   is on screen (verified: the row reads fine as a crop, but not in the full image).
+   Detect the band from per-row brightness, OCR it as its own little image through the
+   same pipeline, and hand the words back so the merge can fill the row in. Returns
+   null when there is no band (most bottom screenshots have none). */
+async function highlightBandPass(file){
+  try{
+    const bmp = await createImageBitmap(file);
+    const w0 = bmp.width, h0 = bmp.height;
+    const aw = 80, ah = Math.max(8, Math.round(h0*aw/w0));
+    const cv = document.createElement('canvas'); cv.width=aw; cv.height=ah;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(bmp, 0, 0, aw, ah);
+    const d = ctx.getImageData(0,0,aw,ah).data;
+    const means = new Float32Array(ah);
+    for(let y=0;y<ah;y++){
+      let s=0;
+      for(let x=0;x<aw;x++){ const i=(y*aw+x)*4; s += (d[i]*299+d[i+1]*587+d[i+2]*114)/1000; }
+      means[y]=s/aw;
+    }
+    const sorted = Float32Array.from(means).sort();
+    const med = sorted[ah>>1];
+    // Band = a run of rows clearly brighter than the median. Tall enough to hold a
+    // text row (~55-120px at this screenshot width); the player card makes shorter
+    // bright runs, and it sits in the top ~15% of the screen — both excluded.
+    const unit = w0/840;
+    const minH = 55*unit, maxH = 120*unit;
+    let best = null;
+    let start = -1;
+    for(let y=0;y<=ah;y++){
+      const bright = y<ah && means[y] > med+20;
+      if(bright && start===-1) start=y;
+      else if(!bright && start!==-1){
+        const len = y-start;
+        if(len>=minH && len<=maxH && start>=ah*0.15 && (!best || start<best[0])) best=[start,y];
+        start=-1;
+      }
+    }
+    if(!best){ if(bmp.close) bmp.close(); return null; }
+    const [y0,y1] = best;
+    const pad = Math.max(6, Math.round(10*unit));
+    const top = Math.max(0, y0-pad), bot = Math.min(h0, y1+pad);
+    const cv2 = document.createElement('canvas'); cv2.width=w0; cv2.height=bot-top;
+    const ctx2 = cv2.getContext('2d');
+    ctx2.imageSmoothingEnabled = true; ctx2.imageSmoothingQuality='high';
+    ctx2.drawImage(bmp, 0, top, w0, bot-top, 0, 0, w0, bot-top);
+    if(bmp.close) bmp.close();
+    const blob = await new Promise(res=> cv2.toBlob(b=>res(b), 'image/png'));
+    if(!blob) return null;
+    // Same pipeline as the primary pass → the band's words land in the same pixel space.
+    const processed = await preprocessForOcr(blob, {});
+    return {blob: processed, top, width0: w0};
+  }catch(e){ return null; }
+}
+
 async function scanPlayerImages(files, progId){
   const prog = document.getElementById(progId);
   prog.innerHTML = `<div class="hint">Starting…</div>`;
   try{
     if(typeof Tesseract === 'undefined') throw new Error('OCR engine did not load');
-    const results = await ocrReadFiles(files, progId);
+    // Two OCR passes: the preprocessed image (clean numbers) plus the original file
+    // (recovers ratings the preprocessed pass drops). The preprocessed pass is primary;
+    // the original only fills positions where it has nothing.
+    const results = await ocrReadFiles(files, progId, [{}, {raw:true}]);
+    // Third pass, fill-in only: the highlighted (selected) row sometimes gets dropped
+    // by the two main passes — OCR it separately and append its words last, so the
+    // merge treats them as "fill gaps where the primary passes have nothing".
+    try{
+      const worker = await withTimeout(getOcrWorker(), 45000, 'Loading the OCR engine');
+      for(let i=0;i<results.length && i<files.length;i++){
+        const band = await highlightBandPass(files[i]);
+        if(!band) continue;
+        try{
+          const data = (await withTimeout(worker.recognize(band.blob), 45000, 'Reading the highlighted row')).data;
+          const dim = await imageDims(band.blob);
+          const w = dim.w || 1800;
+          const s = band.width0 ? w/band.width0 : 1;
+          const offY = band.top*s; // band words are relative to the crop — shift into full-image space
+          const words = flattenWords(data).map(ww=>({
+            text: ww.text,
+            bbox: {x0: ww.bbox.x0, x1: ww.bbox.x1, y0: ww.bbox.y0+offY, y1: ww.bbox.y1+offY},
+          }));
+          if(!words.length) continue;
+          results[i]._variantWords = results[i]._variantWords || [];
+          results[i]._variantWords.push({words, width: w});
+        }catch(e){ console.warn('Highlighted-row pass failed, continuing without it', e); }
+      }
+    }catch(e){ /* the band pass is best-effort — the two main passes still stand */ }
     const found = [];
     results.forEach(data=>{
-      const rows = clusterRows(flattenWords(data));
+      const words = mergePlayerWords((data && data._variantWords && data._variantWords.length) ? data._variantWords : [{words:flattenWords(data), width:data.width||0}]);
+      const rows = clusterRows(words);
       const anchors = findColumnAnchors(rows);
       // Skip everything above the header (the "89 · Alexander Isak" highlight card etc.)
       const dataRows = anchors ? rows.filter(r=>r.cy > anchors.headerCy) : rows;
@@ -1628,7 +1760,18 @@ async function scanPlayerImages(files, progId){
       const playerId = await resolveOrCreatePlayer(f.name);
       const row = {playerId, position:f.position, rating:f.rating, goals:f.goals, assists:f.assists};
       const idx = logDraft.playerStats.findIndex(ps=>ps.playerId===playerId);
-      if(idx>-1) logDraft.playerStats[idx] = row; else logDraft.playerStats.push(row);
+      if(idx>-1){
+        // Pasting a second screenshot (top + bottom of the list) must not clobber
+        // values already read: merge per field instead of replacing the row.
+        const old = logDraft.playerStats[idx];
+        logDraft.playerStats[idx] = {
+          playerId,
+          position: (old.position && String(old.position).trim()) ? old.position : row.position,
+          rating: (old.rating && String(old.rating).trim()) ? old.rating : row.rating,
+          goals: Math.max(Number(old.goals)||0, Number(row.goals)||0),
+          assists: Math.max(Number(old.assists)||0, Number(row.assists)||0),
+        };
+      } else logDraft.playerStats.push(row);
     }
     recomputeMotmGuess();
     render();
@@ -1653,7 +1796,7 @@ async function scanTeamImage(files, progId){
     const left={}, right={};
     let lastWords = [];
     results.forEach(data=>{
-      const lists = (data._variantWords && data._variantWords.length) ? data._variantWords : [flattenWords(data)];
+      const lists = (data._variantWords && data._variantWords.length) ? data._variantWords.map(v=>v.words) : [flattenWords(data)];
       const words = mergeWords(lists);
       lastWords = words;
       const parsed = parseSummaryScreen(words);
@@ -2113,7 +2256,7 @@ async function scanPlayersScreen(files, progId){
   try{
     const results = await ocrReadFiles(files.slice(0,1), progId, [{}]);
     const data = results[0];
-    const words = mergeWords((data && data._variantWords) || [flattenWords(data)]);
+    const words = mergeWords((data && data._variantWords && data._variantWords.length) ? data._variantWords.map(v=>v.words) : [flattenWords(data)]);
     let W = data.width||0, H = data.height||0;
     if(!W || !H){ const d0 = await imageDims(files[0]); W = d0.w; H = d0.h; } // belt & braces: ratios are scale-invariant
     const res = parsePlayersScreen(words, W, H);
