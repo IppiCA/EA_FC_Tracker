@@ -725,6 +725,7 @@ function seasonPanel(s){
 /* ============================= LOG MATCH ============================= */
 let logDraft = null; // in-progress match object while filling the form
 let editingGameId = null; // set while editing an already-logged match
+let playerSort = null; // {key:'rating'|'goals'|'assists', dir:1|-1} — last header sort applied
 
 function freshDraft(){
   const s = seasons[0];
@@ -827,7 +828,7 @@ function renderLog(){
       <div id="scan-players-progress"></div>
     </div>
     <div style="margin-top:14px" class="tablewrap">
-      <div class="ocr-head"><span>Pos</span><span>Player</span><span style="color:#22C97A">Rating</span><span style="color:#14B8A6">Goals</span><span style="color:#8B6CFF">Ast</span><span style="text-align:center">MOTM</span><span></span><span></span></div>
+      <div class="ocr-head"><span>Pos</span><span>Player</span><span data-sort="rating" title="Click to sort" style="color:#22C97A; cursor:pointer">Rating</span><span data-sort="goals" title="Click to sort" style="color:#14B8A6; cursor:pointer">Goals</span><span data-sort="assists" title="Click to sort" style="color:#8B6CFF; cursor:pointer">Ast</span><span style="text-align:center">MOTM</span><span></span><span></span></div>
       <div id="playerstat-rows">${(logDraft.playerStats||[]).map((ps,i)=>playerStatRow(ps,i)).join('')}</div>
       <button class="btn ghost small" id="add-playerstat" style="margin-top:6px">+ Add player to this game</button>
     </div>
@@ -900,6 +901,15 @@ function gamertagField(i){
       <input type="hidden" id="f-cty${i}" value="${esc(cty)}">
     </div>
   </div>`;
+}
+/* Sort the player table in place by Rating / Goals / Ast. One click = ascending,
+   another = descending — no UI decoration, just the rows re-ordered (and the
+   underlying draft reordered too, so Save writes the same players either way). */
+function sortPlayerRows(key, dir){
+  const val = ps => key==='rating'
+    ? (()=>{ const n = parseFloat(String(ps.rating||'').replace(/[^0-9.\-]/g,'')); return isNaN(n) ? -1 : n; })()
+    : (Number(ps[key])||0);
+  logDraft.playerStats.sort((a,b)=> (val(a)-val(b))*dir);
 }
 /* Highlight cells that hold a real value (rating entered, or goals/assists > 0),
    so played vs. sat-out players are instantly visible. */
@@ -1010,6 +1020,14 @@ function wireLogHandlers(){
     if(e.target.checked) document.querySelectorAll('#playerstat-rows [data-f=motm]').forEach(cb=>{ if(cb!==e.target) cb.checked=false; });
     readDraftFromForm();
   });
+  /* Header sort: click Rating / Goals / Ast → ascending, click again → descending. */
+  document.querySelectorAll('.ocr-head [data-sort]').forEach(h=> h.addEventListener('click', ()=>{
+    const key = h.dataset.sort;
+    const dir = (playerSort && playerSort.key===key && playerSort.dir===1) ? -1 : 1;
+    playerSort = {key, dir};
+    sortPlayerRows(key, dir);
+    render();
+  }));
   document.querySelectorAll('[data-rename-player]').forEach(b=> b.addEventListener('click', ()=> renamePlayer(b.dataset.renamePlayer)));
   paintStatHighlights();
   document.getElementById('playerstat-rows')?.addEventListener('input', paintStatHighlights);
