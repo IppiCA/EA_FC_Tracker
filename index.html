@@ -763,6 +763,10 @@ function renderLog(){
   const s = seasonById(logDraft.seasonId);
   const dTeam = (logDraft.teamId && teamById(logDraft.teamId)) || (s ? seasonTeams(s)[0] : null) || null;
   const dSquad = dTeam ? (dTeam.playerIds||[]) : (s ? (s.squadIds||[]) : []);
+  /* Saved team stats must load back into the boxes when re-editing — otherwise the
+     form looks empty and the next save would silently wipe the stored numbers. */
+  const ts = logDraft.teamStats || {for:{}, against:{}};
+  const customStats = Array.from(new Set([...Object.keys(ts.for||{}), ...Object.keys(ts.against||{})])).filter(l=>!STAT_LABELS.includes(l));
   if(!seasons.length){
     return `<div class="pagehead"><h1>Log Match</h1></div><div class="card empty">Create a season first (with a squad) under <b>Squad & Seasons</b> before logging a match.</div>`;
   }
@@ -845,9 +849,9 @@ function renderLog(){
       <div id="scan-team-progress"></div>
       <div style="margin-top:6px; font-size:10px; opacity:.45">scanner ${SCAN_BUILD}</div>
     </div>
-    <div style="margin-top:14px" id="teamstat-rows">${STAT_LABELS.map(l=>teamStatLine(l)).join('')}</div>
+    <div style="margin-top:14px" id="teamstat-rows">${STAT_LABELS.map(l=>teamStatLine(l, ts.for[l], ts.against[l])).join('')}</div>
     <button class="btn ghost small" id="add-teamstat" style="margin-top:4px">+ Add custom stat</button>
-    <div id="teamstat-custom"></div>
+    <div id="teamstat-custom">${customStats.map(l=>teamStatLine(l, ts.for[l], ts.against[l])).join('')}</div>
   </div>
 
   <div class="row" style="gap:10px">
@@ -1089,7 +1093,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change — shown in the scan box so we can tell which build a
    browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v12';
+const SCAN_BUILD = 'v13';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1443,6 +1447,57 @@ function parsePlayerRow(rowWords, anchors){
 const CIRCLE_WORDS = {dribble:'Dribble Success Rate', shot:'Shot Accuracy', pass:'Pass Accuracy %'};
 const CIRCLE_LABELS = Object.values(CIRCLE_WORDS);
 
+/* Final score + match clock from the TOP of the Summary screen: the score line
+   ("… 7 : 1 …") with the clock ("91:31") right beneath it. In EA FC the HOME team
+   is always the LEFT number — us/them mapping happens in scanTeamImage from the
+   Home/Away pick (which the PLAYERS screen fills in). Scores can be two digits
+   (10+ goals). Returns {left, right, clockMin, clockSec}; any part is null when
+   OCR didn't catch it. Deliberately reads only the strip above the stats table,
+   so it can never swallow or be swallowed by a table row. */
+function parseSummaryHeader(words){
+  if(!words || !words.length) return null;
+  let W=0, H=0;
+  words.forEach(w=>{ W=Math.max(W,w.bbox.x1); H=Math.max(H,w.bbox.y1); });
+  if(!W || !H) return null;
+  const band = words.filter(w=> w.bbox.y0 < H*0.22);
+  if(!band.length) return null;
+
+  /* One-word "d:d" readings: a glued score ("7:1") or the clock ("91:31").
+     The clock's seconds are always two digits — that separates the two. */
+  const glued = t=>{
+    const m = String(t).replace(/[|[\]()]/g,'').match(/^(\d{1,2})[^\d](\d{1,2})$/);
+    return m ? {a:parseInt(m[1],10), b:parseInt(m[2],10), bDigits:m[2].length} : null;
+  };
+  const isScoreDigit = t => /^\d{1,2}$/.test(String(t).trim());
+
+  let left=null, right=null, clockMin=null, clockSec=null;
+
+  /* Score, form 1 (what Tesseract usually gives us): two separate digit words
+     around the horizontal centre, with only the separator between them. */
+  const digits = band.filter(w=>isScoreDigit(w.text)).sort((a,b)=>a.bbox.x0-b.bbox.x0);
+  for(let i=0;i<digits.length-1;i++){
+    const a=digits[i], b=digits[i+1];
+    const gap = b.bbox.x0 - a.bbox.x1;
+    const cx = (a.bbox.x0 + b.bbox.x1)/2;
+    if(gap >= 0 && gap < W*0.15 && Math.abs(cx - W/2) < W*0.28){
+      left=parseInt(a.text,10); right=parseInt(b.text,10); break;
+    }
+  }
+
+  /* "d:d" candidates, topmost first: a 1-digit right half is a score ("7:1"),
+     a 2-digit right half is the clock ("91:31"). */
+  const gwords = band.map(w=>({w, g:glued(w.text)})).filter(x=>x.g).sort((a,b)=>a.w.bbox.y0-b.w.bbox.y0);
+  if(left==null){
+    const s = gwords.find(x=>x.g.bDigits===1);
+    if(s){ left=s.g.a; right=s.g.b; }
+  }
+  const clock = gwords.find(x=>x.g.bDigits===2 && x.g.a<=120 && x.g.b<=59);
+  if(clock){ clockMin=clock.g.a; clockSec=clock.g.b; }
+
+  if(left==null && clockMin==null) return null;
+  return {left, right, clockMin, clockSec};
+}
+
 function parseSummaryScreen(words){
   if(!words || !words.length) return null;
   let W=0, H=0;
@@ -1793,6 +1848,8 @@ async function scanTeamImage(files, progId){
     // makes Tesseract drop words on this screen, and the second pass catches them.
     const results = await ocrReadFiles(files, progId, [{}, {binarize:true}]);
     const homeAway = (logDraft && logDraft.homeAway) ? logDraft.homeAway : 'home';
+    // Home team is always the LEFT column in the game → map to us/them via Home/Away.
+    const usSide = homeAway==='away' ? 'right' : 'left';
     const left={}, right={};
     let lastWords = [];
     results.forEach(data=>{
@@ -1809,6 +1866,35 @@ async function scanTeamImage(files, progId){
         });
       }
     });
+    /* Final result + match clock from the top of the screen — independent of the
+       stat table above, so it fills even when a stat row fails to parse. The score
+       line is the source of truth for the result; a clock under 90:00 means the
+       opponent rage quit (they don't finish the match). */
+    let header = null;
+    for(const data of results){
+      const lists = (data._variantWords && data._variantWords.length) ? data._variantWords.map(v=>v.words) : [flattenWords(data)];
+      header = parseSummaryHeader(mergeWords(lists));
+      if(header && header.left!=null && header.right!=null) break;
+    }
+    if(header){
+      const bits = [];
+      if(header.left!=null && header.right!=null){
+        const us = usSide==='left' ? header.left : header.right;
+        const them = usSide==='left' ? header.right : header.left;
+        const sf = document.getElementById('f-scorefor'), sa = document.getElementById('f-scoreagainst');
+        if(sf) sf.value = us;
+        if(sa) sa.value = them;
+        bits.push(`score ${us}–${them}`);
+      }
+      if(header.clockMin!=null && header.clockMin < 90){
+        const rq = document.getElementById('f-rq');
+        if(rq) rq.value = 'them';
+        if(logDraft) logDraft.rageQuit = 'them';
+        bits.push(`ended at ${header.clockMin}:${String(header.clockSec||0).padStart(2,'0')} → marked as their rage quit`);
+      }
+      if(bits.length) toast('From the top of the screen: ' + bits.join(' · '));
+    }
+
     const labels = Array.from(new Set([...Object.keys(left), ...Object.keys(right)]));
     if(!labels.length){
       const totalWords = results.reduce((s,d)=> s + (d._procWords||flattenWords(d).length), 0);
@@ -1825,8 +1911,6 @@ async function scanTeamImage(files, progId){
       prog.innerHTML = `<div class="hint" style="color:var(--red)">No stat rows recognized (OCR read ${totalWords} word(s)) [build ${SCAN_BUILD}] — check image clarity or enter manually. If it keeps failing, send us this screen (preview + word sample) and we'll see exactly what the scanner received.</div>${sample ? `<div class="hint" style="margin-top:8px; font-size:12px">Words OCR read (first 40): ${sample}</div>` : ''}${previews}`;
       return;
     }
-    // Home team is always the LEFT column in the game → map to us/them via Home/Away.
-    const usSide = homeAway==='away' ? 'right' : 'left';
     let filled = 0;
     labels.forEach(rawLabel=>{
       const label = canonicalStatLabel(rawLabel);
