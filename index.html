@@ -2228,13 +2228,14 @@ function placeDdropPop(d){
       if(d) renderCountryList(d, t.value);
     }
   });
-  /* The popup is position:fixed, so it would float in the wrong spot if the page scrolls
-     while it's open — close it on any scroll except scrolling inside the list itself. */
+  /* The popup is position:fixed, so if the page moves while it's open (including the tiny
+     scroll the browser does when it auto-focuses the search box), just re-glue it to its
+     button instead of closing it. Scrolling inside the list itself is left alone. */
   window.addEventListener('scroll', (e)=>{
     const t = e.target;
     if(t && t.closest && t.closest('.ddrop-list')) return;
-    if(document.querySelector('.ddrop.pop-open'))
-      document.querySelectorAll('.ddrop.pop-open').forEach(x=> x.classList.remove('pop-open'));
+    const open = document.querySelector('.ddrop.pop-open');
+    if(open) placeDdropPop(open);
   }, true);
 })();
 
