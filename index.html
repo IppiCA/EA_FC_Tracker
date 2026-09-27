@@ -861,15 +861,20 @@ function lastPlayedTeamId(){
 
 function freshDraft(){
   const s = seasons[0];
+  const teamId = lastPlayedTeamId() || (s ? seasonPrimaryTeamId(s) : '');
+  /* Build the player list from the CHOSEN team's squad (matching the Team box), so the
+     performance rows start with that team's players — not the season's first team. */
+  const chosen = teamById(teamId);
+  const squad = chosen ? (chosen.playerIds||[]) : (s ? (s.squadIds||[]) : []);
   return {
     seasonId: s ? s.id : '',
-    teamId: lastPlayedTeamId() || (s ? seasonPrimaryTeamId(s) : ''),
+    teamId,
     opponentTeam:'', opponentGamertags:['',''], opponentPlatforms:['',''], opponentCountries:['',''], homeAway:'home',
     scoreFor:0, scoreAgainst:0, rageQuit:'none', rageQuitMin:null, disconnect:false, motmPlayerId:'',
     pingIppi:'', pingStebo:'',
     matchTime: nowHM(), matchDate: nowISODate(),
     top100:'', top100Wins:0, top100Draws:0, top100Losses:0,
-    playerStats: s ? squadForSeason(s).map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})) : [],
+    playerStats: squad.map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})),
     teamStats: {for:{}, against:{}}
   };
 }
@@ -1380,7 +1385,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v27';
+const SCAN_BUILD = 'v28';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
