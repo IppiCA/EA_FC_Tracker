@@ -774,14 +774,21 @@ const p2 = n => String(n).padStart(2,'0');
 function nowHM(){ const d = new Date(); return p2(d.getHours())+':'+p2(d.getMinutes()); }
 function nowISODate(){ const d = new Date(); return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()); }
 /* The Time/Date row is stamped with the moment the FIRST screenshot arrives in either scan
-   box (once per logged match; re-editing an existing match never re-stamps). The user can
-   still click into either field and change the time or date. */
+   box (once per logged match). New match: re-stamps to the screenshot moment. Re-editing a
+   saved match: only FILLS IN fields that are empty (e.g. old matches saved before this row
+   existed) — a saved time/date is never clobbered. The user can still click into either
+   field and change the time or date. */
 let firstShotStamped = false;
 function stampFirstScreenshot(){
   if(!logDraft || firstShotStamped) return;
   firstShotStamped = true;
-  logDraft.matchTime = nowHM();
-  logDraft.matchDate = nowISODate();
+  if(editingGameId){
+    if(!logDraft.matchTime)  logDraft.matchTime = nowHM();
+    if(!logDraft.matchDate)  logDraft.matchDate = nowISODate();
+  }else{
+    logDraft.matchTime = nowHM();
+    logDraft.matchDate = nowISODate();
+  }
   const t = document.getElementById('f-matchtime'); if(t) t.value = logDraft.matchTime;
   const d = document.getElementById('f-matchdate'); if(d) d.value = logDraft.matchDate;
 }
@@ -827,7 +834,6 @@ function gameToDraft(g){
 function renderLog(){
   if(!logDraft){
     logDraft = editingGameId ? gameToDraft(games.find(g=>g.id===editingGameId)) : freshDraft();
-    firstShotStamped = !!editingGameId; // re-editing: a new paste must not re-stamp the saved time
   }
   const isEditing = !!editingGameId;
   const s = seasonById(logDraft.seasonId);
@@ -1264,7 +1270,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v20';
+const SCAN_BUILD = 'v21';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -2544,7 +2550,8 @@ async function scanPlayersScreen(files, progId){
     if(res.opponentTeam) logDraft.opponentTeam = titleTeam(res.opponentTeam);
     logDraft.opponentGamertags = [res.opponentGamertags[0]||'', res.opponentGamertags[1]||''];
     logDraft.opponentPlatforms = await guessPlatformIcons(files[0], data.width||0, res.oppTagBboxes||[]);
-    logDraft.opponentCountries = ['',''];
+    /* opponentCountries is intentionally NOT touched here — OCR can't read it, and a
+       hand-picked country must survive the scan (user rule). */
     render();
     const n = res.opponentGamertags.length;
     line('<div class="hint" style="color:var(--turf)">✓ Scanned — <b>' + esc(titleTeam(res.opponentTeam)||'opponent team') +
