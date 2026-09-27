@@ -451,9 +451,9 @@ table.sheet th.sorted{color:var(--turf)}
   <nav class="rail">
     <div class="rail-brand"><img class="crest" src="app-icon.webp" alt="" width="36" height="36"><div class="brand">EA FC<br>Tracker</div></div>
     <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
-    <button class="navbtn" data-tab="log"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="history"><span class="ic">≡</span> Match History</button>
-    <button class="navbtn" data-tab="squad" style="margin-top:auto"><span class="ic">▤</span> New Season</button>
+    <button class="navbtn" data-tab="log" style="margin-top:auto"><span class="ic">＋</span> Log Match</button>
+    <button class="navbtn" data-tab="squad"><span class="ic">▤</span> New Season</button>
     <button class="navbtn" data-tab="settings"><span class="ic">⚙</span> Team Sheets</button>
     <div class="rail-foot">
       <span id="syncstate">connecting…</span>
@@ -469,8 +469,8 @@ table.sheet th.sorted{color:var(--turf)}
 
   <nav class="tabbar">
     <button data-tab="dashboard"><span class="ic">◆</span>Dashboard</button>
-    <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="history"><span class="ic">≡</span>History</button>
+    <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
     <button data-tab="settings"><span class="ic">⚙</span>Team Sheets</button>
   </nav>
@@ -1643,7 +1643,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v57';
+const SCAN_BUILD = 'v58';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
