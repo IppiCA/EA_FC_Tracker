@@ -247,6 +247,8 @@ table.sheet th.sorted{color:var(--turf)}
 .tchk .tick{font-size:11px}
 .tchk.on{color:var(--ink); border-color:rgba(60,255,154,.35); background:rgba(60,255,154,.07)}
 .tchk.on .tick{color:var(--turf)}
+.tlogo{width:18px; height:18px; object-fit:contain; border-radius:4px; display:inline-block; vertical-align:-4px; margin-right:6px; flex:0 0 auto}
+.tlogo-big{width:38px; height:38px; object-fit:contain; border-radius:8px; display:block; flex:0 0 auto}
 .seasonbar{position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex; align-items:center; gap:8px;
   background:rgba(10,15,22,.85); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border-top:1px solid var(--line); padding:9px 14px calc(9px + env(safe-area-inset-bottom,0px)); overflow-x:auto; -webkit-overflow-scrolling:touch}
@@ -519,6 +521,43 @@ function toast(msg){
   const el = document.createElement('div'); el.className='toast'; el.textContent = msg;
   document.getElementById('toast-root').appendChild(el);
   setTimeout(()=>el.remove(), 2600);
+}
+
+/* ============================= TEAM LOGOS ============================= */
+/* A logo is stored on the team record (small data-URL, transparency kept).
+   Opponent teams get their own record (logoOnly) so a crest can exist without
+   a player sheet — that's how opponent logos on the match tiles work. */
+function normName(s){ return (s||'').toString().trim().toLowerCase().replace(/[._-]+/g,' ').replace(/\s+/g,' '); }
+function teamByName(name){ const k = normName(name); return (k && teams.find(t=> normName(t.name)===k)) || null; }
+function teamLogo(name){ const t = teamByName(name); return (t && t.logo) ? t.logo : ''; }
+/* Team crest (if one has been uploaded) or the classic number shield, at a given size. */
+function crestHTML(s, w, h, nfont, label){
+  const lg = s ? teamLogo(seasonTeamName(s)) : '';
+  if(lg) return `<img class="tlogo-big" style="width:${w}px;height:${h}px" src="${lg}" alt="">`;
+  return `<div class="shield" style="width:${w}px;height:${h}px"><div class="n" style="font-size:${nfont}px">${label}</div></div>`;
+}
+/* Shrink an uploaded logo to a small icon and return it as a data URL. */
+function logoFromFile(file, max){
+  max = max || 96;
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onerror = ()=> rej(new Error('read failed'));
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const sc = Math.min(1, max/Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width*sc)), h = Math.max(1, Math.round(img.height*sc));
+        const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+        const cx = cv.getContext('2d');
+        cx.imageSmoothingQuality = 'high';
+        cx.drawImage(img, 0, 0, w, h);
+        res(cv.toDataURL('image/png'));
+      };
+      img.onerror = ()=> rej(new Error('not an image'));
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
 }
 
 /* ============================= DB WIRING (Firebase Firestore) ============================= */
@@ -909,7 +948,7 @@ function renderDashboard(){
 
   ${activeSeason ? `
   <div class="section-title" style="display:flex;align-items:center;gap:10px">
-    <div class="shield"><div class="n">${activeSeason.number}</div></div>
+    ${crestHTML(activeSeason, 46, 52, 19, esc(activeSeason.number))}
     <span>Current season · ${esc(seasonTeamName(activeSeason))} <span class="tag">${esc(activeSeason.gameVersion||'')}</span></span>
   </div>
   ${seasonPanel(activeSeason)}
@@ -941,7 +980,7 @@ function seasonSummaryCard(entry, title, color){
     <div class="section-title" style="margin-top:0">${title}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="shield" style="width:38px;height:44px"><div class="n" style="font-size:16px">${s.number}</div></div>
+        ${crestHTML(s, 38, 44, 16, esc(s.number))}
         <div class="num" style="font-size:20px">${esc(seasonTeamName(s))}</div>
       </div>
       <div class="num" style="font-size:26px;color:var(--${color})">${entry.points} pts</div>
@@ -1098,7 +1137,7 @@ function renderLog(){
       <div class="field"><label>Team</label>
         <select id="f-team">
           ${!logDraft.teamId ? `<option value="" disabled selected>No team (legacy season)</option>` : ''}
-          ${teams.map(t=>`<option value="${t.id}" ${t.id===(logDraft.teamId||'')?'selected':''}>${esc(t.name)}</option>`).join('')}
+          ${teams.filter(t=>!t.logoOnly).map(t=>`<option value="${t.id}" ${t.id===(logDraft.teamId||'')?'selected':''}>${esc(t.name)}</option>`).join('')}
           <option value="__new">＋ New team…</option>
         </select>
       </div>
@@ -1562,7 +1601,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v45';
+const SCAN_BUILD = 'v46';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -2990,7 +3029,7 @@ function seasonEditCard(s){
   return `<div class="card" style="margin-bottom:14px" data-season-card="${s.id}">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px">
       <div style="display:flex; align-items:center; gap:12px">
-        <div class="shield" style="width:38px;height:44px"><div class="n" style="font-size:16px">${s.number}</div></div>
+        ${crestHTML(s, 38, 44, 16, esc(s.number))}
         <div>
           <div class="num" style="font-size:20px">${esc(seasonTeamName(s))}</div>
           <div class="subtle">${esc(s.gameVersion||'')} &nbsp;·&nbsp; ${r.games} games &nbsp;·&nbsp; ${r.w}W ${r.d}D ${r.l}L &nbsp;·&nbsp; ${r.points} pts</div>
@@ -3096,7 +3135,7 @@ function openNewSeasonModal(){
       </div>
     </div>
     <div class="field"><label>Team</label>
-      ${teams.length ? `<select id="ns-team">${teams.map(t=>`<option value="${t.id}" ${t.id===lastTeamId?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`
+      ${teams.length ? `<select id="ns-team">${teams.filter(t=>!t.logoOnly).map(t=>`<option value="${t.id}" ${t.id===lastTeamId?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`
       : `<input type="text" id="ns-team" placeholder="Real Madrid" value="${esc(lastTeam)}">`}
     </div>
     <div class="field"><label>Carry squad over from last season?</label>
@@ -3137,7 +3176,8 @@ function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
    nothing is lost when the Teams feature lands. */
 async function maybeSeedTeams(){
   if(seedingTeams || localStorage.getItem('teamsSeeded')) return;
-  if(teams.length && seasons.length) return;          // already have teams
+  const realTeams = teams.filter(t=>!t.logoOnly);      // logo-only (opponent) entries don't count
+  if(realTeams.length && seasons.length) return;       // already have teams
   if(!seasons.length) return;                          // wait for seasons to load
   seedingTeams = true;
   try{
@@ -3150,7 +3190,17 @@ async function maybeSeedTeams(){
     });
     for(const [name, ids] of Object.entries(byName)){
       try{
-        const tid = await dbAdd('teams', {name, playerIds:[...ids]});
+        let tid = teamByName(name) ? teamByName(name).id : null;
+        if(tid){
+          /* A team with this name already exists (maybe just a logo entry) — reuse it
+             so the crest and the squad end up on the same team. */
+          const ex = teamById(tid);
+          const merged = [...(ex.playerIds||[])];
+          ids.forEach(pid=>{ if(!merged.includes(pid)) merged.push(pid); });
+          await dbSet('teams', tid, {...stripId(ex), logoOnly:false, playerIds:merged});
+        } else {
+          tid = await dbAdd('teams', {name, playerIds:[...ids]});
+        }
         for(const s of seasons.filter(s=>!s.teamId && (s.team||'').trim()===name)){
           await dbSet('seasons', s.id, {...stripId(s), teamId: tid});
         }
@@ -3172,6 +3222,16 @@ function renderSettings(){
     </div>
     <div class="hint">The player pool is shared, but a player can only count for ONE team — each team's sheet decides who belongs to it. Teams you add show up in the Season dropdown when you create a season.</div>
   </div>
+
+  <div class="section-title">Team logos <span class="subtle">— for your teams AND opponent teams</span></div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="scanbox" style="cursor:pointer" onclick="document.getElementById('logo-files').click()">
+      🖼️ <b>Click here to choose logo files</b> — you can pick many at once (one PNG per team)
+    </div>
+    <input type="file" id="logo-files" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple style="display:none">
+    <input type="file" id="logo-one" accept="image/png,image/jpeg,image/webp" style="display:none">
+    <div class="hint" style="margin-top:8px">The <b>filename is the team name</b> — e.g. <b>Real Madrid.png</b>, <b>PSG.png</b>, <b>fc-barcelona.png</b> all work (transparent PNGs look best). If the name matches one of your teams, its logo updates; otherwise a new logo entry is created for that opponent.</div>
+  </div>
   ${teams.length ? teams.map(teamCard).join('') : `<div class="card empty">No teams yet — add one above (existing seasons create their team automatically).</div>`}
 
   <div class="section-title" style="margin-top:22px">All players <span class="subtle">(${players.length}) — ✎ renames a player everywhere (scanner list, history, MOTM)</span></div>
@@ -3187,11 +3247,33 @@ function renderSettings(){
   `;
 }
 function teamCard(t){
+  /* Logo-only entry (an opponent team that has no player sheet). */
+  if(t.logoOnly){
+    return `<div class="card" style="margin-bottom:14px">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px">
+          ${t.logo?`<img class="tlogo-big" src="${t.logo}" alt="">`:''}
+          <div class="num" style="font-size:19px">${esc(t.name)} <span class="subtle">· opponent logo</span></div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+          <button class="link-btn" data-logo-team="${t.id}">🖼️ Change logo</button>
+          ${t.logo?`<button class="link-btn" data-logo-rm="${t.id}" style="color:var(--red)">Remove logo</button>`:''}
+          <button class="link-btn" data-rename-team="${t.id}">✎ Rename team</button>
+          <button class="link-btn" data-del-team="${t.id}" style="color:var(--red)">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }
   const missing = freePlayers();  // players not on ANY team's sheet — one player, one team
   return `<div class="card" style="margin-bottom:14px">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
-      <div class="num" style="font-size:19px">${esc(t.name)} <span class="subtle">(${(t.playerIds||[]).length} players)</span></div>
-      <div style="display:flex; gap:8px; align-items:center">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${t.logo?`<img class="tlogo-big" src="${t.logo}" alt="">`:''}
+        <div class="num" style="font-size:19px">${esc(t.name)} <span class="subtle">(${(t.playerIds||[]).length} players)</span></div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <button class="link-btn" data-logo-team="${t.id}">🖼️ ${t.logo?'Change logo':'Add logo'}</button>
+        ${t.logo?`<button class="link-btn" data-logo-rm="${t.id}" style="color:var(--red)">Remove logo</button>`:''}
         <button class="link-btn" data-rename-team="${t.id}">✎ Rename team</button>
         <button class="link-btn" data-del-team="${t.id}" style="color:var(--red)">Delete</button>
       </div>
@@ -3219,12 +3301,47 @@ function wireSettingsHandlers(){
     const t = teamById(b.dataset.renameTeam); if(!t) return;
     const name = (prompt(`Rename team "${t.name}":`, t.name)||'').trim();
     if(!name || name===t.name) return;
-    await dbSet('teams', t.id, {name, playerIds:t.playerIds||[]});
+    await dbSet('teams', t.id, {...stripId(t), name});
   }));
   document.querySelectorAll('[data-del-team]').forEach(b=> b.addEventListener('click', ()=>{
     const t = teamById(b.dataset.delTeam); if(!t) return;
     if(confirm(`Delete team "${t.name}"? Seasons using it keep their own squad lists.`)) dbDelete('teams', b.dataset.delTeam);
   }));
+  /* Logos: bulk import (filename = team name) + per-team change / remove. */
+  let logoTargetTeam = null;
+  document.querySelectorAll('[data-logo-team]').forEach(b=> b.addEventListener('click', ()=>{
+    logoTargetTeam = b.dataset.logoTeam;
+    document.getElementById('logo-one').click();
+  }));
+  document.getElementById('logo-one')?.addEventListener('change', async (e)=>{
+    const f = e.target.files[0]; e.target.value='';
+    const t = teamById(logoTargetTeam);
+    if(!f || !t) return;
+    try{
+      const logo = await logoFromFile(f);
+      await dbSet('teams', t.id, {...stripId(t), logo});
+    }catch(err){ toast('Could not read that image file'); }
+  });
+  document.querySelectorAll('[data-logo-rm]').forEach(b=> b.addEventListener('click', ()=>{
+    const t = teamById(b.dataset.logoRm); if(!t) return;
+    if(confirm(`Remove the logo for "${t.name}"?`)) dbSet('teams', t.id, {...stripId(t), logo:''});
+  }));
+  document.getElementById('logo-files')?.addEventListener('change', async (e)=>{
+    const files = [...e.target.files]; e.target.value='';
+    if(!files.length) return;
+    let updated=0, added=0; const skipped=[];
+    for(const f of files){
+      try{
+        const logo = await logoFromFile(f);
+        const rawName = (f.name.replace(/\.[^.]+$/,'').trim() || 'Team');
+        const t = teamByName(rawName);
+        if(t){ await dbSet('teams', t.id, {...stripId(t), logo}); updated++; }
+        else { await dbAdd('teams', {name:rawName, logo, playerIds:[], logoOnly:true}); added++; }
+      }catch(err){ skipped.push(f.name); }
+    }
+    toast(`Logos: ${updated} updated · ${added} new${skipped.length ? ' · ' + skipped.length + ' skipped' : ''}`);
+    render();
+  });
   document.querySelectorAll('[data-rm-team]').forEach(b=> b.addEventListener('click', ()=>{
     const [tid,pid] = b.dataset.rmTeam.split('|');
     const t = teamById(tid); if(!t) return;
@@ -3336,10 +3453,11 @@ function historyTile(g){
     }
   }
   const statRows = tileStatRows(g);
+  const oppLogo = teamLogo(g.opponentTeam);
   return `<div class="mtile o-${o}" data-game="${g.id}">
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
       <span class="pill ${o}">${o.toUpperCase()}</span>
-      <span style="font-weight:600; font-size:14.5px">${esc(g.opponentTeam||'—')}</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-weight:600; font-size:14.5px">${oppLogo?`<img class="tlogo" src="${oppLogo}" alt="">`:''}${esc(g.opponentTeam||'—')}</span>
     </div>
     <div class="subtle" style="margin-top:3px">${allView && s ? 'Season #'+esc(s.number)+' · ' : ''}${g.homeAway==='home'?'Home':'Away'} · Game ${gamePosition(g.seasonId, g.id) || (g.gameNumber||'')}</div>
     ${oppTagsLine(g)}
@@ -3393,7 +3511,7 @@ function seasonStatsPanel(sid){
   return `<div class="card" style="margin-bottom:14px">
     <div class="section-title" style="margin:0 0 10px">Season stats</div>
     <div style="display:flex; align-items:center; gap:10px">
-      ${s ? `<div class="shield" style="width:34px;height:40px"><div class="n" style="font-size:15px">${esc(s.number)}</div></div>` : `<div class="shield" style="width:34px;height:40px"><div class="n" style="font-size:13px">★</div></div>`}
+      ${crestHTML(s, 34, 40, s?15:13, s ? esc(s.number) : '★')}
       <div>
         <div class="num" style="font-size:19px">${s ? esc(seasonTeamName(s)) : 'All seasons'}</div>
         <div class="subtle">${s ? esc(s.gameVersion||'') : seasons.length + ' season' + (seasons.length===1?'':'s')}</div>
@@ -3474,7 +3592,7 @@ function playerSheetPanel(sid){
     <div class="sheet-teams">${present.map(k=>{
       const t = k==='__none__' ? null : teams.find(x=>x.id===k);
       const on = !sheetHiddenTeams.has(k);
-      return `<button type="button" class="tchk ${on?'on':''}" data-sheet-team="${k}"><span class="tick">${on?'✓':''}</span>${esc(t ? t.name : 'Unassigned')}</button>`;
+      return `<button type="button" class="tchk ${on?'on':''}" data-sheet-team="${k}"><span class="tick">${on?'✓':''}</span>${t&&t.logo?`<img class="tlogo" style="margin-right:2px" src="${t.logo}" alt="">`:''}${esc(t ? t.name : 'Unassigned')}</button>`;
     }).join('')}</div>
     ${visible.length ? `<table class="sheet">
       <thead><tr><th>Player</th>${sheetSortTh('Apps','apps')}${sheetSortTh('G','goals')}<th class="right">%</th>${sheetSortTh('A','assists')}<th class="right">%</th>${sheetSortTh('Pts','points')}<th class="right">%</th>${sheetSortTh('MoM','motm')}<th class="right">%</th>${sheetSortTh('Avg','avg')}</tr></thead>
@@ -3512,7 +3630,8 @@ function seasonBarHTML(){
     const played = seasonRecord(s.id).games > 0;
     const cls = !played ? 'future' : f.champion ? 'res-title' : f.perfectSeason ? 'res-perfect' : f.relegated ? 'res-relegated' : 'res-stay';
     const badge = f.champion ? '🏆' : f.perfectSeason ? '✦' : f.relegated ? '▼' : '';
-    pills.push(`<button type="button" class="sp ${cls} ${historyFilterSeason===s.id?'active':''}" data-season-pick="${s.id}"><span>#${esc(s.number)}</span><span class="sp-t">${esc(seasonTeamName(s)||'—')}</span>${badge?`<span class="sp-badge">${badge}</span>`:''}</button>`);
+    const spLogo = teamLogo(seasonTeamName(s));
+    pills.push(`<button type="button" class="sp ${cls} ${historyFilterSeason===s.id?'active':''}" data-season-pick="${s.id}"><span>#${esc(s.number)}</span>${spLogo?`<img class="tlogo" src="${spLogo}" style="margin-right:2px" alt="">`:''}<span class="sp-t">${esc(seasonTeamName(s)||'—')}</span>${badge?`<span class="sp-badge">${badge}</span>`:''}</button>`);
   });
   [1,2,3].forEach(k=> pills.push(`<span class="sp future" title="Not started yet">#${maxNum+k}</span>`));
   pills.push(`<span class="sp-legend">🏆 title · ✦ perfect · ▼ relegated · grey stayed</span>`);
