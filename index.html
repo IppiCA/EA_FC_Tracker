@@ -202,6 +202,8 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .mtile.o-draw::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
 .mtile.o-loss::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
 .mtile .score{font-size:30px; line-height:1; margin:10px 0 4px}
+.score-row{display:flex; align-items:center; justify-content:center; gap:12px; margin:10px 0 4px}
+.score-crest{width:26px; height:26px; object-fit:contain; flex:0 0 auto; border-radius:4px}
 .mtile .vs-bar{margin:4px 0}
 .mtile .vs-bar .val{width:32px; font-size:12px}
 .opp-tags{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin:9px 0}
@@ -535,6 +537,15 @@ function crestHTML(s, w, h, nfont, label){
   const lg = s ? teamLogo(seasonTeamName(s)) : '';
   if(lg) return `<img class="tlogo-big" style="width:${w}px;height:${h}px" src="${lg}" alt="">`;
   return `<div class="shield" style="width:${w}px;height:${h}px"><div class="n" style="font-size:${nfont}px">${label}</div></div>`;
+}
+/* Our crest for a given match — the team sheet the match was played under (or the
+   season's first team). '' when no logo exists. */
+function ourLogo(g){
+  const t = teamById(g.teamId);
+  if(t && t.logo) return t.logo;
+  const s = seasonById(g.seasonId);
+  const pt = s ? teamById(seasonPrimaryTeamId(s)) : null;
+  return (pt && pt.logo) ? pt.logo : '';
 }
 /* Shrink an uploaded logo to a small icon and return it as a data URL. */
 function logoFromFile(file, max){
@@ -1601,7 +1612,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v46';
+const SCAN_BUILD = 'v47';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3454,14 +3465,17 @@ function historyTile(g){
   }
   const statRows = tileStatRows(g);
   const oppLogo = teamLogo(g.opponentTeam);
+  const usLogo = ourLogo(g);
+  const leftLogo  = (g.homeAway==='home') ? usLogo : oppLogo;   // home side's crest on the left
+  const rightLogo = (g.homeAway==='home') ? oppLogo : usLogo;
   return `<div class="mtile o-${o}" data-game="${g.id}">
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
       <span class="pill ${o}">${o.toUpperCase()}</span>
-      <span style="display:inline-flex;align-items:center;gap:7px;font-weight:600; font-size:14.5px">${oppLogo?`<img class="tlogo" src="${oppLogo}" alt="">`:''}${esc(g.opponentTeam||'—')}</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-weight:600; font-size:14.5px">${esc(g.opponentTeam||'—')}</span>
     </div>
     <div class="subtle" style="margin-top:3px">${allView && s ? 'Season #'+esc(s.number)+' · ' : ''}${g.homeAway==='home'?'Home':'Away'} · Game ${gamePosition(g.seasonId, g.id) || (g.gameNumber||'')}</div>
     ${oppTagsLine(g)}
-    <div class="num score">${g.scoreFor} – ${g.scoreAgainst}</div>
+    <div class="score-row">${leftLogo?`<img class="score-crest" src="${leftLogo}" alt="">`:''}<div class="num score" style="margin:0">${g.scoreFor} : ${g.scoreAgainst}</div>${rightLogo?`<img class="score-crest" src="${rightLogo}" alt="">`:''}</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap">
       ${g.rageQuit==='them' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">They rage quit</span>` : ''}
       ${g.rageQuit==='us' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">We rage quit</span>` : ''}
