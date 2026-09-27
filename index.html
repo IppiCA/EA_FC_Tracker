@@ -1627,7 +1627,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v52';
+const SCAN_BUILD = 'v53';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3502,6 +3502,8 @@ function historyTile(g){
      Away game → opponent's goals first (they are the home side). */
   const leftScore  = isHome ? g.scoreFor : g.scoreAgainst;
   const rightScore = isHome ? g.scoreAgainst : g.scoreFor;
+  /* When there was a rage quit, show the match-clock minute inside the tag. */
+  const rqTime = g.rageQuitMin!=null ? ` · ${parseFloat(Number(g.rageQuitMin).toFixed(1))} min` : '';
   return `<div class="mtile o-${o}" data-game="${g.id}">
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
       <span class="pill ${o}">${o.toUpperCase()}</span>
@@ -3511,8 +3513,8 @@ function historyTile(g){
     ${oppTagsLine(g)}
     <div class="score-row">${leftLogo?`<img class="score-crest" src="${leftLogo}" alt="">`:''}<div class="num score" style="margin:0">${leftScore} : ${rightScore}</div>${rightLogo?`<img class="score-crest" src="${rightLogo}" alt="">`:''}</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap">
-      ${g.rageQuit==='them' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">They rage quit</span>` : ''}
-      ${g.rageQuit==='us' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">We rage quit</span>` : ''}
+      ${g.rageQuit==='them' ? `<span class="tag" style="color:var(--turf);border-color:rgba(60,255,154,.4)">They rage quit${rqTime}</span>` : ''}
+      ${g.rageQuit==='us' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">We rage quit${rqTime}</span>` : ''}
       ${g.disconnect ? `<span class="tag">Disconnect</span>` : ''}
     </div>
     ${scorers ? `<div class="subtle" style="margin-top:8px">⚽ ${scorers}</div>` : ''}
