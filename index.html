@@ -1430,7 +1430,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v31';
+const SCAN_BUILD = 'v32';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1584,7 +1584,10 @@ async function ocrReadFiles(files, progId, variants){
 }
 
 /* Union of several word-lists (one per OCR pass) — a word present in more than one
-   pass (near-identical bbox) is counted once. */
+   pass (near-identical bbox) is counted once. NOTE: different SPELLINGS at the same
+   position are kept as-is — on the summary screen a weaker first pass can misread a
+   value the second pass got right, and the union is what recovers it (harness-checked).
+   The PLAYERS parser resolves same-line spelling twins itself (see nearDup there). */
 function mergeWords(lists){
   const out = [];
   (lists||[]).filter(l=> Array.isArray(l)).forEach(list=>{
@@ -2588,22 +2591,27 @@ function parsePlayersScreen(words, W, H){
   }
   const teamLeft = sideTeam('L'), teamRight = sideTeam('R');
 
-  /* 4) gamertags: tag-shaped words just below the heading row (icons/badges are 1–3 symbols) */
+  /* 4) gamertags: tag-shaped words just below the heading row (icons/badges are 1–3 symbols).
+     GROUP BY LINE FIRST — the game stacks one opponent per line, so "Gurthy MLK" (OCR splits
+     it at the space) is ONE tag. A per-word minimum length would drop the short part ("MLK");
+     the length check happens on the joined line instead. */
   const headingH = Math.min(60, Math.max(20, headingBottom - headingTop)); // cap: the no-heading fallback band is ~78px and would over-filter tag height
-  function pickTags(minLen){
-    return words.filter(w=>{
-      if(w.bbox.y0 < headingBottom - 4 || w.cy >= headingBottom + H*0.20) return false;
-      const s = w.text||'';
-      if(s.length < minLen || w.h < headingH*0.45) return false;
-      let alnum = 0;
-      for(let i=0;i<s.length;i++){ const c=s[i]; if(isLetter(c)||(c>='0'&&c<='9')||c==='_') alnum++; }
-      return alnum >= Math.min(4, s.length) && alnum/s.length >= 0.5;
-    });
+  function alnumCount(s){
+    let n = 0;
+    for(let i=0;i<s.length;i++){ const c=s[i]; if(isLetter(c)||(c>='0'&&c<='9')||c==='_') n++; }
+    return n;
   }
-  let tags = pickTags(4);
-  if(!tags.length) tags = pickTags(3); // short gamertags — try again, more relaxed
-  const sideL = tags.filter(w=> w.cx < mid).sort((a,b)=> a.bbox.y0-b.bbox.y0 || a.bbox.x0-b.bbox.x0);
-  const sideR = tags.filter(w=> w.cx >= mid).sort((a,b)=> a.bbox.y0-b.bbox.y0 || a.bbox.x0-b.bbox.x0);
+  /* A single tag PART needs 3+ real letters ("MLK" ok; glyph junk like "lm!" / "X2" out).
+     The JOINED line gets a looser check — its real letters come from the good part. */
+  const tagWord = w=>{
+    if(w.bbox.y0 < headingBottom - 4 || w.cy >= headingBottom + H*0.20) return false;
+    const s = w.text||'';
+    if(s.length < 3 || w.h < headingH*0.45) return false;
+    const a = alnumCount(s);
+    return a >= 3 && a/s.length >= 0.5;
+  };
+  const sideL = words.filter(w=> tagWord(w) && w.cx < mid);
+  const sideR = words.filter(w=> tagWord(w) && w.cx >= mid);
   const oursInL = sideL.filter(w=> OUR_TAG_SET.has(normTag(w.text))).length;
   const oursInR = sideR.filter(w=> OUR_TAG_SET.has(normTag(w.text))).length;
   if(!oursInL && !oursInR) return fail('no-our-tag', {read: sideL.concat(sideR).map(w=> w.text)});
@@ -2611,15 +2619,55 @@ function parsePlayersScreen(words, W, H){
   if(oursInL > oursInR) ourSide = 'L';
   else if(oursInR > oursInL) ourSide = 'R';
   else ourSide = sideL.length >= sideR.length ? 'L' : 'R';
-  const opp = ourSide==='L' ? sideR : sideL;
   const oppTeam = ourSide==='L' ? teamRight : teamLeft;
-  const oppTop2 = opp.slice(0,2);
+  const oppWords = (ourSide==='L' ? sideR : sideL).slice().sort((a,b)=> a.bbox.y0-b.bbox.y0 || a.bbox.x0-b.bbox.x0);
+  /* Two OCR passes can read the SAME word with different spellings ("SpudbugS" vs
+     "SpudbuqgS" — one letter off). Within one line, a near-duplicate of an already-kept
+     word is dropped, while genuinely different words (the two halves of "Gurthy MLK") join. */
+  function lev(a, b){
+    const m = a.length, n = b.length;
+    if(!m) return n; if(!n) return m;
+    let prev = Array.from({length: n+1}, (_, j) => j);
+    for(let i=1;i<=m;i++){
+      const cur = [i];
+      for(let j=1;j<=n;j++) cur[j] = Math.min(prev[j]+1, cur[j-1]+1, prev[j-1] + (a[i-1]===b[j-1] ? 0 : 1));
+      prev = cur;
+    }
+    return prev[n];
+  }
+  function nearDup(a, b){
+    const x = a.toLowerCase(), y = b.toLowerCase();
+    const s = x.length + y.length;
+    return s > 0 && (s - lev(x, y)) / s >= 0.6;
+  }
+  const lines = [];
+  for(const w of oppWords){
+    const cy = (w.bbox.y0 + w.bbox.y1) / 2;
+    const L = lines.find(l=> Math.abs(cy - l.cy) < Math.max(l.maxh, w.h) * 0.6);
+    if(L){
+      if(L.words.some(x=> x.text.toLowerCase()===w.text.toLowerCase())) continue; // exact repeat
+      if(L.words.some(x=> nearDup(x.text, w.text))) continue; // same word, other pass's spelling
+      L.words.push(w);
+      L.cy = (L.cy + cy) / 2; L.maxh = Math.max(L.maxh, w.h);
+    } else lines.push({words: [w], cy, maxh: w.h});
+  }
+  const oppTags = [], oppBboxes = [];
+  for(const L of lines){
+    const text = L.words.map(x=> x.text).join(' ').trim();
+    if(text.length < 4) continue;
+    const la = alnumCount(text);
+    if(la < 2 || la/text.length < 0.5) continue; // the JOINED line must read like a tag
+    if(oppTags.some(t=> normTag(t) === normTag(text))) continue; // duplicate reading — skip
+    oppTags.push(text);
+    oppBboxes.push({text, bbox: L.words[0].bbox}); // the console/PC icon sits left of the line's first word
+    if(oppTags.length === 2) break;
+  }
   return {
     ok: true,
     homeAway: ourSide==='L' ? 'home' : 'away',
     opponentTeam: oppTeam || '',
-    opponentGamertags: oppTop2.map(w=> w.text),
-    oppTagBboxes: oppTop2.map(w=> ({text: w.text, bbox: w.bbox})),
+    opponentGamertags: oppTags,
+    oppTagBboxes: oppBboxes,
     ourSide
   };
 }
