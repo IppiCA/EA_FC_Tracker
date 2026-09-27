@@ -213,6 +213,15 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .ssrow .l{color:var(--ink-dim); font-size:12.5px}
 .ssrow .v{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:16px; white-space:nowrap}
 .ssrow .v small{font-family:'IBM Plex Sans',sans-serif; font-size:11px; color:var(--ink-faint); font-weight:500; margin-left:5px}
+.ss-big{display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap}
+.ss-big .pts{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:44px; line-height:1; color:var(--turf)}
+.ss-big .pts-l{font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin-top:3px}
+.ss-box{min-width:58px; padding:8px 10px; border-radius:12px; text-align:center; border:1px solid var(--line)}
+.ss-box .n{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:22px; line-height:1.15}
+.ss-box .l{font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-top:2px}
+.ss-box.w{background:rgba(60,255,154,.10); border-color:rgba(60,255,154,.35)} .ss-box.w .n{color:var(--turf)}
+.ss-box.d{background:rgba(240,196,100,.10); border-color:rgba(240,196,100,.35)} .ss-box.d .n{color:var(--gold)}
+.ss-box.l{background:rgba(255,92,114,.10); border-color:rgba(255,92,114,.35)} .ss-box.l .n{color:var(--red)}
 table.sheet{font-size:12px}
 table.sheet th{padding:6px 6px; font-size:10px}
 table.sheet td{padding:6px 6px}
@@ -1550,7 +1559,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v41';
+const SCAN_BUILD = 'v42';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3335,13 +3344,15 @@ function seasonStatsPanel(sid){
   const s = sid ? seasonById(sid) : null;
   const gs = s ? gamesFor(s.id) : games.slice();
   const n = gs.length;
-  let w=0,d=0,l=0,gf=0,ga=0,rq=0,dc=0,away=0,rqSum=0,rqN=0;
+  let w=0,d=0,l=0,gf=0,ga=0,rqW=0,dc=0,away=0,rqSum=0,rqN=0;
   gs.forEach(g=>{
     const o = outcome(g);
     if(o==='win')w++; else if(o==='draw')d++; else l++;
     gf += Number(g.scoreFor)||0; ga += Number(g.scoreAgainst)||0;
     if(g.homeAway==='away') away++;
-    if(g.rageQuit && g.rageQuit!=='none') rq++;
+    /* Rage quits only ever happen on wins (there are none for draws/losses),
+       so the % is measured against the number of wins. */
+    if(o==='win' && g.rageQuit && g.rageQuit!=='none') rqW++;
     if(g.rageQuitMin!=null){ rqSum += Number(g.rageQuitMin); rqN++; }
     if(g.disconnect) dc++;
   });
@@ -3355,6 +3366,7 @@ function seasonStatsPanel(sid){
     else if(n>0) badge = `<div style="margin-top:10px"><span class="pill" style="background:var(--panel-2);color:var(--ink-dim)">Stayed</span></div>`;
   }
   return `<div class="card" style="margin-bottom:14px">
+    <div class="section-title" style="margin:0 0 10px">Season stats</div>
     <div style="display:flex; align-items:center; gap:10px">
       ${s ? `<div class="shield" style="width:34px;height:40px"><div class="n" style="font-size:15px">${esc(s.number)}</div></div>` : `<div class="shield" style="width:34px;height:40px"><div class="n" style="font-size:13px">★</div></div>`}
       <div>
@@ -3363,14 +3375,19 @@ function seasonStatsPanel(sid){
       </div>
     </div>
     ${badge}
-    <div style="margin-top:12px">
-      <div class="ssrow"><span class="l">Points</span><span class="v">${w*3+d}</span></div>
-      <div class="ssrow"><span class="l">Games</span><span class="v">${n}</span></div>
-      <div class="ssrow"><span class="l">W / D / L</span><span class="v">${w} / ${d} / ${l}</span></div>
-      <div class="ssrow"><span class="l">Goals for</span><span class="v">${gf}${n?`<small>avg ${avg(gf)}</small>`:''}</span></div>
-      <div class="ssrow"><span class="l">Goals against</span><span class="v">${ga}${n?`<small>avg ${avg(ga)}</small>`:''}</span></div>
-      <div class="ssrow"><span class="l">Away games</span><span class="v">${away}</span></div>
-      <div class="ssrow"><span class="l">Rage quits</span><span class="v">${rq}${rqN?`<small>avg ${Math.round(rqSum/rqN)}'</small>`:''}</span></div>
+    <div class="ss-big">
+      <div><div class="pts">${w*3+d}</div><div class="pts-l">Points</div></div>
+      <div class="ss-box w"><div class="n">${w}</div><div class="l">Wins</div></div>
+      <div class="ss-box d"><div class="n">${d}</div><div class="l">Draws</div></div>
+      <div class="ss-box l"><div class="n">${l}</div><div class="l">Losses</div></div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="ssrow"><span class="l">Games played</span><span class="v">${n}</span></div>
+      <div class="ssrow"><span class="l">Goals scored</span><span class="v">${gf}${n?`<small>avg ${avg(gf)}</small>`:''}</span></div>
+      <div class="ssrow"><span class="l">Goals conceded</span><span class="v" style="color:var(--red)">${ga}${n?`<small>avg ${avg(ga)}</small>`:''}</span></div>
+      <div class="ssrow"><span class="l">Away games</span><span class="v">${away}${n?`<small>· ${Math.round(away/n*100)}%</small>`:''}</span></div>
+      <div class="ssrow"><span class="l">Rage quits</span><span class="v" style="color:var(--red)">${rqW}${w?`<small>· ${Math.round(rqW/w*100)}% of wins</small>`:''}</span></div>
+      ${rqN?`<div class="ssrow"><span class="l">Avg. rage-quit time</span><span class="v" style="color:var(--gold)">${Math.round(rqSum/rqN)} min</span></div>`:''}
       <div class="ssrow"><span class="l">Disconnects</span><span class="v">${dc}</span></div>
     </div>
   </div>`;
