@@ -178,14 +178,16 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .form-ticker .f.loss{background:var(--red); color:#2b0006}
 .form-ticker .f.empty{background:var(--panel-2); color:transparent}
 
-.vs-bar{display:flex; align-items:center; gap:10px; margin:5px 0}
+.vs-bar{display:flex; align-items:center; gap:10px; margin:0 0 8px 0}
 .vs-bar .track{flex:1; height:7px; background:var(--panel-2); border-radius:99px; overflow:hidden; display:flex}
 .vs-bar .fill-a{background:linear-gradient(90deg,var(--turf),var(--violet)); height:100%}
 .vs-bar .fill-b{background:var(--ink-faint); height:100%}
 .vs-bar .val{font-size:12.5px; width:36px; color:var(--ink-dim); font-weight:600}
 .vs-bar .val.right{text-align:right}
 .vs-bar .val.us-side{color:var(--ink); font-weight:700}
-.vs-label{font-size:11px; color:var(--ink-faint); text-align:center; margin-top:1px}
+.vs-label{font-size:11px; color:var(--ink-faint); text-align:center; margin:0 0 3px 0}
+/* Faint crossbar that tops the stat list (replaces the old "Stats" heading). */
+.stats-crossbar{height:1px; background:var(--line); margin:14px 0 8px 0}
 
 /* ---- Match History v2 — left panels + horizontal tile strip + full-width season bar ---- */
 .hist-body{display:grid; grid-template-columns:clamp(380px,30vw,500px) minmax(0,1fr); gap:14px; align-items:start}
@@ -205,7 +207,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .mtile .score{font-size:30px; line-height:1; margin:10px 0 4px}
 .score-row{display:flex; align-items:center; justify-content:center; gap:12px; margin:10px 0 4px}
 .score-crest{width:26px; height:26px; object-fit:contain; flex:0 0 auto; border-radius:4px}
-.mtile .vs-bar{margin:4px 0}
+.mtile .vs-bar{margin:0 0 8px 0}
 .mtile .vs-bar .val{width:32px; font-size:12px}
 .opp-tags{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin:9px 0}
 .opp-tag{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); padding:3px 8px; border-radius:8px; max-width:100%}
@@ -1625,7 +1627,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v51';
+const SCAN_BUILD = 'v52';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3445,14 +3447,21 @@ function tileStatRows(g){
   /* Sides follow home/away, same as the score + crests: home = we're left, away = we're right.
      Team colours travel WITH the team (us = gradient, them = faint); our number is bold white. */
   const usLeft = (g.homeAway!=='away');
+  /* Stats that are percentages get a % on the number, like the mockup. */
+  const PCT = new Set(['Possession %','Pass Accuracy %','Shot Accuracy','Dribble Success Rate']);
+  const fmt = (v, label)=>{
+    if(PCT.has(label)){ const n = parseFloat(v); if(!isNaN(n)) return Math.round(n)+'%'; }
+    return esc(v);
+  };
   return order.map(label=>{
     const fv = forMap[label], av = againstMap[label];
     const fn = parseFloat(fv)||0, an = parseFloat(av)||0; const tot = fn+an || 1;
     const us = {v:fv, p:fn/tot*100, f:'fill-a', ours:true};
     const th = {v:av, p:an/tot*100, f:'fill-b', ours:false};
     const L = usLeft ? us : th, R = usLeft ? th : us;
-    const val = (x, right)=>`<div class="val${x.ours?' us-side':''}${right?' right':''}">${esc(x.v)}</div>`;
-    return `<div class="vs-bar">${val(L,false)}<div class="track"><div class="${L.f}" style="width:${L.p}%"></div><div class="${R.f}" style="width:${R.p}%"></div></div>${val(R,true)}</div><div class="vs-label">${esc(label)}</div>`;
+    const val = (x, right)=>`<div class="val${x.ours?' us-side':''}${right?' right':''}">${fmt(x.v,label)}</div>`;
+    /* Label sits tightly ABOVE its bar, matching the mockup. */
+    return `<div class="vs-label">${esc(label)}</div><div class="vs-bar">${val(L,false)}<div class="track"><div class="${L.f}" style="width:${L.p}%"></div><div class="${R.f}" style="width:${R.p}%"></div></div>${val(R,true)}</div>`;
   }).join('');
 }
 
@@ -3511,7 +3520,7 @@ function historyTile(g){
     ${motmHtml}
     ${followHtml}
     <div class="mtile-b">
-      ${statRows ? `<div class="section-title" style="margin:12px 0 4px; text-align:center">Stats</div>${statRows}` : ''}
+      ${statRows ? `<div class="stats-crossbar"></div>${statRows}` : ''}
       <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
         <button type="button" class="link-btn" data-edit-game="${g.id}">Edit</button>
         <button type="button" class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
