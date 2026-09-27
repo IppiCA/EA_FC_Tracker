@@ -333,9 +333,9 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
     <div class="rail-brand"><img class="crest" src="app-icon.webp" alt="" width="36" height="36"><div class="brand">EA FC<br>Tracker</div></div>
     <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
     <button class="navbtn" data-tab="log"><span class="ic">＋</span> Log Match</button>
-    <button class="navbtn" data-tab="squad"><span class="ic">▤</span> Squad & Seasons</button>
     <button class="navbtn" data-tab="history"><span class="ic">≡</span> Match History</button>
-    <button class="navbtn" data-tab="settings" style="margin-top:auto"><span class="ic">⚙</span> Settings</button>
+    <button class="navbtn" data-tab="squad" style="margin-top:auto"><span class="ic">▤</span> New Season</button>
+    <button class="navbtn" data-tab="settings"><span class="ic">⚙</span> Team Sheets</button>
     <div class="rail-foot">
       <span id="syncstate">connecting…</span>
       <span style="display:flex;gap:8px">
@@ -350,9 +350,9 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
   <nav class="tabbar">
     <button data-tab="dashboard"><span class="ic">◆</span>Dashboard</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
-    <button data-tab="squad"><span class="ic">▤</span>Squad</button>
     <button data-tab="history"><span class="ic">≡</span>History</button>
-    <button data-tab="settings"><span class="ic">⚙</span>Settings</button>
+    <button data-tab="squad"><span class="ic">▤</span>New Season</button>
+    <button data-tab="settings"><span class="ic">⚙</span>Team Sheets</button>
   </nav>
 </div>
 
@@ -381,7 +381,7 @@ const firebaseConfig = {
 /* ============================= STATE ============================= */
 let db = null;
 let players = [];   // {id, name}
-let teams = [];     // {id, name, playerIds[]} — team sheets, managed in Settings
+let teams = [];     // {id, name, playerIds[]} — team sheets, managed in the Team Sheets tab
 let seasons = [];   // {id, number, gameVersion, team, teamId?, squadIds[], champion, perfectSeason, createdAt}
 let seedingTeams = false;
 let games = [];      // {id, seasonId, gameNumber, opponentTeam, opponentGamertags[2], opponentPlatforms[2], opponentCountries[2], homeAway, scoreFor, scoreAgainst,
@@ -862,7 +862,7 @@ function renderLog(){
   const ts = logDraft.teamStats || {for:{}, against:{}};
   const customStats = Array.from(new Set([...Object.keys(ts.for||{}), ...Object.keys(ts.against||{})])).filter(l=>!STAT_LABELS.includes(l));
   if(!seasons.length){
-    return `<div class="pagehead"><h1>Log Match</h1></div><div class="card empty">Create a season first (with a squad) under <b>Squad & Seasons</b> before logging a match.</div>`;
+    return `<div class="pagehead"><h1>Log Match</h1></div><div class="card empty">Create a season first (with a squad) under <b>New Season</b> before logging a match.</div>`;
   }
   return `
   <div class="pagehead"><div><h1>${isEditing?'Edit Match':'Log Match'}</h1><div class="sub">${isEditing?'Changes save automatically as you edit — no need to scroll down to save':'Scan the in-game screens or enter it manually — review before saving'}</div></div></div>
@@ -1319,7 +1319,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v24';
+const SCAN_BUILD = 'v25';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -2633,19 +2633,8 @@ async function scanPlayersScreen(files, progId){
 /* ============================= SQUAD & SEASONS ============================= */
 function renderSquad(){
   return `
-  <div class="pagehead"><div><h1>Squad & Seasons</h1><div class="sub">Manage the player pool and each season's roster</div></div>
+  <div class="pagehead"><div><h1>New Season</h1><div class="sub">Start a new season and manage each season's roster</div></div>
     <button class="btn" id="new-season-btn">+ New season</button>
-  </div>
-
-  <div class="section-title">All players <span class="subtle">(${players.length}) — ✎ renames a player everywhere (scanner list, history, MOTM)</span></div>
-  <div class="card" style="margin-bottom:22px">
-    <div class="row" style="align-items:flex-end; margin-bottom:${players.length?'14px':'0'}">
-      <div class="field" style="margin-bottom:0"><label>Add player</label><input type="text" id="new-player-name" placeholder="Player name"></div>
-      <button class="btn small" id="add-player-btn" style="flex:0 0 auto">Add</button>
-    </div>
-    ${players.length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
-      ${players.map(p=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(p.name)} <button data-rename-player="${p.id}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button> <button data-del-player="${p.id}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('')}
-    </div>` : ''}
   </div>
 
   <div class="section-title">Seasons</div>
@@ -2683,7 +2672,7 @@ function seasonSquadBlocks(s){
     const key = t ? t.id : 'none';
     const label = t ? t.name : 'squad';
     return `
-    <div class="section-title" style="margin:16px 0 8px">Squad — ${esc(label)} <span class="subtle">(${ids.length})${t ? ' · team sheet, shared with Settings' : ''}</span></div>
+    <div class="section-title" style="margin:16px 0 8px">Squad — ${esc(label)} <span class="subtle">(${ids.length})${t ? ' · team sheet, shared with Team Sheets' : ''}</span></div>
     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px">
       ${ids.map(pid=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(playerName(pid))} <button data-rm-squad="${s.id}|${key}|${pid}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('') || `<span class="subtle">Empty — add players below</span>`}
     </div>
@@ -2697,17 +2686,6 @@ function seasonSquadBlocks(s){
 }
 
 function wireSquadHandlers(){
-  document.getElementById('add-player-btn')?.addEventListener('click', async ()=>{
-    const inp = document.getElementById('new-player-name');
-    const name = inp.value.trim(); if(!name) return;
-    await dbAdd('players', {name});
-    inp.value='';
-  });
-  document.getElementById('new-player-name')?.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('add-player-btn').click(); });
-  document.querySelectorAll('[data-del-player]').forEach(b=> b.addEventListener('click', ()=>{
-    if(confirm('Remove this player from the pool? Past game stats referencing them are kept.')) dbDelete('players', b.dataset.delPlayer);
-  }));
-  document.querySelectorAll('[data-rename-player]').forEach(b=> b.addEventListener('click', ()=> renamePlayer(b.dataset.renamePlayer)));
   document.getElementById('new-season-btn')?.addEventListener('click', openNewSeasonModal);
   document.querySelectorAll('[data-del-season]').forEach(b=> b.addEventListener('click', ()=>{
     if(confirm('Delete this season? Its logged games stay but lose their season link.')) dbDelete('seasons', b.dataset.delSeason);
@@ -2814,9 +2792,9 @@ async function maybeSeedTeams(){
 
 function renderSettings(){
   return `
-  <div class="pagehead"><div><h1>Settings</h1><div class="sub">Teams, sheets and app preferences</div></div></div>
+  <div class="pagehead"><div><h1>Team Sheets</h1><div class="sub">Each team's sheet, plus the shared player pool they're built from</div></div></div>
 
-  <div class="section-title">Team Sheets <span class="subtle">— each team has its own player sheet; the scanner matches names against the sheet of the team you pick</span></div>
+  <div class="section-title">Teams <span class="subtle">— each team has its own player sheet; the scanner matches names against the sheet of the team you pick</span></div>
   <div class="card" style="margin-bottom:16px">
     <div class="row" style="align-items:flex-end">
       <div class="field" style="margin-bottom:0"><label>New team name</label><input type="text" id="new-team-name" placeholder="e.g. Liverpool"></div>
@@ -2825,6 +2803,17 @@ function renderSettings(){
     <div class="hint">The player pool is shared, but a player can only count for ONE team — each team's sheet decides who belongs to it. Teams you add show up in the Season dropdown when you create a season.</div>
   </div>
   ${teams.length ? teams.map(teamCard).join('') : `<div class="card empty">No teams yet — add one above (existing seasons create their team automatically).</div>`}
+
+  <div class="section-title" style="margin-top:22px">All players <span class="subtle">(${players.length}) — ✎ renames a player everywhere (scanner list, history, MOTM)</span></div>
+  <div class="card" style="margin-bottom:22px">
+    <div class="row" style="align-items:flex-end; margin-bottom:${players.length?'14px':'0'}">
+      <div class="field" style="margin-bottom:0"><label>Add player</label><input type="text" id="new-player-name" placeholder="Player name"></div>
+      <button class="btn small" id="add-player-btn" style="flex:0 0 auto">Add</button>
+    </div>
+    ${players.length ? `<div style="display:flex; flex-wrap:wrap; gap:8px">
+      ${players.map(p=>`<span class="tag" style="display:flex;align-items:center;gap:6px;padding:5px 10px">${esc(p.name)} <button data-rename-player="${p.id}" title="Rename this player everywhere" style="background:none;border:none;color:var(--gold);font-size:12px;line-height:1;padding:0 2px">✎</button> <button data-del-player="${p.id}" style="background:none;border:none;color:var(--red);font-size:13px">×</button></span>`).join('')}
+    </div>` : ''}
+  </div>
   `;
 }
 function teamCard(t){
@@ -2845,7 +2834,7 @@ function teamCard(t){
       <div class="field" style="margin-bottom:0"><label>Add to ${esc(t.name)}</label>
         <select data-team-add="${t.id}"><option value="">Choose player…</option>${missing.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
       </div>
-    </div>` : `<div class="hint">Every player is already on a team sheet — a player can only count for one team. Add a new player in Squad &amp; Seasons to assign them here.</div>`}
+    </div>` : `<div class="hint">Every player is already on a team sheet — a player can only count for one team. Add a new player below (All players) to assign them here.</div>`}
   </div>`;
 }
 function wireSettingsHandlers(){
@@ -2875,6 +2864,17 @@ function wireSettingsHandlers(){
     const tid = sel.dataset.teamAdd; const pid = sel.value; if(!pid) return;
     const t = teamById(tid); if(!t) return;
     dbSet('teams', tid, {...stripId(t), playerIds:[...(t.playerIds||[]), pid]});
+  }));
+  /* Shared player pool (lives on this tab now — add / rename / remove). */
+  document.getElementById('add-player-btn')?.addEventListener('click', async ()=>{
+    const inp = document.getElementById('new-player-name');
+    const name = inp.value.trim(); if(!name) return;
+    await dbAdd('players', {name});
+    inp.value='';
+  });
+  document.getElementById('new-player-name')?.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('add-player-btn').click(); });
+  document.querySelectorAll('[data-del-player]').forEach(b=> b.addEventListener('click', ()=>{
+    if(confirm('Remove this player from the pool? Past game stats referencing them are kept.')) dbDelete('players', b.dataset.delPlayer);
   }));
   document.querySelectorAll('[data-rename-player]').forEach(b=> b.addEventListener('click', ()=> renamePlayer(b.dataset.renamePlayer)));
 }
