@@ -213,7 +213,8 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .ssrow .l{color:var(--ink-dim); font-size:12.5px}
 .ssrow .v{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:16px; white-space:nowrap}
 .ssrow .v small{font-family:'IBM Plex Sans',sans-serif; font-size:11px; color:var(--ink-faint); font-weight:500; margin-left:5px}
-.ss-big{display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap}
+.ss-big{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:14px; flex-wrap:wrap}
+.ss-boxes{display:flex; gap:10px}
 .ss-big .pts{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:44px; line-height:1; color:var(--turf)}
 .ss-big .pts-l{font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin-top:3px}
 .ss-box{min-width:58px; padding:8px 10px; border-radius:12px; text-align:center; border:1px solid var(--line)}
@@ -1559,7 +1560,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v42';
+const SCAN_BUILD = 'v43';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3377,9 +3378,11 @@ function seasonStatsPanel(sid){
     ${badge}
     <div class="ss-big">
       <div><div class="pts">${w*3+d}</div><div class="pts-l">Points</div></div>
-      <div class="ss-box w"><div class="n">${w}</div><div class="l">Wins</div></div>
-      <div class="ss-box d"><div class="n">${d}</div><div class="l">Draws</div></div>
-      <div class="ss-box l"><div class="n">${l}</div><div class="l">Losses</div></div>
+      <div class="ss-boxes">
+        <div class="ss-box w"><div class="n">${w}</div><div class="l">Wins</div></div>
+        <div class="ss-box d"><div class="n">${d}</div><div class="l">Draws</div></div>
+        <div class="ss-box l"><div class="n">${l}</div><div class="l">Losses</div></div>
+      </div>
     </div>
     <div style="margin-top:14px">
       <div class="ssrow"><span class="l">Games played</span><span class="v">${n}</span></div>
