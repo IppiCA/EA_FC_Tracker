@@ -1430,7 +1430,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v32';
+const SCAN_BUILD = 'v33';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -1976,8 +1976,12 @@ function parseSummaryScreen(words){
      Align to the whole label GROUP (not one word, not the merged row) and to the
      correct half of the screen. */
   Object.entries(CIRCLE_WORDS).forEach(([word, canon])=>{
+    /* OCR sometimes drops a letter ("DRIBBLR") — for the long label also accept a solid
+       prefix, only in words close to the label's own length. */
+    const stem = word.length >= 6 ? word.slice(0, word.length-3) : null;
     clean.forEach(w=>{
-      if(!(w.t.includes(word) && w.t.length<=word.length+3)) return;  // dribble / shot / pass(es)
+      if(!((w.t.includes(word) && w.t.length<=word.length+3)
+          || (stem && w.t.includes(stem) && w.t.length<=stem.length+4))) return;  // dribble / shot / pass(es)
       if(zone(w.cx)!=='outer') return;                                 // ignore "Passes", "Shooting" etc.
       if(w.cy < H*0.15) return;                                        // ignore the tab bar
       const side = w.cx < W/2 ? 'left' : 'right';
@@ -1989,21 +1993,61 @@ function parseSummaryScreen(words){
          circle's number is far higher. Cap the gap so one circle never steals another's
          value. */
       const maxGap = Math.max(150, 8*medH);
-      let cand=null;  // {nv, digits, gap}
-      clean.forEach(v=>{
-        const nv = cleanNum(v.text);
-        if(nv==null) return;
-        if(v.y1 > top + 2) return;                                     // must sit above the label
-        if(side==='left'  && v.cx > W/2) return;                       // same half of the screen
-        if(side==='right' && v.cx < W/2) return;
-        if(v.cx < g.x0 - 30 || v.cx > g.x1 + 30) return;               // roughly above the label
-        const digits = nv.replace(/\D/g,'').length;
-        const gap = top - v.y1;
-        if(gap > maxGap) return;                                       // belongs to another circle
-        if(!cand || digits>cand.digits || (digits===cand.digits && gap<cand.gap)) cand={nv, digits, gap};
-      });
-      if(!cand) return;
-      if(side==='left') left[canon]=cand.nv; else right[canon]=cand.nv;
+      const labelCx = (g.x0 + g.x1) / 2;
+      /* A ring-graphic fragment of a circle number: digits plus Tesseract's classic
+         zero-misreads (o/O/l/L) and ring/bracket artifacts ("(0)", "[o)", "0,").
+         A circle shows 0-100%, so anything longer is not a circle value. */
+      const ringFrag = t=>{
+        let s = String(t).trim().replace(/%+/g,'');
+        if(!s || !/^[0-9oOlL,.()\[\]| ]+$/i.test(s)) return null;
+        s = s.replace(/[oOlL]/gi,'0').replace(/[^0-9]/g,'');
+        if(!s || s.length > 3 || parseInt(s,10) > 100) return null;
+        return s.replace(/^0+(?=\d)/,'');
+      };
+      /* Numeric tokens in the band above the label. Search the FULL word list — the
+         tall-box filter (which protects row clustering) must not hide a big circle
+         number. The ring often SPLITs the value into fragments ("9" + "(0)" = 90),
+         and the ring itself reads as junk zero-words, so a single-word pick is unsafe. */
+      const toks = words
+        .map(v=>{
+          const b = v.bbox;
+          return {nv: ringFrag(v.text), h: Math.max(1, b.y1-b.y0), x0: b.x0, x1: b.x1, y1: b.y1, cx: (b.x0+b.x1)/2};
+        })
+        .filter(t=>{
+          if(t.nv==null) return false;
+          if(t.y1 > top + 2) return false;                              // must sit above the label
+          if(side==='left'  && t.cx > W/2) return false;                // same half of the screen
+          if(side==='right' && t.cx < W/2) return false;
+          if(t.cx < g.x0 - 40 || t.cx > g.x1 + 40) return false;        // roughly above the label
+          return (top - t.y1) <= maxGap;                                // belongs to this circle
+        })
+        .sort((a,b)=> a.x0-b.x0 || a.x1-b.x1);
+      /* Try every contiguous run of fragments as the value; rank: more digits, then more
+         big-text mass (the real value is the largest text in the band), then the tightest
+         fit to the label. */
+      let best=null;
+      for(let i=0;i<toks.length;i++){
+        for(let j=i;j<toks.length;j++){
+          const run = toks.slice(i, j+1);
+          const nv = run.map(t=>t.nv).join('');
+          if(nv.length > 3 || parseInt(nv,10) > 100) continue;         // a circle is 0-100%
+          /* Score by the NORMALIZED value: ring junk reads as "0"-fragments, and two of
+             them side by side must not out-rank a real two-digit value. */
+          const norm = nv.replace(/^0+(?=\d)/,'');
+          const digits = norm.length;
+          const mass = run.reduce((s,t)=> s + t.h, 0);
+          const gap = Math.min(...run.map(t=> top - t.y1));
+          const dx = Math.abs((run[0].x0 + run[run.length-1].x1)/2 - labelCx);
+          const better = !best
+            || digits  > best.digits
+            || (digits === best.digits && mass > best.mass)
+            || (digits === best.digits && mass === best.mass && gap < best.gap)
+            || (digits === best.digits && mass === best.mass && gap === best.gap && dx < best.dx);
+          if(better) best = {nv: norm, digits, mass, gap, dx};
+        }
+      }
+      if(!best) return;
+      if(side==='left') left[canon]=best.nv; else right[canon]=best.nv;
     });
   });
 
