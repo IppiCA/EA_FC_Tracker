@@ -269,6 +269,7 @@ table.sheet th.sorted{color:var(--turf)}
 .sp.res-stay{border-color:var(--line); color:var(--ink-dim)}
 .sp.future{opacity:.4}
 .sp .sp-badge{font-size:12px}
+.sp-sep{color:var(--ink-faint); font-size:11px; line-height:1; margin:0 1px; flex:0 0 auto}
 .sp-legend{margin-left:auto; flex:0 0 auto; font-size:10.5px; color:var(--ink-faint); white-space:nowrap; padding-left:10px}
 #app.sb-on main{padding-bottom:76px}
 /* Match History uses the whole browser width (more tiles on a wide screen). */
@@ -1612,7 +1613,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v48';
+const SCAN_BUILD = 'v49';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3649,8 +3650,16 @@ function seasonBarHTML(){
     const played = seasonRecord(s.id).games > 0;
     const cls = !played ? 'future' : f.champion ? 'res-title' : f.perfectSeason ? 'res-perfect' : f.relegated ? 'res-relegated' : 'res-stay';
     const badge = f.champion ? '🏆' : f.perfectSeason ? '✦' : f.relegated ? '▼' : '';
-    const spLogo = teamLogo(seasonTeamName(s));
-    pills.push(`<button type="button" class="sp ${cls} ${historyFilterSeason===s.id?'active':''}" data-season-pick="${s.id}"><span>#${esc(s.number)}</span>${spLogo?`<img class="tlogo" src="${spLogo}" style="margin-right:2px" alt="">`:''}<span class="sp-t">${esc(seasonTeamName(s)||'—')}</span>${badge?`<span class="sp-badge">${badge}</span>`:''}</button>`);
+    /* Just the number + one crest per team (a mid-season switch shows "crest / crest");
+       a team without a logo falls back to its name. Full name stays in the tooltip. */
+    const tlist = seasonTeams(s);
+    const fullName = tlist.map(t=>t.name).join(' / ');
+    const crests = tlist.map(t=>{
+      const lg = (t && t.logo) ? t.logo : '';
+      return lg ? `<img class="tlogo" style="margin:0" src="${lg}" alt="${esc(t.name)}">`
+                : `<span class="sp-t">${esc((t&&t.name)||'?')}</span>`;
+    }).join('<span class="sp-sep">/</span>');
+    pills.push(`<button type="button" class="sp ${cls} ${historyFilterSeason===s.id?'active':''}" data-season-pick="${s.id}" title="Season #${esc(s.number)} · ${esc(fullName)}"><span>#${esc(s.number)}</span>${crests}${badge?`<span class="sp-badge">${badge}</span>`:''}</button>`);
   });
   [1,2,3].forEach(k=> pills.push(`<span class="sp future" title="Not started yet">#${maxNum+k}</span>`));
   pills.push(`<span class="sp-legend">🏆 title · ✦ perfect · ▼ relegated · grey stayed</span>`);
