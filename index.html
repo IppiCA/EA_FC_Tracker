@@ -215,6 +215,20 @@ table.sheet th{padding:5px 4px; font-size:10px}
 table.sheet td{padding:5px 4px}
 table.sheet td.pname{max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600}
 table.sheet .pct{color:var(--ink-faint); font-size:10.5px}
+table.sheet td.c-apps{color:var(--ink); font-weight:700}
+table.sheet td.c-g{color:var(--red); font-weight:700}
+table.sheet td.c-a{color:var(--blue); font-weight:700}
+table.sheet td.c-pts{color:var(--gold); font-weight:700}
+table.sheet td.c-mom{color:var(--ink); font-weight:700}
+table.sheet td.zero{color:var(--ink-faint); font-weight:500}
+table.sheet tfoot td{border-top:1px solid var(--line); font-weight:700}
+.sheet-teams{display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 10px}
+.tchk{display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:9px;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--ink-faint);
+  font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12.5px; letter-spacing:.02em; cursor:pointer}
+.tchk .tick{font-size:11px}
+.tchk.on{color:var(--ink); border-color:rgba(60,255,154,.35); background:rgba(60,255,154,.07)}
+.tchk.on .tick{color:var(--turf)}
 .seasonbar{position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex; align-items:center; gap:8px;
   background:rgba(10,15,22,.85); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border-top:1px solid var(--line); padding:9px 14px calc(9px + env(safe-area-inset-bottom,0px)); overflow-x:auto; -webkit-overflow-scrolling:touch}
@@ -1527,7 +1541,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v36';
+const SCAN_BUILD = 'v37';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3216,6 +3230,8 @@ function wireSettingsHandlers(){
 
 /* ============================= HISTORY ============================= */
 let historyFilterSeason = '';
+/* Player sheet: team ids the user unchecked (hidden). Default = all teams shown. */
+let sheetHiddenTeams = new Set();
 function renderHistory(){
   const sid = histSeasonId();
   const s = sid ? seasonById(sid) : null;
@@ -3233,8 +3249,9 @@ function renderHistory(){
   </div>`;
 }
 
-/* The curated stat rows a tile shows, in this order — only the ones actually saved on
-   the match are printed; anything else saved follows after, so no number is ever hidden. */
+/* The agreed 13 stat rows a tile shows, in this exact order — only the ones actually
+   saved on the match are printed. No other stats appear on tiles, so every game
+   looks the same. (Anything else saved is still visible on the Edit screen.) */
 const HIST_STAT_ORDER = ['Possession %','Expected Goals','Shots','Shot Accuracy','Pass Accuracy %','Passes Attempted','Dribble Success Rate','Tackles','Saves','Def Line Breaks Through','Def Line Breaks Around','Def Line Breaks Over','Def Line Breaks Attempted'];
 
 function histSeasonId(){ return (historyFilterSeason && seasonById(historyFilterSeason)) ? historyFilterSeason : ''; }
@@ -3259,7 +3276,6 @@ function tileStatRows(g){
   const forMap = (g.teamStats && g.teamStats.for) || {};
   const againstMap = (g.teamStats && g.teamStats.against) || {};
   const order = HIST_STAT_ORDER.filter(l=> forMap[l]!=null || againstMap[l]!=null);
-  Object.keys(forMap).forEach(l=>{ if(!order.includes(l)) order.push(l); });
   if(!order.length) return '';
   return order.map(label=>{
     const fv = forMap[label], av = againstMap[label];
@@ -3364,27 +3380,50 @@ function playerSheetPanel(sid){
   const rows = Object.keys(agg).map(id=>{ const a = agg[id]; return {id, ...a, points:a.goals+a.assists}; })
     .sort((x,y)=> y.points-x.points || y.goals-x.goals || x.id.localeCompare(y.id));
   if(!rows.length) return `<div class="card" style="margin-bottom:14px"><div class="empty" style="padding:18px">No player stats yet</div></div>`;
-  const totG = rows.reduce((s2,r)=>s2+r.goals,0);
-  const totA = rows.reduce((s2,r)=>s2+r.assists,0);
+  /* Which team does each player sit on? (a player only counts for one team sheet) */
+  const teamOf = {};
+  teams.forEach(t=> (t.playerIds||[]).forEach(pid=>{ if(teamOf[pid]===undefined) teamOf[pid] = t.id; }));
+  rows.forEach(r=>{ r.teamKey = teamOf[r.id] !== undefined ? teamOf[r.id] : '__none__'; });
+  /* Teams present in this view, in stable order — each gets a ✓ checkbox. */
+  const present = [];
+  { const seen = new Set(); rows.forEach(r=>{ if(!seen.has(r.teamKey)){ seen.add(r.teamKey); present.push(r.teamKey); } }); }
+  const visible = rows.filter(r=> !sheetHiddenTeams.has(r.teamKey));
+  const totG = visible.reduce((s2,r)=>s2+r.goals,0);
+  const totA = visible.reduce((s2,r)=>s2+r.assists,0);
   const totP = totG + totA;
-  const totM = rows.reduce((s2,r)=>s2+r.motm,0);
+  const totM = visible.reduce((s2,r)=>s2+r.motm,0);
+  const totApps = visible.reduce((s2,r)=>s2+r.apps,0);
   const pct = (v,t)=> t>0 ? Math.round(v/t*100)+'%' : '—';
+  const num = (v, cls)=> `<td class="right ${v>0 ? cls : 'zero'}">${v}</td>`;
   const scope = sid ? 'season' : 'all time';
   return `<div class="card tablewrap" style="margin-bottom:14px">
     <div class="section-title" style="margin:0 0 8px">Player sheet <span class="subtle">— share of the ${scope} total</span></div>
-    <table class="sheet">
+    <div class="sheet-teams">${present.map(k=>{
+      const t = k==='__none__' ? null : teams.find(x=>x.id===k);
+      const on = !sheetHiddenTeams.has(k);
+      return `<button type="button" class="tchk ${on?'on':''}" data-sheet-team="${k}"><span class="tick">${on?'✓':''}</span>${esc(t ? t.name : 'Unassigned')}</button>`;
+    }).join('')}</div>
+    ${visible.length ? `<table class="sheet">
       <thead><tr><th>Player</th><th class="right">Apps</th><th class="right">G</th><th class="right">%</th><th class="right">A</th><th class="right">%</th><th class="right">Pts</th><th class="right">%</th><th class="right">MoM</th><th class="right">%</th></tr></thead>
       <tbody>
-        ${rows.map(r=>`<tr>
+        ${visible.map(r=>`<tr>
           <td class="pname" title="${esc(playerName(r.id))}">${esc(playerName(r.id))}</td>
-          <td class="right">${r.apps}</td>
-          <td class="right">${r.goals}</td><td class="right pct">${pct(r.goals,totG)}</td>
-          <td class="right">${r.assists}</td><td class="right pct">${pct(r.assists,totA)}</td>
-          <td class="right" style="font-weight:700">${r.points}</td><td class="right pct">${pct(r.points,totP)}</td>
-          <td class="right">${r.motm}</td><td class="right pct">${pct(r.motm,totM)}</td>
+          ${num(r.apps,'c-apps')}
+          ${num(r.goals,'c-g')}<td class="right pct">${pct(r.goals,totG)}</td>
+          ${num(r.assists,'c-a')}<td class="right pct">${pct(r.assists,totA)}</td>
+          ${num(r.points,'c-pts')}<td class="right pct">${pct(r.points,totP)}</td>
+          ${num(r.motm,'c-mom')}<td class="right pct">${pct(r.motm,totM)}</td>
         </tr>`).join('')}
       </tbody>
-    </table>
+      <tfoot><tr>
+        <td>Total</td>
+        <td class="right">${totApps}</td>
+        <td class="right" style="color:var(--red)">${totG}</td><td></td>
+        <td class="right" style="color:var(--blue)">${totA}</td><td></td>
+        <td class="right" style="color:var(--gold)">${totP}</td><td></td>
+        <td class="right">${totM}</td><td></td>
+      </tr></tfoot>
+    </table>` : `<div class="empty" style="padding:14px">All teams hidden — tick a team above to see its players.</div>`}
   </div>`;
 }
 
@@ -3408,6 +3447,11 @@ function seasonBarHTML(){
 function wireHistoryHandlers(){
   document.querySelectorAll('[data-season-pick]').forEach(b=> b.addEventListener('click', ()=>{
     historyFilterSeason = b.dataset.seasonPick || '';
+    render();
+  }));
+  document.querySelectorAll('[data-sheet-team]').forEach(b=> b.addEventListener('click', ()=>{
+    const k = b.dataset.sheetTeam;
+    if(sheetHiddenTeams.has(k)) sheetHiddenTeams.delete(k); else sheetHiddenTeams.add(k);
     render();
   }));
   document.querySelectorAll('[data-del-game]').forEach(b=> b.addEventListener('click', ()=>{
