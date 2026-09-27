@@ -264,8 +264,15 @@ table.sheet th.sorted{color:var(--turf)}
   font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13.5px; letter-spacing:.02em; white-space:nowrap}
 .sp .sp-t{font-family:'IBM Plex Sans',sans-serif; font-size:11px; font-weight:500; color:var(--ink-faint); max-width:110px; overflow:hidden; text-overflow:ellipsis}
 .sp.all{color:var(--ink); font-weight:700}
-.sp.active{background:linear-gradient(90deg,var(--turf),var(--violet)); color:#081008; border-color:transparent}
-.sp.active .sp-t{color:#081008; opacity:.75}
+/* Selected pill: dark text on a themed gradient. Scoped to .seasonbar so it
+   out-weights the res-* colour rules below (which used to override the text colour
+   and make the number unreadable, e.g. grey #2 on the gradient, green #1 on green). */
+.seasonbar .sp.active{background:linear-gradient(90deg,var(--turf),var(--violet)); color:#081008; border-color:transparent}
+.seasonbar .sp.active .sp-t{color:#081008; opacity:.75}
+/* Each season colour gets its own selected gradient in its own hue. */
+.seasonbar .sp.active.res-title{background:linear-gradient(90deg,var(--turf),#c4ffe0)}
+.seasonbar .sp.active.res-perfect{background:linear-gradient(90deg,var(--violet),#d9ccff)}
+.seasonbar .sp.active.res-relegated{background:linear-gradient(90deg,var(--red),#ffb3bd)}
 .sp.res-title{border-color:rgba(60,255,154,.55); color:var(--turf); background:rgba(60,255,154,.10)}
 .sp.res-perfect{border-color:rgba(139,108,255,.55); color:var(--violet); background:rgba(139,108,255,.12)}
 .sp.res-relegated{border-color:rgba(255,92,114,.55); color:var(--red); background:rgba(255,92,114,.10)}
@@ -1627,7 +1634,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v54';
+const SCAN_BUILD = 'v55';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
