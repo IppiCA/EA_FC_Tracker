@@ -1262,9 +1262,9 @@ function wireLogHandlers(){
 /* ---- Scanning, via Tesseract.js OCR (works normally here — no restrictive CSP on GitHub Pages) ---- */
 let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
-/* Bump on every scanner change — shown in the scan box so we can tell which build a
-   browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v19';
+/* Bump on every scanner change AND any UI change — shown in the scan box so we can
+   tell which build a browser is actually running (browsers cache this page aggressively). */
+const SCAN_BUILD = 'v20';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
