@@ -431,6 +431,16 @@ try{
   console.error('Firebase init failed', e);
 }
 
+/* One shared sort per list, used by BOTH the live cloud listeners and the instant
+   (optimistic) local inserts — so a freshly saved match lands in its correct spot
+   immediately instead of briefly sitting at the end of the list. */
+const COL_SORTS = {
+  players: (a,b)=> a.name.localeCompare(b.name),
+  teams:   (a,b)=> a.name.localeCompare(b.name),
+  seasons: (a,b)=> (b.number||0)-(a.number||0),
+  games:   (a,b)=> (b.createdAt||0)-(a.createdAt||0)
+};
+
 function initDb(){
   try{
     db = firebase.firestore();
@@ -466,16 +476,17 @@ function initDb(){
       document.getElementById('syncstate') && (document.getElementById('syncstate').textContent = 'sync error — check Firestore rules');
     });
   };
-  col('players', players, (a,b)=> a.name.localeCompare(b.name));
-  col('teams', teams, (a,b)=> a.name.localeCompare(b.name), maybeSeedTeams);
-  col('seasons', seasons, (a,b)=> (b.number||0)-(a.number||0), maybeSeedTeams);
-  col('games', games, (a,b)=> (b.createdAt||0)-(a.createdAt||0));
+  col('players', players, COL_SORTS.players);
+  col('teams', teams, COL_SORTS.teams, maybeSeedTeams);
+  col('seasons', seasons, COL_SORTS.seasons, maybeSeedTeams);
+  col('games', games, COL_SORTS.games);
 }
 
 async function dbAdd(collection, data){
   const ref = await db.collection(collection).add(data);
   const arr = collection==='players'?players:collection==='seasons'?seasons:collection==='teams'?teams:games;
   arr.push({id: ref.id, ...data}); // optimistic — the live snapshot reconciles right after
+  const sort = COL_SORTS[collection]; if(sort) arr.sort(sort); // correct spot instantly, no bottom-then-top jump
   return ref.id;
 }
 async function dbSet(collection, id, data){
@@ -1419,7 +1430,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v30';
+const SCAN_BUILD = 'v31';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3017,7 +3028,8 @@ function wireSettingsHandlers(){
 /* ============================= HISTORY ============================= */
 let historyFilterSeason = '';
 function renderHistory(){
-  const filtered = games.filter(g=> !historyFilterSeason || g.seasonId===historyFilterSeason);
+  const filtered = games.filter(g=> !historyFilterSeason || g.seasonId===historyFilterSeason)
+    .slice().sort((a,b)=> (b.createdAt||0)-(a.createdAt||0)); // newest first, always — even mid-sync
   return `
   <div class="pagehead"><div><h1>Match History</h1><div class="sub">${games.length} matches logged</div></div>
     <select id="history-filter">
