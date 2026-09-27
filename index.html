@@ -184,6 +184,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .vs-bar .fill-b{background:var(--ink-faint); height:100%}
 .vs-bar .val{font-size:12.5px; width:36px; color:var(--ink-dim); font-weight:600}
 .vs-bar .val.right{text-align:right}
+.vs-bar .val.us-side{color:var(--ink); font-weight:700}
 .vs-label{font-size:11px; color:var(--ink-faint); text-align:center; margin-top:1px}
 
 /* ---- Match History v2 — left panels + horizontal tile strip + full-width season bar ---- */
@@ -1624,7 +1625,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v50';
+const SCAN_BUILD = 'v51';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3441,10 +3442,17 @@ function tileStatRows(g){
   const againstMap = (g.teamStats && g.teamStats.against) || {};
   const order = HIST_STAT_ORDER.filter(l=> forMap[l]!=null || againstMap[l]!=null);
   if(!order.length) return '';
+  /* Sides follow home/away, same as the score + crests: home = we're left, away = we're right.
+     Team colours travel WITH the team (us = gradient, them = faint); our number is bold white. */
+  const usLeft = (g.homeAway!=='away');
   return order.map(label=>{
     const fv = forMap[label], av = againstMap[label];
     const fn = parseFloat(fv)||0, an = parseFloat(av)||0; const tot = fn+an || 1;
-    return `<div class="vs-bar"><div class="val">${esc(fv)}</div><div class="track"><div class="fill-a" style="width:${fn/tot*100}%"></div><div class="fill-b" style="width:${an/tot*100}%"></div></div><div class="val right">${esc(av)}</div></div><div class="vs-label">${esc(label)}</div>`;
+    const us = {v:fv, p:fn/tot*100, f:'fill-a', ours:true};
+    const th = {v:av, p:an/tot*100, f:'fill-b', ours:false};
+    const L = usLeft ? us : th, R = usLeft ? th : us;
+    const val = (x, right)=>`<div class="val${x.ours?' us-side':''}${right?' right':''}">${esc(x.v)}</div>`;
+    return `<div class="vs-bar">${val(L,false)}<div class="track"><div class="${L.f}" style="width:${L.p}%"></div><div class="${R.f}" style="width:${R.p}%"></div></div>${val(R,true)}</div><div class="vs-label">${esc(label)}</div>`;
   }).join('');
 }
 
@@ -3503,7 +3511,7 @@ function historyTile(g){
     ${motmHtml}
     ${followHtml}
     <div class="mtile-b">
-      ${statRows ? `<div class="section-title" style="margin:12px 0 4px">Stats — us vs them</div>${statRows}` : ''}
+      ${statRows ? `<div class="section-title" style="margin:12px 0 4px; text-align:center">Stats</div>${statRows}` : ''}
       <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
         <button type="button" class="link-btn" data-edit-game="${g.id}">Edit</button>
         <button type="button" class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
