@@ -257,7 +257,6 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .stathead .badge{font-size:10px; font-weight:800; letter-spacing:.08em; padding:2px 9px; border-radius:99px; font-family:'Rajdhani',sans-serif}
 .stathead .badge.us{background:rgba(60,255,154,.16); color:var(--turf)}
 .stathead .badge.them{background:rgba(139,108,255,.18); color:#b7a3ff}
-.stathead .hs-in{width:100%; max-width:230px; text-align:center; font-size:12px; padding:5px 8px; background:transparent; border:1px dashed var(--line); color:var(--ink); border-radius:8px}
 .stathead .hs-tags{font-size:12px; color:var(--ink-dim); word-break:break-word}
 .stathead .mid{flex:0 0 auto; color:var(--ink-faint); font-size:11px; font-weight:700; letter-spacing:.14em}
 .statsep{height:1px; background:var(--line); margin:12px 0}
@@ -1170,14 +1169,15 @@ function teamStatLine(label, forVal, againstVal){
     <input type="text" data-side="${rightSide}" value="${rightVal!=null?esc(rightVal):''}">
   </div>`;
 }
-/* US / THEM header above the stats. US side shows the two player tags as a fixed label
-   (not a text field); THEM side shows the opponent's tags from the form above.
+/* US / THEM header above the stats. Both sides are plain text (no box) so they look
+   the same. US side is a fixed label; THEM side mirrors the two gamertag fields below
+   LIVE (#hs-them-tags is updated on every keystroke in wireLogHandlers).
    Left/right follow Home/Away to match in-game. */
 function teamStatHeader(){
   const usLeft = (logDraft && logDraft.homeAway!=='away');
   const opp = (logDraft && logDraft.opponentGamertags) ? logDraft.opponentGamertags.filter(Boolean).join(' / ') : '';
-  const cellUS   = `<div class="hs"><span class="badge us">US</span><span class="hs-in">Ippi90 / SteBo1339</span></div>`;
-  const cellTHEM = `<div class="hs"><span class="badge them">THEM</span><span class="hs-tags">${esc(opp)||'\u2014'}</span></div>`;
+  const cellUS   = `<div class="hs"><span class="badge us">US</span><span class="hs-tags">Ippi90 / SteBo1339</span></div>`;
+  const cellTHEM = `<div class="hs"><span class="badge them">THEM</span><span class="hs-tags" id="hs-them-tags">${esc(opp)||'\u2014'}</span></div>`;
   return `<div class="stathead">${usLeft?cellUS:cellTHEM}<div class="mid">VS</div>${usLeft?cellTHEM:cellUS}</div>`;
 }
 
@@ -1293,6 +1293,23 @@ function queueAutosave(){
 }
 
 function wireLogHandlers(){
+  /* The US/THEM header above the stats mirrors the two gamertag fields as you type —
+     fixing an OCR-misread letter below updates the header immediately (no save needed).
+     Direct DOM update only, so focus is never lost (a render() would rebuild the page). */
+  const syncHeadTags = ()=>{
+    const a = document.getElementById('f-tag1')?.value || '';
+    const b = document.getElementById('f-tag2')?.value || '';
+    const hs = document.getElementById('hs-them-tags');
+    if(hs) hs.textContent = [a,b].filter(Boolean).join(' / ') || '\u2014';
+  };
+  [1,2].forEach(i=>{
+    const el = document.getElementById('f-tag'+i);
+    if(!el) return;
+    el.addEventListener('input', ()=>{
+      if(logDraft) logDraft.opponentGamertags[i-1] = el.value;
+      syncHeadTags();
+    });
+  });
   const seasonSel = document.getElementById('f-season');
   if(seasonSel) seasonSel.addEventListener('change', (e)=>{
     logDraft.seasonId = e.target.value;
@@ -1430,7 +1447,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v33';
+const SCAN_BUILD = 'v34';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
