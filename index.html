@@ -645,7 +645,16 @@ function bestWorstSeasons(filterTeam){
 }
 
 /* ============================= RENDER SHELL ============================= */
-function setTab(t){ currentTab = t; render(); }
+function setTab(t){
+  if(currentTab==='log' && t!=='log'){
+    /* Leaving Log Match: drop any in-progress / being-edited match so the tab always
+       opens as a FRESH, EMPTY form (user rule — "log match" in the nav = new match). */
+    if(autosaveTimer){ clearTimeout(autosaveTimer); autosaveTimer = null; }
+    editingGameId = null;
+    logDraft = null;
+  }
+  currentTab = t; render();
+}
 document.addEventListener('click', (e)=>{
   const b = e.target.closest('[data-tab]');
   if(b){ setTab(b.dataset.tab); }
@@ -836,6 +845,10 @@ function gameToDraft(g){
 function renderLog(){
   if(!logDraft){
     logDraft = editingGameId ? gameToDraft(games.find(g=>g.id===editingGameId)) : freshDraft();
+    /* Reset the "first screenshot stamped" guard per draft: new match → stamping allowed
+       (re-stamps to the screenshot moment); editing a match that already has a time/date →
+       never touch it; editing an old match without one → first screenshot fills it in. */
+    firstShotStamped = !!editingGameId && !!(logDraft.matchTime && logDraft.matchDate);
   }
   const isEditing = !!editingGameId;
   /* Game number within the season: next one for a new match, the saved one when editing. */
@@ -1306,7 +1319,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v23';
+const SCAN_BUILD = 'v24';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
