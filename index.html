@@ -452,7 +452,8 @@ function initDb(){
   const col = (name, arr, sortFn, after) => {
     db.collection(name).onSnapshot((snap)=>{
       arr.length = 0;
-      snap.forEach(doc=>{ const data = doc.data(); if(data) arr.push({id:doc.id, ...data}); });
+      const seen = new Set(); // never list one document twice, even if a snapshot ever repeats it
+      snap.forEach(doc=>{ const data = doc.data(); if(!data || seen.has(doc.id)) return; seen.add(doc.id); arr.push({id:doc.id, ...data}); });
       if(sortFn) arr.sort(sortFn);
       document.getElementById('syncstate') && (document.getElementById('syncstate').textContent = 'synced');
       render();
@@ -484,7 +485,12 @@ function initDb(){
 async function dbAdd(collection, data){
   const ref = await db.collection(collection).add(data);
   const arr = collection==='players'?players:collection==='seasons'?seasons:collection==='teams'?teams:games;
-  arr.push({id: ref.id, ...data}); // optimistic — the live snapshot reconciles right after
+  /* The live listener usually delivers this write (from its local cache) BEFORE add()
+     resolves — the match may already be in the list. Pushing again would show it TWICE
+     (top + bottom) until the next refresh. Upsert instead of blind push. */
+  const i = arr.findIndex(x => x && x.id === ref.id);
+  if(i > -1) arr[i] = {id: ref.id, ...data};
+  else arr.push({id: ref.id, ...data});
   const sort = COL_SORTS[collection]; if(sort) arr.sort(sort); // correct spot instantly, no bottom-then-top jump
   return ref.id;
 }
@@ -1392,13 +1398,18 @@ function wireLogHandlers(){
     logDraft = null;
     setTab('history');
   });
+  let saveBusy = false; // a fast double-click must not commit the same match twice
   document.getElementById('save-match')?.addEventListener('click', async ()=>{
+    if(saveBusy) return;
+    saveBusy = true;
+    try{
     const ok = await commitGame();
     if(!ok){ toast('Pick a season first'); return; }
     toast(editingGameId ? 'Match updated' : 'Match saved');
     editingGameId = null;
     logDraft = null;
     setTab('history');
+    }finally{ saveBusy = false; }
   });
 
   wireScan('scan-players-input','scan-players','scan-players-progress', scanPlayerImages);
@@ -1447,7 +1458,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v34';
+const SCAN_BUILD = 'v35';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
