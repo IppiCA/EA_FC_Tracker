@@ -187,7 +187,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .vs-label{font-size:11px; color:var(--ink-faint); text-align:center; margin-top:1px}
 
 /* ---- Match History v2 — left panels + horizontal tile strip + full-width season bar ---- */
-.hist-body{display:grid; grid-template-columns:440px minmax(0,1fr); gap:14px; align-items:start}
+.hist-body{display:grid; grid-template-columns:clamp(380px,30vw,500px) minmax(0,1fr); gap:14px; align-items:start}
 .hist-strip{display:flex; gap:12px; overflow-x:auto; padding:4px 2px 12px; scroll-snap-type:x proximity}
 .hist-strip::-webkit-scrollbar{height:8px}
 .hist-strip::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px}
@@ -216,7 +216,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 table.sheet{font-size:12px}
 table.sheet th{padding:6px 6px; font-size:10px}
 table.sheet td{padding:6px 6px}
-table.sheet td.pname{max-width:112px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600}
+table.sheet td.pname{max-width:128px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600}
 table.sheet .pct{color:var(--ink-faint); font-size:10.5px}
 table.sheet td.c-apps{color:var(--ink); font-weight:700}
 table.sheet td.c-g{color:var(--red); font-weight:700}
@@ -1547,7 +1547,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v39';
+const SCAN_BUILD = 'v40';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3379,17 +3379,20 @@ function playerSheetPanel(sid){
     (g.playerStats||[]).forEach(ps=>{
       if(!ps || !ps.playerId) return;
       const a = agg[ps.playerId] || (agg[ps.playerId] = {apps:0, goals:0, assists:0, motm:0, rateSum:0, rateN:0});
-      a.apps++;
       a.goals += Number(ps.goals)||0;
       a.assists += Number(ps.assists)||0;
+      /* An appearance only counts when the player got a real match rating
+         (N/A and 0 = didn't actually play). */
       const rt = Number(ps.rating);
-      if(rt>0){ a.rateSum += rt; a.rateN++; }
+      if(rt>0){ a.apps++; a.rateSum += rt; a.rateN++; }
     });
     if(g.motmPlayerId && agg[g.motmPlayerId]) agg[g.motmPlayerId].motm++;
   });
+  /* Players with 0 real appearances are not shown at all. */
   const rows = Object.keys(agg).map(id=>{ const a = agg[id]; return {id, ...a, points:a.goals+a.assists, avg:a.rateN ? a.rateSum/a.rateN : null}; })
+    .filter(r=> r.apps>0)
     .sort((x,y)=> y.points-x.points || y.goals-x.goals || x.id.localeCompare(y.id));
-  if(!rows.length) return `<div class="card" style="margin-bottom:14px"><div class="empty" style="padding:18px">No player stats yet</div></div>`;
+  if(!rows.length) return `<div class="card" style="margin-bottom:14px"><div class="empty" style="padding:18px">No player with a rated appearance yet</div></div>`;
   /* Which team does each player sit on? (a player only counts for one team sheet) */
   const teamOf = {};
   teams.forEach(t=> (t.playerIds||[]).forEach(pid=>{ if(teamOf[pid]===undefined) teamOf[pid] = t.id; }));
