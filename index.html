@@ -601,6 +601,47 @@ function seasonRecord(seasonId){
   return {games:gs.length, w,d,l, gf,ga, points: w*3+d, rq, dc};
 }
 
+/* EA FC Co-OP division ladder. A season is 10 matches (W=3, D=1, L=0). You start at
+   Division 5. Minimum points to reach each result, per the official table:
+   Division  1     2     3     4     5
+   Title     23    21    19    16    13
+   Promotion  —    18    16    13    10
+   Relegation 14   12    10     8     — */
+const DIVISION_RULES = {
+  1:{title:23, promotion:null, relegation:14},
+  2:{title:21, promotion:18, relegation:12},
+  3:{title:19, promotion:16, relegation:10},
+  4:{title:16, promotion:13, relegation:8},
+  5:{title:13, promotion:10, relegation:null},
+};
+function divisionOf(s){ const d = Number(s && s.division); return DIVISION_RULES[d] ? d : 5; }
+/* Work out the result for a season from its points + division, and which division the
+   NEXT season starts in (promote up one, relegate down one, title/stay = same). */
+function computeOutcome(s){
+  const r = seasonRecord(s.id);
+  const div = divisionOf(s);
+  const rule = DIVISION_RULES[div];
+  const perfect = r.games>0 && r.l===0 && r.d===0;          // every single game a win
+  let state = 'unknown';
+  if(r.games>0){
+    if(r.points >= rule.title) state = 'title';
+    else if(rule.promotion!=null && r.points >= rule.promotion) state = 'promoted';
+    else if(rule.relegation!=null && r.points <= rule.relegation) state = 'relegated';
+    else state = 'stayed';
+  }
+  let nextDivision = div;
+  if(state==='promoted') nextDivision = Math.max(1, div-1);
+  else if(state==='relegated') nextDivision = Math.min(5, div+1);
+  return {div, rule, points:r.points, games:r.games, state, perfect, nextDivision};
+}
+/* Keep the season's champion / perfect / relegated flags in step with the computed
+   result, unless the user has overridden them by hand (resultManual). */
+function seasonResultFlags(s){
+  if(s.resultManual) return {champion:!!s.champion, perfectSeason:!!s.perfectSeason, relegated:!!s.relegated};
+  const o = computeOutcome(s);
+  return {champion:(o.state==='title'), perfectSeason:o.perfect, relegated:(o.state==='relegated')};
+}
+
 function careerTotals(){
   let gf=0,ga=0,w=0,d=0,l=0,rq=0,dc=0;
   games.forEach(g=>{
@@ -759,8 +800,11 @@ function seasonSummaryCard(entry, title, color){
 function seasonPanel(s){
   const r = seasonRecord(s.id);
   const lb = leaderboard(s.id).slice(0,5);
+  const o = computeOutcome(s);
+  const oLbl = {title:'🏆 Title — Champions', promoted:'⬆ Promoted', relegated:'⬇ Relegated', stayed:'→ Stayed in division'}[o.state]||'';
   return `<div class="card">
     <div style="display:flex; justify-content:flex-end; margin-bottom:12px">${formTickerHtml(s.id,10)}</div>
+    ${o.games>0?`<div style="margin-bottom:14px"><span class="tag" style="font-size:12px">Division ${o.div} · ${oLbl} · ${o.points} pts · next season: Division ${o.nextDivision}${o.perfect?' · ✦ Perfect':''}</span></div>`:''}
     <div class="grid g4" style="margin-bottom:16px">
       <div class="stat" style="padding:0"><div class="num" style="font-size:24px">${r.games}</div><div class="lbl">Games</div></div>
       <div class="stat" style="padding:0"><div class="num" style="font-size:24px">${r.points}</div><div class="lbl">Points</div></div>
@@ -1157,6 +1201,12 @@ async function commitGame(){
         await dbSet('teams', t.id, {...stripId(t), playerIds: combinedT});
       }
     }
+    /* Keep this season's champions / perfect / relegated flags in step with the points just
+       logged (unless the user overrode them by hand — seasonResultFlags returns stored then). */
+    const f = seasonResultFlags(s);
+    if(f.champion!==!!s.champion || f.perfectSeason!==!!s.perfectSeason || f.relegated!==!!s.relegated){
+      await dbSet('seasons', s.id, {...stripId(s), champion:f.champion, perfectSeason:f.perfectSeason, relegated:f.relegated});
+    }
   }
   return true;
 }
@@ -1319,7 +1369,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v25';
+const SCAN_BUILD = 'v26';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -2644,18 +2694,33 @@ function renderSquad(){
 
 function seasonEditCard(s){
   const r = seasonRecord(s.id);
+  const o = computeOutcome(s);
+  const flags = seasonResultFlags(s);
+  const stateLabel = {title:'🏆 Title — Champions', promoted:'⬆ Promoted', relegated:'⬇ Relegated', stayed:'→ Stayed in division', unknown:'· no games logged yet'}[o.state];
+  const divOpts = [5,4,3,2,1].map(d=>`<option value="${d}" ${o.div===d?'selected':''}>Division ${d}</option>`).join('');
+  const rule = o.rule;
+  const threshold = rule.title!=null?`Title ${rule.title}`:'';
+  const promo = rule.promotion!=null?` · Promote ${rule.promotion}`:'';
+  const releg = rule.relegation!=null?` · Relegate ≤${rule.relegation}`:'';
   return `<div class="card" style="margin-bottom:14px" data-season-card="${s.id}">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px">
       <div style="display:flex; align-items:center; gap:12px">
         <div class="shield" style="width:38px;height:44px"><div class="n" style="font-size:16px">${s.number}</div></div>
         <div>
           <div class="num" style="font-size:20px">${esc(seasonTeamName(s))}</div>
-          <div class="subtle">${esc(s.gameVersion||'')} &nbsp;·&nbsp; ${r.games} games logged &nbsp;·&nbsp; ${r.w}W ${r.d}D ${r.l}L</div>
+          <div class="subtle">${esc(s.gameVersion||'')} &nbsp;·&nbsp; ${r.games} games &nbsp;·&nbsp; ${r.w}W ${r.d}D ${r.l}L &nbsp;·&nbsp; ${r.points} pts</div>
+          <div style="margin-top:5px;font-size:12.5px;font-weight:600;color:var(--turf)">${stateLabel}${o.games>0?` &nbsp;→&nbsp; next season: Division ${o.nextDivision}`:''}${o.perfect&&o.games>0?' &nbsp;·&nbsp; ✦ Perfect':''}</div>
+          <div class="subtle" style="margin-top:2px">Division ${o.div}: ${threshold}${promo}${releg}</div>
         </div>
       </div>
-      <div style="display:flex; gap:8px; align-items:center">
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;margin:0"><input type="checkbox" data-champ="${s.id}" ${s.champion?'checked':''}> Champions</label>
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;margin:0"><input type="checkbox" data-perfect="${s.id}" ${s.perfectSeason?'checked':''}> Perfect season</label>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;margin:0">Division
+          <select data-division="${s.id}" style="width:auto;padding:4px 8px;font-size:12px">${divOpts}</select>
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;margin:0"><input type="checkbox" data-releg="${s.id}" ${flags.relegated?'checked':''}> Relegated</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;margin:0"><input type="checkbox" data-champ="${s.id}" ${flags.champion?'checked':''}> Champions</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;margin:0"><input type="checkbox" data-perfect="${s.id}" ${flags.perfectSeason?'checked':''}> Perfect season</label>
+        ${s.resultManual?`<button class="link-btn" data-reset-auto="${s.id}" title="Let the app decide from points again">↺ auto</button>`:''}
         <button class="link-btn" data-del-season="${s.id}" style="color:var(--red)">Delete</button>
       </div>
     </div>
@@ -2690,11 +2755,22 @@ function wireSquadHandlers(){
   document.querySelectorAll('[data-del-season]').forEach(b=> b.addEventListener('click', ()=>{
     if(confirm('Delete this season? Its logged games stay but lose their season link.')) dbDelete('seasons', b.dataset.delSeason);
   }));
+  const manual = (s, patch)=> dbSet('seasons', s.id, {...stripId(s), ...patch, resultManual:true});
+  document.querySelectorAll('[data-division]').forEach(sel=> sel.addEventListener('change', ()=>{
+    const s = seasonById(sel.dataset.division); dbSet('seasons', s.id, {...stripId(s), division:Number(sel.value)});
+  }));
+  document.querySelectorAll('[data-releg]').forEach(cb=> cb.addEventListener('change', ()=>{
+    const s = seasonById(cb.dataset.releg); manual(s, {relegated:cb.checked});
+  }));
   document.querySelectorAll('[data-champ]').forEach(cb=> cb.addEventListener('change', ()=>{
-    const s = seasonById(cb.dataset.champ); dbSet('seasons', s.id, {...stripId(s), champion:cb.checked});
+    const s = seasonById(cb.dataset.champ); manual(s, {champion:cb.checked});
   }));
   document.querySelectorAll('[data-perfect]').forEach(cb=> cb.addEventListener('change', ()=>{
-    const s = seasonById(cb.dataset.perfect); dbSet('seasons', s.id, {...stripId(s), perfectSeason:cb.checked});
+    const s = seasonById(cb.dataset.perfect); manual(s, {perfectSeason:cb.checked});
+  }));
+  document.querySelectorAll('[data-reset-auto]').forEach(b=> b.addEventListener('click', ()=>{
+    const s = seasonById(b.dataset.resetAuto); const f = seasonResultFlags(s);
+    dbSet('seasons', s.id, {...stripId(s), resultManual:false, champion:f.champion, perfectSeason:f.perfectSeason, relegated:f.relegated});
   }));
   document.querySelectorAll('[data-rm-squad]').forEach(b=> b.addEventListener('click', ()=>{
     const [sid,key,pid] = b.dataset.rmSquad.split('|');
@@ -2716,6 +2792,9 @@ function stripId(obj){ const {id, ...rest} = obj; return rest; }
 function openNewSeasonModal(){
   const nextNum = seasons.length ? Math.max(...seasons.map(s=>s.number||0))+1 : 1;
   const prev = seasons[0] || null;
+  // Start the new season in the division the last one ended in (promoted / relegated /
+  // stayed / title). First season ever, or a blank last one, starts at the base Division 5.
+  const defDiv = (prev && seasonRecord(prev.id).games>0) ? computeOutcome(prev).nextDivision : 5;
   const prevTeams = seasonTeams(prev);                       // may be several (mid-season switch)
   const lastTeamObj = prevTeams.length ? prevTeams[prevTeams.length-1] : null;  // most recent team
   const lastTeam = lastTeamObj ? lastTeamObj.name : (prev?.team || '');
@@ -2725,6 +2804,11 @@ function openNewSeasonModal(){
     <div class="row">
       <div class="field"><label>Season number</label><input type="number" id="ns-num" value="${nextNum}"></div>
       <div class="field"><label>Game version</label><input type="text" id="ns-ver" placeholder="FC26" value="${seasons[0]?.gameVersion||'FC26'}"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Division <span class="subtle">(auto from last season's points)</span></label>
+        <select id="ns-division">${[5,4,3,2,1].map(d=>`<option value="${d}" ${d===defDiv?'selected':''}>Division ${d}</option>`).join('')}</select>
+      </div>
     </div>
     <div class="field"><label>Team</label>
       ${teams.length ? `<select id="ns-team">${teams.map(t=>`<option value="${t.id}" ${t.id===lastTeamId?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`
@@ -2755,7 +2839,8 @@ function openNewSeasonModal(){
     const prevTeams = seasons[0] ? seasonTeams(seasons[0]) : [];
     const carryTeam = prevTeams.length ? prevTeams[prevTeams.length-1] : null;  // carry the most recent team's sheet
     const squadIds = carry && seasons[0] ? [...(carryTeam ? (carryTeam.playerIds||[]) : (seasons[0].squadIds||[]))] : [];
-    await dbAdd('seasons', {number, gameVersion, team: teamName, teamId, squadIds, champion:false, perfectSeason:false, createdAt:Date.now()});
+    const division = Number(document.getElementById('ns-division').value||5);
+    await dbAdd('seasons', {number, gameVersion, team: teamName, teamId, squadIds, division, champion:false, perfectSeason:false, relegated:false, createdAt:Date.now()});
     closeModal();
     toast('Season created');
   });
