@@ -816,11 +816,22 @@ const DIVISION_RULES = {
 function divisionOf(s){ const d = Number(s && s.division); return DIVISION_RULES[d] ? d : 5; }
 /* Work out the result for a season from its points + division, and which division the
    NEXT season starts in (promote up one, relegate down one, title/stay = same). */
+/* The season with the highest number is the one in progress — it has no final
+   result yet (no title, no perfect, no relegation). */
+function currentSeasonId(){
+  if(!seasons.length) return '';
+  let cur = seasons[0];
+  seasons.forEach(s=>{ if((Number(s.number)||0) > (Number(cur.number)||0)) cur = s; });
+  return cur.id;
+}
 function computeOutcome(s){
   const r = seasonRecord(s.id);
   const div = divisionOf(s);
   const rule = DIVISION_RULES[div];
-  const perfect = r.games>0 && r.l===0 && r.d===0;          // every single game a win
+  /* Perfect = every game a win AND the season is finished. An in-progress season
+     (all wins so far) must NOT light up as perfect — it still looks like any
+     normal season until it's done. */
+  const perfect = r.games>0 && r.l===0 && r.d===0 && s.id!==currentSeasonId();
   let state = 'unknown';
   if(r.games>0){
     if(r.points >= rule.title) state = 'title';
@@ -1613,7 +1624,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v49';
+const SCAN_BUILD = 'v50';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
