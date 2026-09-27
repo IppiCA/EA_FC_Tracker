@@ -196,6 +196,8 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 /* Stats + Edit/Delete are anchored to the BOTTOM of the tile, so they line up
    across tiles even when the top (scorers/MOTM lines) takes a different number of rows. */
 .mtile-b{margin-top:auto; width:100%}
+.mtile .xmult{color:var(--ink); font-weight:700; font-style:normal}
+.mtile .motm-name{color:var(--gold); font-weight:700}
 .mtile::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; border-radius:15px 15px 0 0}
 .mtile.o-draw::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
 .mtile.o-loss::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
@@ -1560,7 +1562,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v44';
+const SCAN_BUILD = 'v45';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3310,8 +3312,29 @@ function historyTile(g){
   const s = seasonById(g.seasonId);
   const o = outcome(g);
   const allView = !histSeasonId();
-  const scorers = (g.playerStats||[]).filter(p=>p.goals>0).map(p=>`${playerName(p.playerId)}${p.goals>1?' ×'+p.goals:''}`).join(', ');
-  const assisters = (g.playerStats||[]).filter(p=>p.assists>0).map(p=>`${playerName(p.playerId)}${p.assists>1?' ×'+p.assists:''}`).join(', ');
+  const psList = g.playerStats||[];
+  /* ×2/×3 multipliers are bold white, like the mockup. */
+  const mult = v => v>1 ? ` <b class="xmult">×${v}</b>` : '';
+  const scorers = psList.filter(p=>p.goals>0).map(p=>`${esc(playerName(p.playerId))}${mult(p.goals)}`).join(', ');
+  const assisters = psList.filter(p=>p.assists>0).map(p=>`${esc(playerName(p.playerId))}${mult(p.assists)}`).join(', ');
+  /* Top three by rating: the MOTM first (gold + bold, with his rating), then the
+     next two best-rated players underneath with their ratings. */
+  const rated = psList.filter(p=> (Number(p.rating)||0) > 0)
+    .sort((a,b)=> (Number(b.rating)||0)-(Number(a.rating)||0));
+  let motmHtml = '', followHtml = '';
+  {
+    const topId = g.motmPlayerId ? g.motmPlayerId : (rated[0] ? rated[0].playerId : '');
+    if(topId){
+      const top = rated.find(p=>p.playerId===topId);
+      const topRating = top && (Number(top.rating)||0) > 0 ? ` <b class="xmult">${esc(top.rating)}</b>` : '';
+      motmHtml = g.motmPlayerId
+        ? `<div class="subtle" style="margin-top:8px">⭐ MOTM: <b class="motm-name">${esc(playerName(topId))}</b>${topRating}</div>`
+        : `<div class="subtle" style="margin-top:8px"><b>${esc(playerName(topId))}</b>${topRating}</div>`;
+      const follow = rated.filter(p=>p.playerId!==topId).slice(0,2)
+        .map(p=>`${esc(playerName(p.playerId))} <b class="xmult">${esc(p.rating)}</b>`).join(' · ');
+      if(follow) followHtml = `<div class="subtle" style="margin-top:2px">${follow}</div>`;
+    }
+  }
   const statRows = tileStatRows(g);
   return `<div class="mtile o-${o}" data-game="${g.id}">
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
@@ -3326,9 +3349,10 @@ function historyTile(g){
       ${g.rageQuit==='us' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">We rage quit</span>` : ''}
       ${g.disconnect ? `<span class="tag">Disconnect</span>` : ''}
     </div>
-    ${scorers ? `<div class="subtle" style="margin-top:8px">⚽ ${esc(scorers)}</div>` : ''}
-    ${assisters ? `<div class="subtle" style="margin-top:2px">🅰️ ${esc(assisters)}</div>` : ''}
-    ${g.motmPlayerId ? `<div class="subtle" style="margin-top:2px">⭐ MOTM: ${esc(playerName(g.motmPlayerId))}</div>` : ''}
+    ${scorers ? `<div class="subtle" style="margin-top:8px">⚽ ${scorers}</div>` : ''}
+    ${assisters ? `<div class="subtle" style="margin-top:2px">🅰️ ${assisters}</div>` : ''}
+    ${motmHtml}
+    ${followHtml}
     <div class="mtile-b">
       ${statRows ? `<div class="section-title" style="margin:12px 0 4px">Stats — us vs them</div>${statRows}` : ''}
       <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
