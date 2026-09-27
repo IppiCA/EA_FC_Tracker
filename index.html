@@ -1560,7 +1560,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v43';
+const SCAN_BUILD = 'v44';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3331,7 +3331,7 @@ function historyTile(g){
     ${g.motmPlayerId ? `<div class="subtle" style="margin-top:2px">⭐ MOTM: ${esc(playerName(g.motmPlayerId))}</div>` : ''}
     <div class="mtile-b">
       ${statRows ? `<div class="section-title" style="margin:12px 0 4px">Stats — us vs them</div>${statRows}` : ''}
-      <div style="display:flex; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
+      <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
         <button type="button" class="link-btn" data-edit-game="${g.id}">Edit</button>
         <button type="button" class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
       </div>
