@@ -1612,7 +1612,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v47';
+const SCAN_BUILD = 'v48';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3466,8 +3466,13 @@ function historyTile(g){
   const statRows = tileStatRows(g);
   const oppLogo = teamLogo(g.opponentTeam);
   const usLogo = ourLogo(g);
-  const leftLogo  = (g.homeAway==='home') ? usLogo : oppLogo;   // home side's crest on the left
-  const rightLogo = (g.homeAway==='home') ? oppLogo : usLogo;
+  const isHome = g.homeAway==='home';
+  const leftLogo  = isHome ? usLogo : oppLogo;   // home side's crest on the left
+  const rightLogo = isHome ? oppLogo : usLogo;
+  /* The digits follow the crests: left number = left crest's goals, right = right crest's.
+     Away game → opponent's goals first (they are the home side). */
+  const leftScore  = isHome ? g.scoreFor : g.scoreAgainst;
+  const rightScore = isHome ? g.scoreAgainst : g.scoreFor;
   return `<div class="mtile o-${o}" data-game="${g.id}">
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
       <span class="pill ${o}">${o.toUpperCase()}</span>
@@ -3475,7 +3480,7 @@ function historyTile(g){
     </div>
     <div class="subtle" style="margin-top:3px">${allView && s ? 'Season #'+esc(s.number)+' · ' : ''}${g.homeAway==='home'?'Home':'Away'} · Game ${gamePosition(g.seasonId, g.id) || (g.gameNumber||'')}</div>
     ${oppTagsLine(g)}
-    <div class="score-row">${leftLogo?`<img class="score-crest" src="${leftLogo}" alt="">`:''}<div class="num score" style="margin:0">${g.scoreFor} : ${g.scoreAgainst}</div>${rightLogo?`<img class="score-crest" src="${rightLogo}" alt="">`:''}</div>
+    <div class="score-row">${leftLogo?`<img class="score-crest" src="${leftLogo}" alt="">`:''}<div class="num score" style="margin:0">${leftScore} : ${rightScore}</div>${rightLogo?`<img class="score-crest" src="${rightLogo}" alt="">`:''}</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap">
       ${g.rageQuit==='them' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">They rage quit</span>` : ''}
       ${g.rageQuit==='us' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">We rage quit</span>` : ''}
