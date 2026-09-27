@@ -510,8 +510,34 @@ function aliasPlayer(rawName){
   return p ? p.id : null;
 }
 
+/* EA FC truncates a few long surnames with "…" (and OCR misreads the fragment, e.g. "Arn"
+   → "Am"). Canonicalize those truncated readings to ONE full name so the scanner always
+   lands on the same player — regardless of which screenshot (truncated vs full) is read
+   first. Add more names to this list the same way if EA FC truncates others. */
+const CANONICAL_NAME_RULES = [
+  { stem:'alexander', canonical:'T. Alexander-Arnold',
+    tails:new Set(['am','ar','arn','arm','arno','arnol','arnold']) },
+];
+function canonicalName(rawName){
+  const norm = normalizeName(rawName).replace(/\s+/g,'');
+  for(const r of CANONICAL_NAME_RULES){
+    if(!norm.startsWith(r.stem)) continue;
+    const tail = norm.slice(r.stem.length).replace(/^-/,'').replace(/[…\.]+$/,'');
+    if(r.tails.has(tail)) return r.canonical;
+  }
+  return null;
+}
+
 async function resolveOrCreatePlayer(rawName){
-  const name = rawName.trim();
+  let name = rawName.trim();
+  /* Known truncated EA FC names resolve to one canonical player (create under the full name
+     if we've never met them) so a truncated and a full reading never become two players. */
+  const canon = canonicalName(name);
+  if(canon){
+    const p = players.find(pp=> normalizeName(pp.name)===normalizeName(canon));
+    if(p) return p.id;
+    name = canon;
+  }
   const norm = normalizeName(name);
   const aliasId = aliasPlayer(name);
   if(aliasId) return aliasId;
@@ -1385,7 +1411,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v28';
+const SCAN_BUILD = 'v29';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
