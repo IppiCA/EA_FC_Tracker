@@ -852,7 +852,7 @@ function renderLog(){
     return `<div class="pagehead"><h1>Log Match</h1></div><div class="card empty">Create a season first (with a squad) under <b>Squad & Seasons</b> before logging a match.</div>`;
   }
   return `
-  <div class="pagehead"><div><h1>${isEditing?'Edit Match':'Log Match'}</h1><div class="sub">${isEditing?'Update the details below and save your changes':'Scan the in-game screens or enter it manually — review before saving'}</div></div></div>
+  <div class="pagehead"><div><h1>${isEditing?'Edit Match':'Log Match'}</h1><div class="sub">${isEditing?'Changes save automatically as you edit — no need to scroll down to save':'Scan the in-game screens or enter it manually — review before saving'}</div></div></div>
 
   <div class="card" style="margin-bottom:16px">
     <div class="scanbox meta" id="scan-meta" tabindex="0">
@@ -1108,6 +1108,66 @@ function readDraftFromForm(){
   g.teamStats = stats;
 }
 
+/* Shared save core: writes the match AND keeps the season/team rosters in sync.
+   Returns true on success. Used by the Save button and by Edit-Match autosave. */
+async function commitGame(){
+  if(!logDraft) return false;
+  readDraftFromForm();
+  if(!logDraft.seasonId) return false;
+  const {seasonId, ...rest} = logDraft;
+  if(editingGameId){
+    const orig = games.find(g=>g.id===editingGameId);
+    await dbSet('games', editingGameId, {seasonId, ...rest, gameNumber: orig?.gameNumber||1, createdAt: orig?.createdAt||Date.now()});
+  } else {
+    const existingCount = gamesFor(seasonId).length;
+    await dbAdd('games', {seasonId, ...rest, gameNumber: existingCount+1, createdAt: Date.now()});
+  }
+  const s = seasonById(seasonId);
+  if(s){
+    const playedIds = (rest.playerStats||[]).map(p=>p.playerId).filter(Boolean);
+    const combined = Array.from(new Set([...(s.squadIds||[]), ...playedIds]));
+    if(combined.length !== (s.squadIds||[]).length){
+      await dbSet('seasons', s.id, {...stripId(s), squadIds: combined});
+    }
+    /* Mid-season switch: if this match's team is new to the season, add it to the
+       season's ordered team list (shown as "Team A / Team B"). */
+    if(rest.teamId){
+      const base = (s.teamIds && s.teamIds.length) ? [...s.teamIds] : (s.teamId ? [s.teamId] : []);
+      if(!base.includes(rest.teamId)){
+        await dbSet('seasons', s.id, {...stripId(s), teamIds: [...base, rest.teamId]});
+      }
+    }
+    const t = (rest.teamId && teamById(rest.teamId)) || (s.teamId ? teamById(s.teamId) : null);
+    if(t){
+      const combinedT = Array.from(new Set([...(t.playerIds||[]), ...playedIds]));
+      if(combinedT.length !== (t.playerIds||[]).length){
+        await dbSet('teams', t.id, {...stripId(t), playerIds: combinedT});
+      }
+    }
+  }
+  return true;
+}
+
+/* Edit-Match autosave: after the user stops touching anything for a moment, the match
+   saves itself (same writes as the Save button) — no need to scroll down to save. */
+let autosaveTimer = null, autosaveBusy = false;
+function queueAutosave(){
+  if(!editingGameId || !logDraft) return;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(async ()=>{
+    if(!editingGameId || autosaveBusy) return;
+    autosaveBusy = true;
+    try{
+      if(await commitGame()) toast('✓ Saved');
+    }catch(err){
+      console.warn('autosave failed', err);
+      toast("Couldn't save automatically — use the Save button at the bottom");
+    }finally{
+      autosaveBusy = false;
+    }
+  }, 900);
+}
+
 function wireLogHandlers(){
   const seasonSel = document.getElementById('f-season');
   if(seasonSel) seasonSel.addEventListener('change', (e)=>{
@@ -1192,39 +1252,8 @@ function wireLogHandlers(){
     setTab('history');
   });
   document.getElementById('save-match')?.addEventListener('click', async ()=>{
-    readDraftFromForm();
-    if(!logDraft.seasonId){ toast('Pick a season first'); return; }
-    const {seasonId, ...rest} = logDraft;
-    if(editingGameId){
-      const orig = games.find(g=>g.id===editingGameId);
-      await dbSet('games', editingGameId, {seasonId, ...rest, gameNumber: orig?.gameNumber||1, createdAt: orig?.createdAt||Date.now()});
-    } else {
-      const existingCount = gamesFor(seasonId).length;
-      await dbAdd('games', {seasonId, ...rest, gameNumber: existingCount+1, createdAt: Date.now()});
-    }
-    const s = seasonById(seasonId);
-    if(s){
-      const playedIds = (rest.playerStats||[]).map(p=>p.playerId).filter(Boolean);
-      const combined = Array.from(new Set([...(s.squadIds||[]), ...playedIds]));
-      if(combined.length !== (s.squadIds||[]).length){
-        await dbSet('seasons', s.id, {...stripId(s), squadIds: combined});
-      }
-      /* Mid-season switch: if this match's team is new to the season, add it to the
-         season's ordered team list (shown as "Team A / Team B"). */
-      if(rest.teamId){
-        const base = (s.teamIds && s.teamIds.length) ? [...s.teamIds] : (s.teamId ? [s.teamId] : []);
-        if(!base.includes(rest.teamId)){
-          await dbSet('seasons', s.id, {...stripId(s), teamIds: [...base, rest.teamId]});
-        }
-      }
-      const t = (rest.teamId && teamById(rest.teamId)) || (s.teamId ? teamById(s.teamId) : null);
-      if(t){
-        const combinedT = Array.from(new Set([...(t.playerIds||[]), ...playedIds]));
-        if(combinedT.length !== (t.playerIds||[]).length){
-          await dbSet('teams', t.id, {...stripId(t), playerIds: combinedT});
-        }
-      }
-    }
+    const ok = await commitGame();
+    if(!ok){ toast('Pick a season first'); return; }
     toast(editingGameId ? 'Match updated' : 'Match saved');
     editingGameId = null;
     logDraft = null;
@@ -1243,6 +1272,7 @@ function wireLogHandlers(){
       stampFirstScreenshot();
       metaBox.classList.add('active');
       try{ await scanPlayersScreen(files, 'scan-meta-progress'); } finally { metaBox.classList.remove('active'); }
+      if(editingGameId) queueAutosave(); // a scan fills fields too — persist them without a manual Save
     };
     metaInput.addEventListener('change', async (e)=>{ const files=Array.from(e.target.files||[]); await run(files); e.target.value=''; });
     document.getElementById('scan-meta-choose')?.addEventListener('click', (e)=>{ e.stopPropagation(); metaInput.click(); });
@@ -1276,7 +1306,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v22';
+const SCAN_BUILD = 'v23';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -2128,6 +2158,7 @@ function wireScan(inputId, boxId, progId, scanFn){
     stampFirstScreenshot();
     box.classList.add('active');
     try{ await scanFn(files, progId); } finally { box.classList.remove('active'); }
+    if(editingGameId) queueAutosave(); // a scan fills fields too — persist them without a manual Save
   };
   input.addEventListener('change', async (e)=>{ const files = Array.from(e.target.files||[]); await run(files); e.target.value=''; });
   box.addEventListener('click', (e)=>{ if(e.target.tagName!=='INPUT') box.focus(); });
@@ -2259,6 +2290,19 @@ function renderCountryList(d, q){
    auto-focus nudge and shook the whole page. .card no longer clips, so the popup is a
    plain position:absolute child that drops straight under its button — see .ddrop-pop
    in the CSS. No repositioning, no scroll listener. */
+
+/* One-time delegation for Edit-Match autosave: any edit on the Log tab (typing, dropdowns,
+   checkboxes, row add/remove) schedules an autosave. render() rebuilds #main, so per-node
+   listeners would die — same trick as wireDdropsOnce. */
+(function wireAutosaveOnce(){
+  const onLogTab = ()=> currentTab==='log' && editingGameId;
+  document.addEventListener('input', ()=>{ if(onLogTab()) queueAutosave(); });
+  document.addEventListener('change', ()=>{ if(onLogTab()) queueAutosave(); });
+  document.addEventListener('click', (e)=>{
+    if(!onLogTab()) return;
+    if(e.target && e.target.closest && e.target.closest('.ddrop-opt,[data-remove],[data-rename],#add-teamstat')) queueAutosave();
+  });
+})();
 
 /* One-time document-level delegation (render() rebuilds #main, so per-node listeners would die). */
 (function wireDdropsOnce(){
