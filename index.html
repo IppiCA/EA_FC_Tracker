@@ -203,7 +203,13 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .mtile .motm-name{color:var(--gold); font-weight:700}
 /* Performance lines (scorers/assists/MOTM/follow): lighter, non-bold, readable, with
    even line-height so wrapped names stay aligned like the mockup. */
-.mtile .perfline{color:var(--ink-dim); font-size:12.5px; font-weight:400; line-height:1.55}
+.mtile .perfline{color:var(--ink-dim); font-size:12.5px; font-weight:400; line-height:18px}
+/* Fixed-height rows so every tile's rage-quit box, scorers, assists and MOTM all
+   start on the same lines — empty sections reserve their space (2 lines each). */
+.mtile .rqrow{min-height:20px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:10px}
+.mtile .sblock{min-height:36px; margin-top:5px}
+.mtile .ablock{min-height:36px}
+.mtile .mblock{min-height:36px}
 .mtile::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--turf),#c4ffe0); opacity:.9; border-radius:15px 15px 0 0}
 .mtile.o-draw::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
 .mtile.o-loss::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
@@ -1637,7 +1643,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v56';
+const SCAN_BUILD = 'v57';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3495,11 +3501,11 @@ function historyTile(g){
       const top = rated.find(p=>p.playerId===topId);
       const topRating = top && (Number(top.rating)||0) > 0 ? ` <b class="xmult">${esc(top.rating)}</b>` : '';
       motmHtml = g.motmPlayerId
-        ? `<div class="perfline" style="margin-top:10px">⭐ MOTM: <b class="motm-name">${esc(playerName(topId))}</b>${topRating}</div>`
-        : `<div class="perfline" style="margin-top:10px"><b>${esc(playerName(topId))}</b>${topRating}</div>`;
+        ? `<div class="perfline">⭐ MOTM: <b class="motm-name">${esc(playerName(topId))}</b>${topRating}</div>`
+        : `<div class="perfline"><b>${esc(playerName(topId))}</b>${topRating}</div>`;
       const follow = rated.filter(p=>p.playerId!==topId).slice(0,2)
         .map(p=>`${esc(playerName(p.playerId))} <b class="xmult">${esc(p.rating)}</b>`).join(' · ');
-      if(follow) followHtml = `<div class="perfline" style="margin-top:4px">${follow}</div>`;
+      if(follow) followHtml = `<div class="perfline">${follow}</div>`;
     }
   }
   const statRows = tileStatRows(g);
@@ -3522,15 +3528,14 @@ function historyTile(g){
     <div class="subtle" style="margin-top:3px">${allView && s ? 'Season #'+esc(s.number)+' · ' : ''}${g.homeAway==='home'?'Home':'Away'} · Game ${gamePosition(g.seasonId, g.id) || (g.gameNumber||'')}</div>
     ${oppTagsLine(g)}
     <div class="score-row">${leftLogo?`<img class="score-crest" src="${leftLogo}" alt="">`:''}<div class="num score" style="margin:0">${leftScore} : ${rightScore}</div>${rightLogo?`<img class="score-crest" src="${rightLogo}" alt="">`:''}</div>
-    <div style="display:flex; gap:6px; flex-wrap:wrap">
+    <div class="rqrow">
       ${g.rageQuit==='them' ? `<span class="tag" style="color:var(--turf);border-color:rgba(60,255,154,.4)">They rage quit${rqTime}</span>` : ''}
       ${g.rageQuit==='us' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">We rage quit${rqTime}</span>` : ''}
       ${g.disconnect ? `<span class="tag">Disconnect</span>` : ''}
     </div>
-    ${scorers ? `<div class="perfline" style="margin-top:10px">⚽ ${scorers}</div>` : ''}
-    ${assisters ? `<div class="perfline" style="margin-top:4px">🅰️ ${assisters}</div>` : ''}
-    ${motmHtml}
-    ${followHtml}
+    <div class="sblock">${scorers ? `<div class="perfline">⚽ ${scorers}</div>` : ''}</div>
+    <div class="ablock">${assisters ? `<div class="perfline">🅰️ ${assisters}</div>` : ''}</div>
+    <div class="mblock">${motmHtml}${followHtml}</div>
     <div class="mtile-b">
       ${statRows ? `<div class="stats-crossbar"></div>${statRows}` : ''}
       <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
