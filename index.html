@@ -388,28 +388,28 @@ table.sheet th.sorted{color:var(--turf)}
 /* ---- "About" splash: framed login-screen art, toggled by the top-left logo ---- */
 .rail-brand{cursor:pointer}
 .rail-brand:hover .crest{box-shadow:0 0 24px rgba(60,255,154,.6)}
-.about-overlay{position:fixed; inset:0; z-index:300; display:flex; align-items:center; justify-content:center; padding:20px;
-  background:rgba(4,7,10,.62); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); animation:about-fade .18s ease-out}
+.about-overlay{position:fixed; inset:0; z-index:300; display:flex; align-items:center; justify-content:center; padding:28px; overflow:auto;
+  background:rgba(4,7,10,.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); animation:about-fade .18s ease-out}
 .about-overlay[hidden]{display:none}
 @keyframes about-fade{from{opacity:0} to{opacity:1}}
-@keyframes about-pop{from{transform:scale(.96) translateY(10px); opacity:0} to{transform:none; opacity:1}}
-.about-frame{position:relative; width:min(440px,100%); padding:14px; border-radius:22px;
-  background:linear-gradient(160deg, rgba(34,42,52,.92), rgba(15,19,25,.95));
-  border:1px solid rgba(255,255,255,.15); box-shadow:0 30px 80px rgba(0,0,0,.55), inset 0 0 0 1px rgba(0,0,0,.4);
-  animation:about-pop .24s cubic-bezier(.2,.8,.2,1)}
+@keyframes about-pop{from{transform:scale(.96) translateY(14px); opacity:0} to{transform:none; opacity:1}}
+.about-frame{position:relative; width:min(1180px,100%); max-width:94vw; padding:30px; border-radius:30px;
+  background:linear-gradient(160deg, rgba(34,42,52,.92), rgba(15,19,25,.96));
+  border:1px solid rgba(255,255,255,.16); box-shadow:0 44px 120px rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.4);
+  animation:about-pop .26s cubic-bezier(.2,.8,.2,1)}
 /* inner mat border → gives the framed-print look */
-.about-frame::before{content:''; position:absolute; inset:9px; border-radius:15px; border:1px solid rgba(255,255,255,.10); pointer-events:none}
-.about-pic{margin:0 0 14px; padding:8px; border-radius:14px; background:#0a0e13; border:1px solid rgba(255,255,255,.10); box-shadow:inset 0 2px 14px rgba(0,0,0,.6)}
-.about-pic img{width:100%; display:block; border-radius:9px; object-fit:cover; aspect-ratio:16/9}
-.about-head{display:flex; gap:14px; align-items:center; padding:2px 6px 0}
-.about-crest{width:56px; height:56px; border-radius:14px; object-fit:cover; box-shadow:0 6px 18px rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.14); flex:0 0 auto}
-.about-head h2{margin:0; font-size:26px; letter-spacing:.02em; color:#F2F6F4}
-.about-tag{font-size:11.5px; color:var(--turf); font-weight:600; letter-spacing:.06em; text-transform:uppercase; margin-top:3px}
-.about-sub{margin:6px 0 0; font-size:13px; line-height:1.5; color:#A6B4B9}
-.about-foot{margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.10); font-size:11.5px; color:#647079; display:flex; justify-content:space-between; align-items:center}
-.about-close{position:absolute; top:14px; right:14px; width:30px; height:30px; border-radius:50%;
-  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:#A6B4B9; font-size:19px; line-height:1; z-index:2}
-.about-close:hover{background:rgba(255,255,255,.14); color:#F2F6F4}
+.about-frame::before{content:''; position:absolute; inset:17px; border-radius:19px; border:1px solid rgba(255,255,255,.10); pointer-events:none}
+.about-pic{margin:0 0 26px; padding:15px; border-radius:20px; background:#0a0e13; border:1px solid rgba(255,255,255,.12); box-shadow:inset 0 3px 22px rgba(0,0,0,.65)}
+.about-pic img{width:100%; display:block; border-radius:13px; object-fit:cover; aspect-ratio:16/9; max-height:64vh}
+.about-head{display:flex; gap:26px; align-items:center; padding:4px 8px 0}
+.about-crest{width:112px; height:112px; border-radius:22px; object-fit:cover; box-shadow:0 10px 28px rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.16); flex:0 0 auto}
+.about-head h2{margin:0; font-size:46px; letter-spacing:.02em; color:#F2F6F4}
+.about-tag{font-size:16px; color:var(--turf); font-weight:600; letter-spacing:.08em; text-transform:uppercase; margin-top:6px}
+.about-sub{margin:10px 0 0; font-size:20px; line-height:1.5; color:#A6B4B9}
+.about-foot{margin-top:26px; padding-top:20px; border-top:1px solid rgba(255,255,255,.10); font-size:15px; color:#8895a0; display:flex; justify-content:space-between; align-items:center}
+.about-close{position:absolute; top:22px; right:22px; width:46px; height:46px; border-radius:50%;
+  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.16); color:#C4CFD4; font-size:28px; line-height:1; z-index:2}
+.about-close:hover{background:rgba(255,255,255,.15); color:#F2F6F4}
 @media (prefers-reduced-motion: reduce){ .about-overlay,.about-frame{animation:none} }
 .login-wrap{position:relative; width:100%; height:100vh; height:100dvh; overflow:hidden; background:#f5ead8; font-family:'Figtree',system-ui,sans-serif;}
 .login-wrap .zc-bg{position:absolute; inset:0;}
@@ -1704,7 +1704,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v59';
+const SCAN_BUILD = 'v60';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
