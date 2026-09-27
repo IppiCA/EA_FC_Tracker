@@ -191,8 +191,11 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .hist-strip{display:flex; gap:12px; overflow-x:auto; padding:4px 2px 12px; scroll-snap-type:x proximity}
 .hist-strip::-webkit-scrollbar{height:8px}
 .hist-strip::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px}
-.mtile{flex:0 0 auto; width:238px; background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+.mtile{flex:0 0 auto; width:238px; display:flex; flex-direction:column; background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
   border:1px solid var(--line); border-radius:var(--radius); padding:14px; position:relative; box-shadow:0 12px 30px rgba(0,0,0,.25); scroll-snap-align:start}
+/* Stats + Edit/Delete are anchored to the BOTTOM of the tile, so they line up
+   across tiles even when the top (scorers/MOTM lines) takes a different number of rows. */
+.mtile-b{margin-top:auto; width:100%}
 .mtile::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; border-radius:15px 15px 0 0}
 .mtile.o-draw::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
 .mtile.o-loss::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
@@ -249,6 +252,8 @@ table.sheet tfoot td{border-top:1px solid var(--line); font-weight:700}
 .sp .sp-badge{font-size:12px}
 .sp-legend{margin-left:auto; flex:0 0 auto; font-size:10.5px; color:var(--ink-faint); white-space:nowrap; padding-left:10px}
 #app.sb-on main{padding-bottom:76px}
+/* Match History uses the whole browser width (more tiles on a wide screen). */
+#app.hist-full main{max-width:none}
 @media (max-width:600px){ .sp-legend{display:none} }
 @media (max-width:900px){
   .hist-body{grid-template-columns:1fr}
@@ -849,6 +854,7 @@ function render(){
   const sbOn = currentTab==='history' && seasons.length>0;
   if(sb){ sb.hidden = !sbOn; if(sbOn) sb.innerHTML = seasonBarHTML(); }
   document.getElementById('app').classList.toggle('sb-on', sbOn);
+  document.getElementById('app').classList.toggle('hist-full', currentTab==='history');
   wireTabHandlers();
 }
 
@@ -1541,7 +1547,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v37';
+const SCAN_BUILD = 'v38';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3307,10 +3313,12 @@ function historyTile(g){
     ${scorers ? `<div class="subtle" style="margin-top:8px">⚽ ${esc(scorers)}</div>` : ''}
     ${assisters ? `<div class="subtle" style="margin-top:2px">🅰️ ${esc(assisters)}</div>` : ''}
     ${g.motmPlayerId ? `<div class="subtle" style="margin-top:2px">⭐ MOTM: ${esc(playerName(g.motmPlayerId))}</div>` : ''}
-    ${statRows ? `<div class="section-title" style="margin:12px 0 4px">Stats — us vs them</div>${statRows}` : ''}
-    <div style="display:flex; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
-      <button type="button" class="link-btn" data-edit-game="${g.id}">Edit</button>
-      <button type="button" class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
+    <div class="mtile-b">
+      ${statRows ? `<div class="section-title" style="margin:12px 0 4px">Stats — us vs them</div>${statRows}` : ''}
+      <div style="display:flex; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
+        <button type="button" class="link-btn" data-edit-game="${g.id}">Edit</button>
+        <button type="button" class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
+      </div>
     </div>
   </div>`;
 }
