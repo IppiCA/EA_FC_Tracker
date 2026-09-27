@@ -52,7 +52,8 @@ input,select{font-family:inherit}
 }
 
 /* ---- layout shell ---- */
-#app{display:flex; min-height:100vh; min-height:100dvh; position:relative; z-index:1; gap:14px; padding:14px;}
+#app{display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; position:relative; z-index:1}
+.app-row{display:flex; flex:1; align-items:flex-start; gap:14px; padding:14px}
 nav.rail{
   width:212px; flex:0 0 212px; background:var(--panel);
   backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
@@ -86,7 +87,7 @@ main{flex:1; min-width:0; padding:0; max-width:1180px; position:relative; z-inde
 nav.tabbar{display:none}
 @media (max-width: 860px){
   nav.rail{display:none}
-  #app{flex-direction:column; padding:12px; gap:0}
+  .app-row{flex-direction:column; padding:12px; gap:0}
   main{padding:0 2px 90px; max-width:none}
   nav.tabbar{
     display:flex; position:fixed; bottom:10px; left:10px; right:10px; z-index:50;
@@ -184,6 +185,66 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .vs-bar .val{font-size:12.5px; width:36px; color:var(--ink-dim); font-weight:600}
 .vs-bar .val.right{text-align:right}
 .vs-label{font-size:11px; color:var(--ink-faint); text-align:center; margin-top:1px}
+
+/* ---- Match History v2 — left panels + horizontal tile strip + full-width season bar ---- */
+.hist-body{display:grid; grid-template-columns:360px minmax(0,1fr); gap:14px; align-items:start}
+.hist-strip{display:flex; gap:12px; overflow-x:auto; padding:4px 2px 12px; scroll-snap-type:x proximity}
+.hist-strip::-webkit-scrollbar{height:8px}
+.hist-strip::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px}
+.mtile{flex:0 0 auto; width:238px; background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--line); border-radius:var(--radius); padding:14px; position:relative; box-shadow:0 12px 30px rgba(0,0,0,.25); scroll-snap-align:start}
+.mtile::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; border-radius:15px 15px 0 0}
+.mtile.o-draw::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
+.mtile.o-loss::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
+.mtile .score{font-size:30px; line-height:1; margin:10px 0 4px}
+.mtile .vs-bar{margin:4px 0}
+.mtile .vs-bar .val{width:32px; font-size:12px}
+.opp-tags{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin:9px 0}
+.opp-tag{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); padding:3px 8px; border-radius:8px; max-width:100%}
+.opp-tag .plat-ic{display:inline-flex; width:14px; height:14px; color:var(--ink-dim); flex:0 0 auto}
+.opp-tag .plat-ic svg{width:14px; height:14px}
+.opp-tag .tgname{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.opp-tag .flagimg{width:20px; height:14px; border-radius:2px; object-fit:cover; flex:0 0 auto}
+.ssrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 2px; border-bottom:1px solid var(--line)}
+.ssrow:last-child{border-bottom:none}
+.ssrow .l{color:var(--ink-dim); font-size:12.5px}
+.ssrow .v{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:16px; white-space:nowrap}
+.ssrow .v small{font-family:'IBM Plex Sans',sans-serif; font-size:11px; color:var(--ink-faint); font-weight:500; margin-left:5px}
+table.sheet{font-size:11.5px}
+table.sheet th{padding:5px 4px; font-size:10px}
+table.sheet td{padding:5px 4px}
+table.sheet td.pname{max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600}
+table.sheet .pct{color:var(--ink-faint); font-size:10.5px}
+.seasonbar{position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex; align-items:center; gap:8px;
+  background:rgba(10,15,22,.85); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line); padding:9px 14px calc(9px + env(safe-area-inset-bottom,0px)); overflow-x:auto; -webkit-overflow-scrolling:touch}
+.seasonbar[hidden]{display:none}
+:root[data-theme="light"] .seasonbar{background:rgba(255,255,255,.85)}
+.sp{flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; padding:8px 12px; border-radius:11px;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--ink-dim);
+  font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13.5px; letter-spacing:.02em; white-space:nowrap}
+.sp .sp-t{font-family:'IBM Plex Sans',sans-serif; font-size:11px; font-weight:500; color:var(--ink-faint); max-width:110px; overflow:hidden; text-overflow:ellipsis}
+.sp.all{color:var(--ink); font-weight:700}
+.sp.active{background:linear-gradient(90deg,var(--turf),var(--violet)); color:#081008; border-color:transparent}
+.sp.active .sp-t{color:#081008; opacity:.75}
+.sp.res-title{border-color:rgba(60,255,154,.55); color:var(--turf); background:rgba(60,255,154,.10)}
+.sp.res-perfect{border-color:rgba(139,108,255,.55); color:var(--violet); background:rgba(139,108,255,.12)}
+.sp.res-relegated{border-color:rgba(255,92,114,.55); color:var(--red); background:rgba(255,92,114,.10)}
+.sp.res-stay{border-color:var(--line); color:var(--ink-dim)}
+.sp.future{opacity:.4}
+.sp .sp-badge{font-size:12px}
+.sp-legend{margin-left:auto; flex:0 0 auto; font-size:10.5px; color:var(--ink-faint); white-space:nowrap; padding-left:10px}
+#app.sb-on main{padding-bottom:76px}
+@media (max-width:600px){ .sp-legend{display:none} }
+@media (max-width:900px){
+  .hist-body{grid-template-columns:1fr}
+  .hist-strip{scroll-snap-type:x mandatory}
+  .mtile{width:min(78vw,260px)}
+}
+@media (max-width:860px){
+  .seasonbar{bottom:calc(76px + env(safe-area-inset-bottom,0px)); padding:8px 10px}
+  #app.sb-on main{padding-bottom:160px}
+}
 
 .modal-bg{position:fixed; inset:0; background:rgba(2,4,6,.7); backdrop-filter:blur(4px); display:flex; align-items:flex-end; justify-content:center; z-index:100}
 @media (min-width:760px){ .modal-bg{align-items:center} }
@@ -328,6 +389,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 </div>
 
 <div id="app" style="display:none">
+  <div class="app-row">
   <nav class="rail">
     <div class="rail-brand"><img class="crest" src="app-icon.webp" alt="" width="36" height="36"><div class="brand">EA FC<br>Tracker</div></div>
     <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
@@ -345,6 +407,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
   </nav>
 
   <main id="main"></main>
+  </div>
 
   <nav class="tabbar">
     <button data-tab="dashboard"><span class="ic">◆</span>Dashboard</button>
@@ -353,6 +416,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
     <button data-tab="settings"><span class="ic">⚙</span>Team Sheets</button>
   </nav>
+  <div id="seasonbar" class="seasonbar" hidden></div>
 </div>
 
 <div id="modal-root"></div>
@@ -766,6 +830,11 @@ function render(){
   else if(currentTab==='squad') main.innerHTML = renderSquad();
   else if(currentTab==='settings') main.innerHTML = renderSettings();
   else if(currentTab==='history') main.innerHTML = renderHistory();
+  /* Full-width season bar (under the rail too) — Match History screen only. */
+  const sb = document.getElementById('seasonbar');
+  const sbOn = currentTab==='history' && seasons.length>0;
+  if(sb){ sb.hidden = !sbOn; if(sbOn) sb.innerHTML = seasonBarHTML(); }
+  document.getElementById('app').classList.toggle('sb-on', sbOn);
   wireTabHandlers();
 }
 
@@ -1458,7 +1527,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v35';
+const SCAN_BUILD = 'v36';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3148,54 +3217,199 @@ function wireSettingsHandlers(){
 /* ============================= HISTORY ============================= */
 let historyFilterSeason = '';
 function renderHistory(){
-  const filtered = games.filter(g=> !historyFilterSeason || g.seasonId===historyFilterSeason)
-    .slice().sort((a,b)=> (b.createdAt||0)-(a.createdAt||0)); // newest first, always — even mid-sync
+  const sid = histSeasonId();
+  const s = sid ? seasonById(sid) : null;
+  const gs = histGames();
   return `
-  <div class="pagehead"><div><h1>Match History</h1><div class="sub">${games.length} matches logged</div></div>
-    <select id="history-filter">
-      <option value="">All seasons</option>
-      ${seasons.map(s=>`<option value="${s.id}" ${historyFilterSeason===s.id?'selected':''}>#${s.number} · ${esc(seasonTeamName(s))}</option>`).join('')}
-    </select>
-  </div>
-  ${filtered.length ? filtered.map(g=>historyRow(g)).join('') : `<div class="card empty">No matches ${historyFilterSeason?'in this season':'logged'} yet.</div>`}
-  `;
-}
-
-function historyRow(g){
-  const s = seasonById(g.seasonId);
-  const o = outcome(g);
-  const scorers = (g.playerStats||[]).filter(p=>p.goals>0).map(p=>`${playerName(p.playerId)} ${p.goals>1?'×'+p.goals:''}`).join(', ');
-  const assisters = (g.playerStats||[]).filter(p=>p.assists>0).map(p=>`${playerName(p.playerId)} ${p.assists>1?'×'+p.assists:''}`).join(', ');
-  const stats = g.teamStats || {for:{}, against:{}};
-  const statRows = Object.keys(stats.for||{}).length ? Object.entries(stats.for).map(([label,fv])=>{
-    const av = stats.against?.[label];
-    const fn = parseFloat(fv)||0, an = parseFloat(av)||0; const tot = fn+an || 1;
-    return `<div class="vs-bar"><div class="val">${esc(fv)}</div><div class="track"><div class="fill-a" style="width:${fn/tot*100}%"></div><div class="fill-b" style="width:${an/tot*100}%"></div></div><div class="val right">${esc(av||'')}</div></div><div class="vs-label">${esc(label)}</div>`;
-  }).join('') : '';
-  return `<div class="card" style="margin-bottom:12px" data-game="${g.id}">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
-      <div>
-        <span class="pill ${o}">${o.toUpperCase()}</span>
-        <span style="margin-left:8px; font-weight:600">vs ${esc(g.opponentTeam||'—')}</span>
-        <span class="subtle"> · ${g.homeAway==='home'?'Home':'Away'} · #${s?s.number:'?'} game ${gamePosition(g.seasonId, g.id) || (g.gameNumber||'')}</span>
-      </div>
-      <div style="display:flex; align-items:center; gap:12px">
-        <div class="num" style="font-size:22px">${g.scoreFor} – ${g.scoreAgainst}</div>
-        <button class="link-btn" data-edit-game="${g.id}">Edit</button>
-        <button class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
-      </div>
+  <div class="pagehead"><div><h1>Match History</h1><div class="sub">${gs.length} matches · ${s ? 'season #'+esc(s.number) : 'all seasons'}</div></div></div>
+  <div class="hist-body">
+    <div class="hist-left">
+      ${seasonStatsPanel(sid)}
+      ${playerSheetPanel(sid)}
     </div>
-    ${g.rageQuit==='them' ? `<div class="tag" style="margin-top:8px;color:var(--red);border-color:var(--red)">They rage quit</div>` : ''}
-    ${g.disconnect ? `<div class="tag" style="margin-top:8px">Disconnect</div>` : ''}
-    ${scorers ? `<div class="subtle" style="margin-top:8px">⚽ ${esc(scorers)}</div>` : ''}
-    ${assisters ? `<div class="subtle" style="margin-top:2px">🅰️ ${esc(assisters)}</div>` : ''}
-    ${g.motmPlayerId ? `<div class="subtle" style="margin-top:2px">⭐ MOTM: ${esc(playerName(g.motmPlayerId))}</div>` : ''}
-    ${statRows ? `<div class="section-title" style="margin:14px 0 6px">Team stats</div>${statRows}` : ''}
+    <div class="hist-strip">
+      ${gs.length ? gs.map(g=>historyTile(g)).join('') : `<div class="card empty" style="flex:0 0 100%">No matches ${s?'in this season':'logged'} yet.</div>`}
+    </div>
   </div>`;
 }
 
+/* The curated stat rows a tile shows, in this order — only the ones actually saved on
+   the match are printed; anything else saved follows after, so no number is ever hidden. */
+const HIST_STAT_ORDER = ['Possession %','Expected Goals','Shots','Shot Accuracy','Pass Accuracy %','Passes Attempted','Dribble Success Rate','Tackles','Saves','Def Line Breaks Through','Def Line Breaks Around','Def Line Breaks Over','Def Line Breaks Attempted'];
+
+function histSeasonId(){ return (historyFilterSeason && seasonById(historyFilterSeason)) ? historyFilterSeason : ''; }
+function histGames(){ const sid = histSeasonId(); return (sid ? gamesFor(sid) : games.slice()).slice().sort((a,b)=> (b.createdAt||0)-(a.createdAt||0)); }
+
+/* The opponent's players, one chip each: [console/pc icon] gamertag [country flag] —
+   the flag only, never the country name. */
+function oppTagsLine(g){
+  const out = [];
+  for(let i=0;i<2;i++){
+    const tag = (g.opponentGamertags||[])[i];
+    if(!tag) continue;
+    const plat = (g.opponentPlatforms||[])[i];
+    const cty  = (g.opponentCountries||[])[i];
+    const ic = plat==='pc' ? ICONS.monitor : (plat==='console' ? ICONS.gamepad : '');
+    out.push(`<span class="opp-tag">${ic?`<span class="plat-ic">${ic}</span>`:''}<span class="tgname">${esc(tag)}</span>${cty?`<img class="flagimg" src="${countryFlag(cty)}" alt="" loading="lazy">`:''}</span>`);
+  }
+  return out.length ? `<div class="opp-tags">${out.join('')}</div>` : '';
+}
+
+function tileStatRows(g){
+  const forMap = (g.teamStats && g.teamStats.for) || {};
+  const againstMap = (g.teamStats && g.teamStats.against) || {};
+  const order = HIST_STAT_ORDER.filter(l=> forMap[l]!=null || againstMap[l]!=null);
+  Object.keys(forMap).forEach(l=>{ if(!order.includes(l)) order.push(l); });
+  if(!order.length) return '';
+  return order.map(label=>{
+    const fv = forMap[label], av = againstMap[label];
+    const fn = parseFloat(fv)||0, an = parseFloat(av)||0; const tot = fn+an || 1;
+    return `<div class="vs-bar"><div class="val">${esc(fv)}</div><div class="track"><div class="fill-a" style="width:${fn/tot*100}%"></div><div class="fill-b" style="width:${an/tot*100}%"></div></div><div class="val right">${esc(av)}</div></div><div class="vs-label">${esc(label)}</div>`;
+  }).join('');
+}
+
+function historyTile(g){
+  const s = seasonById(g.seasonId);
+  const o = outcome(g);
+  const allView = !histSeasonId();
+  const scorers = (g.playerStats||[]).filter(p=>p.goals>0).map(p=>`${playerName(p.playerId)}${p.goals>1?' ×'+p.goals:''}`).join(', ');
+  const assisters = (g.playerStats||[]).filter(p=>p.assists>0).map(p=>`${playerName(p.playerId)}${p.assists>1?' ×'+p.assists:''}`).join(', ');
+  const statRows = tileStatRows(g);
+  return `<div class="mtile o-${o}" data-game="${g.id}">
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+      <span class="pill ${o}">${o.toUpperCase()}</span>
+      <span style="font-weight:600; font-size:14.5px">${esc(g.opponentTeam||'—')}</span>
+    </div>
+    <div class="subtle" style="margin-top:3px">${allView && s ? 'Season #'+esc(s.number)+' · ' : ''}${g.homeAway==='home'?'Home':'Away'} · Game ${gamePosition(g.seasonId, g.id) || (g.gameNumber||'')}</div>
+    ${oppTagsLine(g)}
+    <div class="num score">${g.scoreFor} – ${g.scoreAgainst}</div>
+    <div style="display:flex; gap:6px; flex-wrap:wrap">
+      ${g.rageQuit==='them' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">They rage quit</span>` : ''}
+      ${g.rageQuit==='us' ? `<span class="tag" style="color:var(--red);border-color:rgba(255,92,114,.4)">We rage quit</span>` : ''}
+      ${g.disconnect ? `<span class="tag">Disconnect</span>` : ''}
+    </div>
+    ${scorers ? `<div class="subtle" style="margin-top:8px">⚽ ${esc(scorers)}</div>` : ''}
+    ${assisters ? `<div class="subtle" style="margin-top:2px">🅰️ ${esc(assisters)}</div>` : ''}
+    ${g.motmPlayerId ? `<div class="subtle" style="margin-top:2px">⭐ MOTM: ${esc(playerName(g.motmPlayerId))}</div>` : ''}
+    ${statRows ? `<div class="section-title" style="margin:12px 0 4px">Stats — us vs them</div>${statRows}` : ''}
+    <div style="display:flex; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
+      <button type="button" class="link-btn" data-edit-game="${g.id}">Edit</button>
+      <button type="button" class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
+    </div>
+  </div>`;
+}
+
+/* Left column, panel 1: season numbers (Points, Games, W/D/L, goals + per-game avg,
+   away games, rage quits, disconnects) — over the selected season, or all seasons. */
+function seasonStatsPanel(sid){
+  const s = sid ? seasonById(sid) : null;
+  const gs = s ? gamesFor(s.id) : games.slice();
+  const n = gs.length;
+  let w=0,d=0,l=0,gf=0,ga=0,rq=0,dc=0,away=0,rqSum=0,rqN=0;
+  gs.forEach(g=>{
+    const o = outcome(g);
+    if(o==='win')w++; else if(o==='draw')d++; else l++;
+    gf += Number(g.scoreFor)||0; ga += Number(g.scoreAgainst)||0;
+    if(g.homeAway==='away') away++;
+    if(g.rageQuit && g.rageQuit!=='none') rq++;
+    if(g.rageQuitMin!=null){ rqSum += Number(g.rageQuitMin); rqN++; }
+    if(g.disconnect) dc++;
+  });
+  const avg = x => n ? (x/n).toFixed(1) : '';
+  let badge = '';
+  if(s){
+    const f = seasonResultFlags(s);
+    if(f.champion) badge = `<div style="margin-top:10px"><span class="pill win">🏆 Champions</span></div>`;
+    else if(f.perfectSeason) badge = `<div style="margin-top:10px"><span class="pill" style="background:rgba(139,108,255,.16);color:var(--violet)">✦ Perfect season</span></div>`;
+    else if(f.relegated) badge = `<div style="margin-top:10px"><span class="pill loss">▼ Relegated</span></div>`;
+    else if(n>0) badge = `<div style="margin-top:10px"><span class="pill" style="background:var(--panel-2);color:var(--ink-dim)">Stayed</span></div>`;
+  }
+  return `<div class="card" style="margin-bottom:14px">
+    <div style="display:flex; align-items:center; gap:10px">
+      ${s ? `<div class="shield" style="width:34px;height:40px"><div class="n" style="font-size:15px">${esc(s.number)}</div></div>` : `<div class="shield" style="width:34px;height:40px"><div class="n" style="font-size:13px">★</div></div>`}
+      <div>
+        <div class="num" style="font-size:19px">${s ? esc(seasonTeamName(s)) : 'All seasons'}</div>
+        <div class="subtle">${s ? esc(s.gameVersion||'') : seasons.length + ' season' + (seasons.length===1?'':'s')}</div>
+      </div>
+    </div>
+    ${badge}
+    <div style="margin-top:12px">
+      <div class="ssrow"><span class="l">Points</span><span class="v">${w*3+d}</span></div>
+      <div class="ssrow"><span class="l">Games</span><span class="v">${n}</span></div>
+      <div class="ssrow"><span class="l">W / D / L</span><span class="v">${w} / ${d} / ${l}</span></div>
+      <div class="ssrow"><span class="l">Goals for</span><span class="v">${gf}${n?`<small>avg ${avg(gf)}</small>`:''}</span></div>
+      <div class="ssrow"><span class="l">Goals against</span><span class="v">${ga}${n?`<small>avg ${avg(ga)}</small>`:''}</span></div>
+      <div class="ssrow"><span class="l">Away games</span><span class="v">${away}</span></div>
+      <div class="ssrow"><span class="l">Rage quits</span><span class="v">${rq}${rqN?`<small>avg ${Math.round(rqSum/rqN)}'</small>`:''}</span></div>
+      <div class="ssrow"><span class="l">Disconnects</span><span class="v">${dc}</span></div>
+    </div>
+  </div>`;
+}
+
+/* Left column, panel 2: player sheet with % share columns (Goals, Assists, Scorer
+   Points, MoM) — like the EA FC season table. */
+function playerSheetPanel(sid){
+  const gs = sid ? gamesFor(sid) : games.slice();
+  const agg = {};
+  gs.forEach(g=>{
+    (g.playerStats||[]).forEach(ps=>{
+      if(!ps || !ps.playerId) return;
+      const a = agg[ps.playerId] || (agg[ps.playerId] = {apps:0, goals:0, assists:0, motm:0});
+      a.apps++;
+      a.goals += Number(ps.goals)||0;
+      a.assists += Number(ps.assists)||0;
+    });
+    if(g.motmPlayerId && agg[g.motmPlayerId]) agg[g.motmPlayerId].motm++;
+  });
+  const rows = Object.keys(agg).map(id=>{ const a = agg[id]; return {id, ...a, points:a.goals+a.assists}; })
+    .sort((x,y)=> y.points-x.points || y.goals-x.goals || x.id.localeCompare(y.id));
+  if(!rows.length) return `<div class="card" style="margin-bottom:14px"><div class="empty" style="padding:18px">No player stats yet</div></div>`;
+  const totG = rows.reduce((s2,r)=>s2+r.goals,0);
+  const totA = rows.reduce((s2,r)=>s2+r.assists,0);
+  const totP = totG + totA;
+  const totM = rows.reduce((s2,r)=>s2+r.motm,0);
+  const pct = (v,t)=> t>0 ? Math.round(v/t*100)+'%' : '—';
+  const scope = sid ? 'season' : 'all time';
+  return `<div class="card tablewrap" style="margin-bottom:14px">
+    <div class="section-title" style="margin:0 0 8px">Player sheet <span class="subtle">— share of the ${scope} total</span></div>
+    <table class="sheet">
+      <thead><tr><th>Player</th><th class="right">Apps</th><th class="right">G</th><th class="right">%</th><th class="right">A</th><th class="right">%</th><th class="right">Pts</th><th class="right">%</th><th class="right">MoM</th><th class="right">%</th></tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr>
+          <td class="pname" title="${esc(playerName(r.id))}">${esc(playerName(r.id))}</td>
+          <td class="right">${r.apps}</td>
+          <td class="right">${r.goals}</td><td class="right pct">${pct(r.goals,totG)}</td>
+          <td class="right">${r.assists}</td><td class="right pct">${pct(r.assists,totA)}</td>
+          <td class="right" style="font-weight:700">${r.points}</td><td class="right pct">${pct(r.points,totP)}</td>
+          <td class="right">${r.motm}</td><td class="right pct">${pct(r.motm,totM)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/* Full-width season bar: ALL first, then seasons newest first, coloured by result
+   (green title / purple perfect / red relegated / grey stayed) + future placeholders. */
+function seasonBarHTML(){
+  const maxNum = seasons.reduce((m,s)=>Math.max(m, Number(s.number)||0), 0);
+  const pills = [`<button type="button" class="sp all ${!historyFilterSeason?'active':''}" data-season-pick="">ALL</button>`];
+  seasons.forEach(s=>{
+    const f = seasonResultFlags(s);
+    const played = seasonRecord(s.id).games > 0;
+    const cls = !played ? 'future' : f.champion ? 'res-title' : f.perfectSeason ? 'res-perfect' : f.relegated ? 'res-relegated' : 'res-stay';
+    const badge = f.champion ? '🏆' : f.perfectSeason ? '✦' : f.relegated ? '▼' : '';
+    pills.push(`<button type="button" class="sp ${cls} ${historyFilterSeason===s.id?'active':''}" data-season-pick="${s.id}"><span>#${esc(s.number)}</span><span class="sp-t">${esc(seasonTeamName(s)||'—')}</span>${badge?`<span class="sp-badge">${badge}</span>`:''}</button>`);
+  });
+  [1,2,3].forEach(k=> pills.push(`<span class="sp future" title="Not started yet">#${maxNum+k}</span>`));
+  pills.push(`<span class="sp-legend">🏆 title · ✦ perfect · ▼ relegated · grey stayed</span>`);
+  return pills.join('');
+}
+
 function wireHistoryHandlers(){
-  document.getElementById('history-filter')?.addEventListener('change', e=>{ historyFilterSeason = e.target.value; render(); });
+  document.querySelectorAll('[data-season-pick]').forEach(b=> b.addEventListener('click', ()=>{
+    historyFilterSeason = b.dataset.seasonPick || '';
+    render();
+  }));
   document.querySelectorAll('[data-del-game]').forEach(b=> b.addEventListener('click', ()=>{
     if(confirm('Delete this match permanently?')) dbDelete('games', b.dataset.delGame);
   }));
