@@ -143,10 +143,13 @@ tr:last-child td{border-bottom:none}
 .btn.small{padding:6px 11px; font-size:13px}
 .btn:disabled{opacity:.5}
 
-input[type=text],input[type=number],select,textarea{
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
   width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
   border-radius:10px; padding:9px 12px; font-size:14px;
 }
+input[type=date],input[type=time]{color-scheme:dark}
+input[type=date]::-webkit-calendar-picker-indicator,
+input[type=time]::-webkit-calendar-picker-indicator{cursor:pointer; opacity:.8}
 label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .field{margin-bottom:12px}
 .row{display:flex; gap:10px; flex-wrap:wrap}
