@@ -505,10 +505,10 @@ table.sheet th.sorted{color:var(--turf)}
    (Best = green, Worst = red). Each card filters independently. ---- */
 .bw-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .bw-head .section-title{flex:1;min-width:0}
-.divctl{display:flex;align-items:center;gap:5px;flex:0 0 auto}
-.divctl .lbl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-right:2px}
-.divbtn{width:24px;height:24px;border-radius:7px;border:1px solid var(--line);background:transparent;
-  color:var(--ink-faint);font-family:'Rajdhani',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;
+.divctl{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.divctl .lbl{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-right:2px}
+.divbtn{width:12px;height:12px;border-radius:4px;border:1px solid var(--line);background:transparent;
+  color:var(--ink-faint);font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:600;cursor:pointer;
   display:grid;place-items:center;padding:0;transition:color .15s ease,border-color .15s ease,background .15s ease}
 .divbtn:hover{color:var(--ink-dim);border-color:var(--ink-faint)}
 .divbtn.on{border-color:transparent;font-weight:700}
@@ -2090,7 +2090,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v70';
+const SCAN_BUILD = 'v71';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
