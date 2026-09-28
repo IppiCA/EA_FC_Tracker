@@ -473,6 +473,37 @@ table.sheet th.sorted{color:var(--turf)}
 .dbtile .avg2{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
 .dbtile .avg2 > div{display:flex;flex-direction:column;gap:8px}
 .dbpick{margin-bottom:14px}
+/* ---- best/worst season lists (top 3 per stat) ---- */
+.dbbw-block{margin-bottom:16px}
+.dbbw-block:last-child{margin-bottom:0}
+.dbbw-cap{font-size:11px;letter-spacing:.09em;color:var(--ink-faint);font-weight:600;text-transform:uppercase;margin-bottom:6px}
+.dbbw-row{display:flex;align-items:center;gap:9px;padding:6.5px 0;font-size:13.5px;flex-wrap:wrap}
+.dbbw-row + .dbbw-row{border-top:1px solid var(--line)}
+.dbbw-rank{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14.5px;color:var(--ink-faint);width:26px;flex:0 0 auto}
+.dbbw-val{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:18px;min-width:44px;line-height:1}
+.dbbw-dot{color:var(--ink-faint);font-size:12px}
+.dbbw-crest{display:inline-flex;align-items:center;gap:2px}
+.dbbw-crest img{width:20px;height:20px;object-fit:contain;border-radius:4px}
+.dbbw-meta{color:var(--ink-dim);font-size:12.5px}
+.dbbw-champ{color:var(--gold);font-size:12px}
+.dbbw-player{color:var(--ink);font-weight:600;font-size:13px}
+/* ---- team filter chip (looks like a button, opens a menu) ---- */
+.dbfilter{display:flex;align-items:center;gap:14px;padding:13px 18px;margin-top:14px}
+.dbflabel{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+.dbchipwrap{position:relative;display:inline-block}
+.dbchip{display:inline-flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:12px;padding:8px 16px;cursor:pointer;color:var(--ink);font-size:14.5px;font-weight:600;
+  font-family:'Rajdhani',sans-serif;letter-spacing:.02em;transition:border-color .15s ease;user-select:none}
+.dbchip:hover{border-color:var(--ink-faint)}
+.dblogo{display:inline-flex;align-items:center;gap:2px}
+.dblogo img{width:22px;height:22px;object-fit:contain;border-radius:5px}
+.dbmenu{position:absolute;top:calc(100% + 8px);left:0;min-width:260px;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:12px;padding:6px;z-index:40;box-shadow:0 18px 44px rgba(0,0,0,.35)}
+.dbopt{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;font-size:13.5px;cursor:pointer;color:var(--ink-dim);white-space:nowrap}
+.dbopt img{width:20px;height:20px;object-fit:contain;border-radius:4px}
+.dbopt:hover{background:var(--panel-2);color:var(--ink)}
+.dbopt.on{color:var(--ink);font-weight:600;background:var(--panel-2)}
+.dbopt.on::after{content:'✓';margin-left:auto;color:var(--turf);font-size:13px}
 </style>
 </head>
 <body>
@@ -980,16 +1011,6 @@ function leaderboard(seasonId){
     .sort((a,b)=> b.points-a.points || b.goals-a.goals);
 }
 
-function bestWorstSeasons(filterTeam){
-  const list = seasons.filter(s=> !filterTeam || seasonTeamName(s)===filterTeam).map(s=>{
-    const r = seasonRecord(s.id);
-    return {season:s, ...r, gd: r.gf-r.ga};
-  }).filter(x=>x.games>0);
-  if(!list.length) return {best:null, worst:null};
-  const best = [...list].sort((a,b)=> b.points-a.points || b.gd-a.gd)[0];
-  const worst = [...list].sort((a,b)=> a.points-b.points || a.gd-b.gd)[0];
-  return {best, worst};
-}
 
 /* ============================= RENDER SHELL ============================= */
 function setTab(t){
@@ -1056,42 +1077,106 @@ function formTickerHtml(seasonId, n){
 }
 
 /* ============================= DASHBOARD ============================= */
-/* Best/worst card team filter ('' = Overall) — kept across re-renders. */
-let dashBW = { best:'', worst:'' };
+/* Best/worst seasons: top-3 lists per stat, one shared team filter ('' = All teams). */
+let dashBW = { team:'' };
 function dashPct(a,b){ return b ? Math.round(a/b*100) : 0; }
-function dashBWOptions(sel){
-  const names = [...new Set(seasons.map(seasonTeamName).filter(Boolean))];
-  return `<option value="">Overall — all teams</option>` +
-    names.map(t=>`<option value="${esc(t)}"${t===sel?' selected':''}>${esc(t)}</option>`).join('');
+const DASH_STATS = [
+  {cap:'Scored total',      val:e=>e.gf,         per:false, high:true},
+  {cap:'Scored per game',   val:e=>e.gf/e.games, per:true,  high:true},
+  {cap:'Conceded total',    val:e=>e.ga,         per:false, high:false},
+  {cap:'Conceded per game', val:e=>e.ga/e.games, per:true,  high:false}
+];
+/* Player with the highest average rating in a season (must have played, rating known). */
+function dashTopRated(seasonId){
+  let best = null;
+  players.forEach(p=>{
+    const c = playerCareer(p.id, seasonId);
+    if(c.apps>0 && c.avgRating!=null && (!best || c.avgRating>best.avg)) best = {name:p.name, avg:c.avgRating};
+  });
+  return best;
 }
-/* Body of a best/worst card: logo(s) + season name | points, then W/D/L · goals · GD, champions badge. */
-function seasonCardBody(entry, color){
-  const s = entry.season;
-  const logos = seasonTeams(s).map(t=>t.logo).filter(Boolean);
-  const crest = logos.length
-    ? logos.map(lg=>`<img class="tlogo-big" style="width:38px;height:38px" src="${lg}" alt="">`).join('')
-    : crestHTML(s, 38, 44, 16, esc(s.number));
-  return `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-      <div style="display:flex;align-items:center;gap:10px">${crest}<div class="num" style="font-size:21px">${esc(seasonTeamName(s))}</div></div>
-      <div class="num" style="font-size:30px;color:var(--${color})">${entry.points} pts</div>
+function dashBWEntries(team){
+  return seasons.filter(s=> !team || seasonTeamName(s)===team)
+    .map(s=>({season:s, ...seasonRecord(s.id)}))
+    .filter(e=>e.games>0);
+}
+/* One card (best or worst): four stat blocks, each with its top 3 seasons.
+   Best: highest scored first, lowest conceded first. Worst: the opposite. */
+function dashBWCard(kind, team){
+  const list = dashBWEntries(team);
+  if(!list.length) return `<div class="empty">Not enough data yet</div>`;
+  const color = kind==='best' ? 'turf' : 'red';
+  return DASH_STATS.map(st=>{
+    const desc = (kind==='best') === st.high;
+    const top = [...list].sort((a,b)=> desc ? st.val(b)-st.val(a) : st.val(a)-st.val(b)).slice(0,3);
+    return `<div class="dbbw-block">
+      <div class="dbbw-cap">${st.cap}</div>
+      ${top.map((e,i)=>{
+        const s = e.season;
+        const logos = seasonTeams(s).slice(0,3).map(t=>t.logo).filter(Boolean);
+        const crest = logos.length
+          ? logos.map(lg=>`<img src="${esc(lg)}" alt="">`).join('')
+          : crestHTML(s, 20, 24, 10, esc(s.number));
+        const stp = dashTopRated(s.id);
+        return `<div class="dbbw-row">
+          <span class="dbbw-rank">#${i+1}</span>
+          <span class="dbbw-val" style="color:var(--${color})">${st.per ? st.val(e).toFixed(2) : st.val(e)}</span>
+          <span class="dbbw-dot">·</span>
+          <span class="dbbw-crest">${crest}</span>
+          <span class="dbbw-meta">Season ${esc(s.number)}${seasonResultFlags(s).champion?' <span class="dbbw-champ">🏆</span>':''} &nbsp;·&nbsp; ${e.games} Games</span>
+          ${stp?`<span class="dbbw-dot">·</span><span class="dbbw-player">${esc(stp.name)}</span>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+/* Team chip (looks like a button) + its menu. '' = All teams. */
+function dashBWChipInner(){
+  const t = dashBW.team;
+  const cur = seasons.find(s=>seasonTeamName(s)===t);
+  const logos = cur ? seasonTeams(cur).slice(0,3).map(x=>x.logo).filter(Boolean) : [];
+  return `<div class="dbchipwrap">
+    <div class="dbchip" id="db-bwchip" role="button" tabindex="0"><span class="dblogo">${logos.map(lg=>`<img src="${esc(lg)}" alt="">`).join('')}</span><span>${esc(t || 'All teams')}</span></div>
+    <div class="dbmenu" id="db-bwmenu" hidden>
+      <div class="dbopt${t?'':' on'}" data-t="">All teams</div>
+      ${[...new Set(seasons.map(seasonTeamName).filter(Boolean))].map(n=>{
+        const s = seasons.find(x=>seasonTeamName(x)===n);
+        const lg = s ? seasonTeams(s).slice(0,3).map(x=>x.logo).filter(Boolean) : [];
+        return `<div class="dbopt${n===t?' on':''}" data-t="${esc(n)}">${lg.map(x=>`<img src="${esc(x)}" alt="">`).join('')}${esc(n)}</div>`;
+      }).join('')}
     </div>
-    <div class="subtle" style="margin-top:8px">${entry.w}W ${entry.d}D ${entry.l}L &nbsp;·&nbsp; ${entry.gf}–${entry.ga} goals &nbsp;·&nbsp; GD ${entry.gd>=0?'+':''}${entry.gd}</div>
-    ${seasonResultFlags(s).champion?`<div class="badge-champ" style="margin-top:8px">🏆 Champions</div>`:''}`;
+  </div>`;
 }
-function dashBWBody(kind, team){
-  const r = bestWorstSeasons(team || undefined);
-  const entry = kind==='best' ? r.best : r.worst;
-  if(!entry) return `<div class="empty">Not enough data yet</div>`;
-  return seasonCardBody(entry, kind==='best' ? 'turf' : 'red');
+/* Re-render both cards, their scope note and the chip after a team change. */
+function renderDashBW(){
+  const t = dashBW.team;
+  document.getElementById('db-best-body').innerHTML  = dashBWCard('best', t);
+  document.getElementById('db-worst-body').innerHTML = dashBWCard('worst', t);
+  const scope = t ? ' · ' + t : '';
+  document.getElementById('db-best-scope').textContent  = scope;
+  document.getElementById('db-worst-scope').textContent = scope;
+  const box = document.getElementById('db-bwfilter');
+  if(box) box.innerHTML = `<span class="dbflabel">Team</span>` + dashBWChipInner();
 }
 function wireDashboardHandlers(){
-  ['best','worst'].forEach(kind=>{
-    const sel = document.getElementById('db-'+kind+'-pick');
-    const body = document.getElementById('db-'+kind+'-body');
-    if(sel && body) sel.addEventListener('change', ()=>{ dashBW[kind] = sel.value; body.innerHTML = dashBWBody(kind, sel.value); });
-  });
+  const chip = document.getElementById('db-bwchip');
+  const menu = document.getElementById('db-bwmenu');
+  if(chip && menu){
+    chip.addEventListener('click', e=>{ e.stopPropagation(); menu.hidden = !menu.hidden; });
+    chip.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); menu.hidden = !menu.hidden; } });
+    menu.addEventListener('click', e=>{
+      const o = e.target.closest('.dbopt'); if(!o) return;
+      dashBW.team = o.dataset.t || '';
+      menu.hidden = true;
+      renderDashBW();
+    });
+  }
 }
+/* Close the team menu on any outside click (registered once, at top level). */
+document.addEventListener('click', e=>{
+  const menu = document.getElementById('db-bwmenu');
+  if(menu && !menu.hidden && !e.target.closest('#db-bwchip') && !e.target.closest('#db-bwmenu')) menu.hidden = true;
+});
 
 function renderDashboard(){
   const ct = careerTotals();
@@ -1179,16 +1264,16 @@ function renderDashboard(){
 
   <div class="grid g2">
     <div class="card">
-      <div class="section-title" style="margin-top:0">Best season</div>
-      <select class="dbpick" id="db-best-pick">${dashBWOptions(dashBW.best)}</select>
-      <div id="db-best-body">${dashBWBody('best', dashBW.best)}</div>
+      <div class="section-title" style="margin-top:0">Best season <span id="db-best-scope" style="color:var(--ink-dim)"></span></div>
+      <div id="db-best-body">${dashBWCard('best', dashBW.team)}</div>
     </div>
     <div class="card accent-red">
-      <div class="section-title" style="margin-top:0">Worst season</div>
-      <select class="dbpick" id="db-worst-pick">${dashBWOptions(dashBW.worst)}</select>
-      <div id="db-worst-body">${dashBWBody('worst', dashBW.worst)}</div>
+      <div class="section-title" style="margin-top:0">Worst season <span id="db-worst-scope" style="color:var(--ink-dim)"></span></div>
+      <div id="db-worst-body">${dashBWCard('worst', dashBW.team)}</div>
     </div>
   </div>
+
+  <div class="card dbfilter" id="db-bwfilter"><span class="dbflabel">Team</span>${dashBWChipInner()}</div>
 
   ${activeSeason ? `
   <div class="section-title" style="display:flex;align-items:center;gap:10px">
@@ -1845,7 +1930,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v61';
+const SCAN_BUILD = 'v62';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
