@@ -575,7 +575,6 @@ table.sheet th.sorted{color:var(--turf)}
     <div class="rail-foot">
       <span id="syncstate">connecting…</span>
       <span style="display:flex;gap:8px">
-        <button class="themebtn" id="themetoggle">theme</button>
         <button class="themebtn" id="backup-btn" title="Download a full copy of all your data as a file">backup</button>
         <button class="themebtn" id="signout-btn">sign out</button>
       </span>
@@ -1132,11 +1131,6 @@ function setTab(t){
 document.addEventListener('click', (e)=>{
   const b = e.target.closest('[data-tab]');
   if(b){ setTab(b.dataset.tab); }
-});
-document.getElementById('themetoggle').addEventListener('click', ()=>{
-  const r = document.documentElement;
-  const cur = r.getAttribute('data-theme');
-  r.setAttribute('data-theme', cur==='light' ? 'dark' : 'light');
 });
 
 /* Logo in the top-left toggles a framed "about" splash (the login-screen art). */
@@ -2096,7 +2090,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v69';
+const SCAN_BUILD = 'v70';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
