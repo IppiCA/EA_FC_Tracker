@@ -2258,7 +2258,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v80';
+const SCAN_BUILD = 'v81';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4024,9 +4024,12 @@ function wireSettingsHandlers(){
 }
 
 /* ============================= HALL OF FAME ============================= */
-/* All-time player ranking across the seasons of the teams you pick.
+/* All-time player ranking across the games of the teams you pick.
    - Team scope + sort are saved PER ACCOUNT (userSettings.hofTeams / hofSortKey / hofSortDir).
      hofTeams: null = all teams (default), otherwise an explicit list of team ids.
+   - Scoping is per GAME: a game counts only when the team it was logged under (g.teamId)
+     is selected — a mid-season switch means one season holds several teams' games, so a
+     season-level filter would leak the other team's players in (v80 bug, fixed in v81).
    - Apps rule = the player sheet rule: a game only counts with a real rating.
    - Total row: stats summed; its p.G. = total stat ÷ total games played (e.g. total
      goals ÷ total appearances), exactly like the mockup the user approved. */
@@ -4057,19 +4060,26 @@ function renderHof(){
   }
   const on = hofOnSet();
   const sel = all.filter(t=> on.has(t.id));
-  /* Seasons belonging to at least one selected team — a mid-season switch counts for
-     BOTH teams, because the season carries every team it was played under. */
-  const scopedSeasons = new Set();
-  seasons.forEach(s=>{
-    const list = seasonTeams(s);
-    const hit = list.some(t=> (t.id && on.has(t.id)) || (!t.id && t.name && sel.some(x=> normName(x.name)===normName(t.name))));
-    if(hit) scopedSeasons.add(s.id);
-  });
+  /* Which team actually played each game? A game stores the team sheet it was logged under
+     (g.teamId). We filter at GAME level — the user's rule: "only the games that team played
+     are displayed". A season that spans several teams (mid-season switch) therefore only
+     contributes the games of the selected team. */
+  const selNames = new Set(sel.map(t=>normName(t.name)));
+  const gameInScope = g=>{
+    const s = seasonById(g.seasonId);
+    const gt = g.teamId || (s ? seasonPrimaryTeamId(s) : '');
+    if(gt && on.has(gt)) return true;
+    if(!gt && s){ /* Legacy season without a team record — fall back to its stored name. */
+      const nm = s.team || seasonTeams(s).map(t=>t.name).join(' / ');
+      return nm.split(' / ').some(n=> selNames.has(normName(n)));
+    }
+    return false;
+  };
   const teamOf = {};
   teams.forEach(t=> (t.playerIds||[]).forEach(pid=>{ if(teamOf[pid]===undefined) teamOf[pid] = t.id; }));
   const agg = {};
   games.forEach(g=>{
-    if(!g.seasonId || !scopedSeasons.has(g.seasonId)) return;
+    if(!g.seasonId || !gameInScope(g)) return;
     (g.playerStats||[]).forEach(ps=>{
       if(!ps || !ps.playerId) return;
       const rt = Number(ps.rating);
