@@ -576,6 +576,7 @@ table.sheet th.sorted{color:var(--turf)}
       <span id="syncstate">connecting…</span>
       <span style="display:flex;gap:8px">
         <button class="themebtn" id="themetoggle">theme</button>
+        <button class="themebtn" id="backup-btn" title="Download a full copy of all your data as a file">backup</button>
         <button class="themebtn" id="signout-btn">sign out</button>
       </span>
     </div>
@@ -2095,7 +2096,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v68';
+const SCAN_BUILD = 'v69';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4240,6 +4241,40 @@ document.getElementById('google-signin-btn').addEventListener('click', async ()=
 });
 
 document.getElementById('signout-btn').addEventListener('click', ()=> firebase.auth().signOut());
+
+/* One-click offline backup: writes every collection (players, teams, seasons, games)
+   plus this account's saved settings into a single JSON file on the user's computer.
+   Works on the free plan — Firebase's own export button requires billing, so this is
+   the no-card way to keep a safety copy of the whole database. */
+async function downloadDbBackup(){
+  const btn = document.getElementById('backup-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '…'; }
+  try{
+    const payload = {
+      app:'ea-fc-tracker',
+      exportedAt:new Date().toISOString(),
+      counts:{ players:players.length, teams:teams.length, seasons:seasons.length, games:games.length },
+      players, teams, seasons, games,
+      mySettings: { ...userSettings }
+    };
+    const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ea-fc-tracker-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 10000);
+    toast(`Backup saved — ${games.length} matches · ${seasons.length} seasons · ${players.length} players`);
+  }catch(err){
+    console.warn('backup failed', err);
+    toast('Backup failed — try again');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'backup'; }
+  }
+}
+document.getElementById('backup-btn').addEventListener('click', downloadDbBackup);
 
 function initSnowfall(){
   const root = document.getElementById('zc-snow');
