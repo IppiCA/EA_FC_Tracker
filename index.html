@@ -1603,9 +1603,13 @@ function seasonPanel(s){
   const lb = leaderboard(s.id).slice(0,5);
   const o = computeOutcome(s);
   const oLbl = {title:'🏆 Title — Champions', promoted:'⬆ Promoted', relegated:'⬇ Relegated', stayed:'→ Stayed in division'}[o.state]||'';
+  /* Division pill and the W/D/L strip share one row: pill on the left with its TOP
+     aligned to the top of the squares (user request), squares stay right. */
+  const divPill = o.games>0?`<span class="tag" style="font-size:12px">Division ${o.div} · ${oLbl} · ${o.points} pts · next season: Division ${o.nextDivision}${o.perfect?' · ✦ Perfect':''}</span>`:'';
   return `<div class="card">
-    <div style="display:flex; justify-content:flex-end; margin-bottom:12px">${formTickerHtml(s.id,10)}</div>
-    ${o.games>0?`<div style="margin-bottom:14px"><span class="tag" style="font-size:12px">Division ${o.div} · ${oLbl} · ${o.points} pts · next season: Division ${o.nextDivision}${o.perfect?' · ✦ Perfect':''}</span></div>`:''}
+    ${divPill
+      ? `<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px">${divPill}${formTickerHtml(s.id,10)}</div>`
+      : `<div style="display:flex; justify-content:flex-end; margin-bottom:12px">${formTickerHtml(s.id,10)}</div>`}
     <div class="grid g4" style="margin-bottom:16px">
       <div class="stat" style="padding:0"><div class="num" style="font-size:24px">${r.games}</div><div class="lbl">Games</div></div>
       <div class="stat" style="padding:0"><div class="num" style="font-size:24px">${r.points}</div><div class="lbl">Points</div></div>
@@ -2209,7 +2213,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v78';
+const SCAN_BUILD = 'v79';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
