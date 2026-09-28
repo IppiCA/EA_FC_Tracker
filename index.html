@@ -116,6 +116,11 @@ nav.tabbar{display:none}
 .card::before{content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; clip-path:inset(0 0 calc(100% - 6px) 0); pointer-events:none}
 .card.accent-gold::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
 .card.accent-red::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
+.card.accent-green::before{background:linear-gradient(90deg,var(--turf-dim),var(--turf) 50%,#A7FFD9)}
+.card.accent-goldorange::before{background:linear-gradient(90deg,var(--gold),#F7A45F)}
+.card.accent-purpleblue::before{background:linear-gradient(90deg,var(--violet),var(--blue))}
+/* Best/Worst row needs the same 14px rhythm as the KPI rows above it. */
+.db-bwgrid{margin-top:14px}
 .card.accent-plain::before{display:none}
 .grid{display:grid; gap:14px}
 .g4{grid-template-columns:repeat(4,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
@@ -1260,13 +1265,13 @@ function renderDashboard(){
       <div class="kv">${ct.games}</div>
       <div class="kc">across ${nSeasons} season${nSeasons===1?'':'s'}</div>
     </div>
-    <div class="card dbtile">
+    <div class="card dbtile accent-green">
       <div class="avg2">
         <div><div class="kl">Goals scored</div><div class="kv" style="color:var(--turf)">${ct.gf}</div></div>
         <div><div class="kl">Avg Goals</div><div class="kv" style="color:var(--turf)">${perGame(ct.gf)}</div><div class="kc">per game</div></div>
       </div>
     </div>
-    <div class="card dbtile">
+    <div class="card dbtile accent-red">
       <div class="avg2">
         <div><div class="kl">Goals conceded</div><div class="kv" style="color:var(--red)">${ct.ga}</div></div>
         <div><div class="kl">Avg Goals Conceded</div><div class="kv" style="color:var(--red)">${perGame(ct.ga)}</div><div class="kc">per game</div></div>
@@ -1280,14 +1285,14 @@ function renderDashboard(){
   </div>
 
   <div class="db-r2">
-    <div class="card dbtile"><div class="kl">🏆 Titles</div><div class="kv" style="color:var(--gold)">${titles}</div><div class="kc">of ${nSeasons} seasons · ${dashPct(titles,nSeasons)}%</div></div>
-    <div class="card dbtile"><div class="kl"><span style="color:var(--violet)">✦</span> Perfect seasons</div><div class="kv" style="color:var(--violet)">${perfect}</div><div class="kc">Legendary Performance · ${dashPct(perfect,nSeasons)}%</div></div>
-    <div class="card dbtile"><div class="kl">⚡ Rage quits</div><div class="kv" style="color:var(--gold)">${ct.rq}</div><div class="kc">Too Powerful · ${dashPct(ct.rq, ct.w)}%</div></div>
+    <div class="card dbtile accent-goldorange"><div class="kl">🏆 Titles</div><div class="kv" style="color:var(--gold)">${titles}</div><div class="kc">of ${nSeasons} seasons · ${dashPct(titles,nSeasons)}%</div></div>
+    <div class="card dbtile accent-purpleblue"><div class="kl"><span style="color:var(--violet)">✦</span> Perfect seasons</div><div class="kv" style="color:var(--violet)">${perfect}</div><div class="kc">Legendary Performance · ${dashPct(perfect,nSeasons)}%</div></div>
+    <div class="card dbtile accent-goldorange"><div class="kl">⚡ Rage quits</div><div class="kv" style="color:var(--gold)">${ct.rq}</div><div class="kc">Too Powerful · ${dashPct(ct.rq, ct.w)}%</div></div>
     <div class="card dbtile"><div class="kl">📡 Disconnects</div><div class="kv">${ct.dc}</div><div class="kc">Come on EA... · ${dashPct(ct.dc, ct.l)}%</div></div>
   </div>
 
-  <div class="grid g2">
-    <div class="card">
+  <div class="grid g2 db-bwgrid">
+    <div class="card accent-green">
       <div class="section-title" style="margin-top:0">Best season <span id="db-best-scope" style="color:var(--ink-dim)"></span></div>
       <div id="db-best-body">${dashBWCard('best', dashBW.team)}</div>
     </div>
@@ -1954,7 +1959,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v66';
+const SCAN_BUILD = 'v67';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
