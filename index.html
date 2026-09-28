@@ -301,6 +301,39 @@ table.sheet tfoot td{border-top:1px solid var(--line); font-weight:700}
 table.sheet th[data-sheet-sort]{cursor:pointer; user-select:none}
 table.sheet th[data-sheet-sort]:hover{color:var(--ink-dim)}
 table.sheet th.sorted{color:var(--turf)}
+/* ---- Hall of Fame: crest picker + all-time table (Match History colours) ---- */
+.hof-pick{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hof-pick .lbl{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+.hofbtns{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hofbtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.02);
+  display:grid;place-items:center;padding:0;cursor:pointer;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease}
+.hofbtn img{width:30px;height:30px;object-fit:contain;opacity:.32;filter:saturate(.5);transition:opacity .15s ease,filter .15s ease}
+.hofbtn:hover{border-color:var(--ink-faint)}
+.hofbtn:hover img{opacity:.6}
+.hofbtn.on{border-color:var(--turf);background:rgba(60,255,154,.10);box-shadow:0 4px 14px rgba(60,255,154,.22)}
+.hofbtn.on img{opacity:1;filter:none}
+.hof-scope{font-size:12.5px;color:var(--ink-dim);white-space:nowrap}
+.hof-scope b{color:var(--ink);font-weight:600}
+.hof-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.hof{width:100%;border-collapse:collapse;font-size:12px}
+table.hof th{text-align:left;color:var(--ink);font-weight:700;font-size:11px;padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.hof td{padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.hof tr:last-child td{border-bottom:none}
+table.hof .right{text-align:right}
+table.hof th[data-hof-sort]{cursor:pointer;user-select:none}
+table.hof th[data-hof-sort]:hover{color:var(--ink-dim)}
+table.hof th.sorted{color:var(--turf)}
+table.hof td.c-apps{color:var(--ink);font-weight:700}
+table.hof td.c-g{color:var(--red);font-weight:700}
+table.hof td.c-a{color:var(--blue);font-weight:700}
+table.hof td.c-pts{color:var(--gold);font-weight:700}
+table.hof td.c-mom{color:var(--ink);font-weight:700}
+table.hof td.c-avg{color:var(--turf);font-weight:700}
+table.hof td.pg{color:var(--ink-dim);font-size:10.5px;font-variant-numeric:tabular-nums}
+table.hof td.pct{color:var(--ink-faint);font-size:10.5px;font-variant-numeric:tabular-nums}
+table.hof tr.total td{background:var(--panel-2);font-weight:700;border-bottom:none}
+table.hof .pname{display:flex;align-items:center;gap:8px;font-weight:600}
+table.hof .pname img{width:16px;height:16px;object-fit:contain;opacity:.9}
 .sheet-teams{display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 10px}
 .tchk{display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:9px;
   border:1px solid var(--line); background:var(--panel-2); color:var(--ink-faint);
@@ -610,6 +643,7 @@ table.sheet th.sorted{color:var(--turf)}
     <div class="rail-brand"><img class="crest" src="app-icon.webp" alt="" width="36" height="36"><div class="brand">EA FC<br>Tracker</div></div>
     <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
     <button class="navbtn" data-tab="history"><span class="ic">≡</span> Match History</button>
+    <button class="navbtn" data-tab="hof"><span class="ic">♛</span> Hall of Fame</button>
     <button class="navbtn" data-tab="trophy"><span class="ic">♛</span> Trophy Room</button>
     <button class="navbtn" data-tab="log" style="margin-top:auto"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> New Season</button>
@@ -629,6 +663,7 @@ table.sheet th.sorted{color:var(--turf)}
   <nav class="tabbar">
     <button data-tab="dashboard"><span class="ic">◆</span>Dashboard</button>
     <button data-tab="history"><span class="ic">≡</span>History</button>
+    <button data-tab="hof"><span class="ic">♛</span>Hall</button>
     <button data-tab="trophy"><span class="ic">♛</span>Trophy</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
@@ -860,7 +895,7 @@ async function dbDelete(collection, id){
    cover `settings` yet, everything keeps working in-memory — it just won't
    stick across logins (and a toast points to the missing rule). */
 const SHEET_SORT_KEYS = ['apps','goals','assists','points','motm','avg'];
-let userSettings = { bestDivs:[1,2,3,4,5], worstDivs:[1,2,3,4,5], sheetSortKey:'points', sheetSortDir:-1 };
+let userSettings = { bestDivs:[1,2,3,4,5], worstDivs:[1,2,3,4,5], sheetSortKey:'points', sheetSortDir:-1, hofTeams:null, hofSortKey:'pts', hofSortDir:-1 };
 let settingsSaveTimer = null;
 let settingsWarned = false;
 function settingsUid(){
@@ -876,8 +911,11 @@ function sanitizeDivs(v){
 function applySettings(){
   sheetSortKey = userSettings.sheetSortKey;
   sheetSortDir = userSettings.sheetSortDir;
+  hofSortKey = userSettings.hofSortKey;
+  hofSortDir = userSettings.hofSortDir;
   if(currentTab==='dashboard' && document.getElementById('db-best-body')) renderDashBW();
   else if(currentTab==='history') render();
+  else if(currentTab==='hof') render();
 }
 async function loadUserSettings(){
   const uid = settingsUid();
@@ -889,7 +927,10 @@ async function loadUserSettings(){
       bestDivs: sanitizeDivs(d ? d.bestDivs : null),
       worstDivs: sanitizeDivs(d ? d.worstDivs : null),
       sheetSortKey: d && SHEET_SORT_KEYS.includes(d.sheetSortKey) ? d.sheetSortKey : 'points',
-      sheetSortDir: d && d.sheetSortDir===1 ? 1 : -1
+      sheetSortDir: d && d.sheetSortDir===1 ? 1 : -1,
+      hofTeams: d && Array.isArray(d.hofTeams) ? d.hofTeams.filter(x=>typeof x==='string') : null,
+      hofSortKey: d && HOF_SORT_KEYS.includes(d.hofSortKey) ? d.hofSortKey : 'pts',
+      hofSortDir: d && d.hofSortDir===1 ? 1 : -1
     };
     settingsWarned = false;
     applySettings();
@@ -913,6 +954,9 @@ function saveUserSettings(){
         worstDivs: userSettings.worstDivs,
         sheetSortKey: userSettings.sheetSortKey,
         sheetSortDir: userSettings.sheetSortDir,
+        hofTeams: userSettings.hofTeams,
+        hofSortKey: userSettings.hofSortKey,
+        hofSortDir: userSettings.hofSortDir,
         updatedAt: Date.now()
       });
       settingsWarned = false;
@@ -1247,6 +1291,7 @@ function render(){
   else if(currentTab==='squad') main.innerHTML = renderSquad();
   else if(currentTab==='settings') main.innerHTML = renderSettings();
   else if(currentTab==='history') main.innerHTML = renderHistory();
+  else if(currentTab==='hof') main.innerHTML = renderHof();
   else if(currentTab==='trophy') main.innerHTML = renderTrophy();
   /* Full-width season bar (under the rail too) — Match History screen only. */
   const sb = document.getElementById('seasonbar');
@@ -2213,7 +2258,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v79';
+const SCAN_BUILD = 'v80';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3977,6 +4022,173 @@ function wireSettingsHandlers(){
   }));
   document.querySelectorAll('[data-rename-player]').forEach(b=> b.addEventListener('click', ()=> renamePlayer(b.dataset.renamePlayer)));
 }
+
+/* ============================= HALL OF FAME ============================= */
+/* All-time player ranking across the seasons of the teams you pick.
+   - Team scope + sort are saved PER ACCOUNT (userSettings.hofTeams / hofSortKey / hofSortDir).
+     hofTeams: null = all teams (default), otherwise an explicit list of team ids.
+   - Apps rule = the player sheet rule: a game only counts with a real rating.
+   - Total row: stats summed; its p.G. = total stat ÷ total games played (e.g. total
+     goals ÷ total appearances), exactly like the mockup the user approved. */
+const HOF_SORT_KEYS = ['apps','goals','pg_goals','assists','pg_assists','pts','pg_pts','motm','pg_motm','avg'];
+let hofSortKey = 'pts';
+let hofSortDir = -1;
+function hofTeamsList(){
+  /* Teams that actually have something to show: players on their sheet or seasons of
+     theirs. Opponent-only crests (logoOnly) have neither, so they're skipped. */
+  const seasonIds = new Set();
+  seasons.forEach(s=> seasonTeams(s).forEach(t=>{ if(t.id) seasonIds.add(t.id); }));
+  return teams.filter(t=> (t.playerIds && t.playerIds.length) || seasonIds.has(t.id));
+}
+function hofOnSet(){
+  const all = hofTeamsList().map(t=>t.id);
+  return new Set(userSettings.hofTeams ? userSettings.hofTeams.filter(id=>all.includes(id)) : all);
+}
+/* A sortable column header — exact Match History behaviour. */
+function hofSortTh(label, key){
+  const active = hofSortKey===key;
+  return `<th class="right${active?' sorted':''}" data-hof-sort="${key}" title="Click to sort">${label}${active ? (hofSortDir<0 ? ' ↓' : ' ↑') : ''}</th>`;
+}
+function renderHof(){
+  const all = hofTeamsList();
+  if(!all.length){
+    return `<div class="pagehead"><div><h1>Hall of Fame</h1><div class="sub">All-time player records across whichever teams you pick</div></div></div>
+    <div class="card"><div class="empty">No teams yet — create a season in <b>New Season</b> and the Hall of Fame fills itself up.</div></div>`;
+  }
+  const on = hofOnSet();
+  const sel = all.filter(t=> on.has(t.id));
+  /* Seasons belonging to at least one selected team — a mid-season switch counts for
+     BOTH teams, because the season carries every team it was played under. */
+  const scopedSeasons = new Set();
+  seasons.forEach(s=>{
+    const list = seasonTeams(s);
+    const hit = list.some(t=> (t.id && on.has(t.id)) || (!t.id && t.name && sel.some(x=> normName(x.name)===normName(t.name))));
+    if(hit) scopedSeasons.add(s.id);
+  });
+  const teamOf = {};
+  teams.forEach(t=> (t.playerIds||[]).forEach(pid=>{ if(teamOf[pid]===undefined) teamOf[pid] = t.id; }));
+  const agg = {};
+  games.forEach(g=>{
+    if(!g.seasonId || !scopedSeasons.has(g.seasonId)) return;
+    (g.playerStats||[]).forEach(ps=>{
+      if(!ps || !ps.playerId) return;
+      const rt = Number(ps.rating);
+      const a = agg[ps.playerId] || (agg[ps.playerId] = {apps:0, goals:0, assists:0, motm:0, rateSum:0, rateN:0});
+      a.goals += Number(ps.goals)||0;
+      a.assists += Number(ps.assists)||0;
+      if(rt>0){ a.apps++; a.rateSum += rt; a.rateN++; }
+    });
+    if(g.motmPlayerId && agg[g.motmPlayerId]) agg[g.motmPlayerId].motm++;
+  });
+  const rows = Object.keys(agg).map(id=>{
+    const a = agg[id];
+    const pts = a.goals + a.assists;
+    return {
+      id, name: playerName(id), teamId: teamOf[id] || '',
+      apps:a.apps, goals:a.goals, assists:a.assists, pts, motm:a.motm,
+      avg: a.rateN ? a.rateSum/a.rateN : null,
+      pg_goals: a.apps ? a.goals/a.apps : 0,
+      pg_assists: a.apps ? a.assists/a.apps : 0,
+      pg_pts: a.apps ? pts/a.apps : 0,
+      pg_motm: a.apps ? a.motm/a.apps : 0,
+      rateSum:a.rateSum, rateN:a.rateN
+    };
+  }).filter(r=> r.apps>0);
+  const kv = r=> r[hofSortKey]==null ? 0 : r[hofSortKey];
+  rows.sort((a,b)=> hofSortDir*(kv(a)-kv(b)) || (b.pts-a.pts) || a.name.localeCompare(b.name));
+  const T = k=> rows.reduce((s,r)=> s+(r[k]||0), 0);
+  const tot = { apps:T('apps'), goals:T('goals'), assists:T('assists'), pts:T('pts'), motm:T('motm'), rateSum:T('rateSum'), rateN:T('rateN') };
+  const totAvg = tot.rateN ? (tot.rateSum/tot.rateN) : null;
+  const fmtPG = v=> (v==null?0:v).toFixed(2);
+  const fmtPct = (v,t)=>{ if(t<=0) return '0%'; const p = (v||0)/t*100; if(p<=0) return '0%'; return p>=1 ? Math.round(p)+'%' : (Math.round(p*10)/10)+'%'; };
+  const statCells = (r)=> [[r.goals,'c-g',tot.goals],[r.assists,'c-a',tot.assists],[r.pts,'c-pts',tot.pts],[r.motm,'c-mom',tot.motm]]
+    .map(([v,cls,totv])=> `<td class="right ${cls}">${v}</td><td class="right pg">${fmtPG(r.apps?v/r.apps:0)}</td><td class="right pct">${fmtPct(v,totv)}</td>`).join('');
+  const totCell = (v,cls)=> `<td class="right ${cls}">${v}</td><td class="right pg">${tot.apps?fmtPG(v/tot.apps):'0.00'}</td><td></td>`;
+  const btns = all.map(t=>{
+    const isOn = on.has(t.id);
+    return `<button type="button" class="hofbtn${isOn?' on':''}" data-hof-team="${t.id}" title="${esc(t.name)} — click to ${isOn?'exclude':'include'}">
+      ${t.logo ? `<img src="${esc(t.logo)}" alt="">` : `<span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--ink-dim)">${esc((t.name||'?').slice(0,2).toUpperCase())}</span>`}
+    </button>`;
+  }).join('');
+  const scopeTxt = sel.length===all.length ? 'all teams' : (sel.length ? sel.map(t=>t.name).join(' + ') : 'none');
+  let table;
+  if(!rows.length){
+    table = sel.length
+      ? `<div class="empty" style="padding:26px">No rated appearances for <b>${esc(scopeTxt)}</b> yet — log some matches and the Hall of Fame fills itself up.</div>`
+      : `<div class="empty" style="padding:26px">No teams selected — switch a crest on above to see the Hall of Fame.</div>`;
+  } else {
+    table = `<div class="hof-wrap">
+      <table class="hof">
+        <thead><tr>
+          <th>Player</th>
+          ${hofSortTh('Apps','apps')}
+          ${hofSortTh('G','goals')}${hofSortTh('p.G.','pg_goals')}<th class="right">%</th>
+          ${hofSortTh('A','assists')}${hofSortTh('p.G.','pg_assists')}<th class="right">%</th>
+          ${hofSortTh('Pts','pts')}${hofSortTh('p.G.','pg_pts')}<th class="right">%</th>
+          ${hofSortTh('MoM','motm')}${hofSortTh('p.G.','pg_motm')}<th class="right">%</th>
+          ${hofSortTh('Avg','avg')}
+        </tr></thead>
+        <tbody>
+          ${rows.map(r=>{
+            const t = r.teamId ? teamById(r.teamId) : null;
+            return `<tr>
+              <td><span class="pname">${t&&t.logo?`<img src="${esc(t.logo)}" alt="">`:''}${esc(r.name)}</span></td>
+              <td class="right c-apps">${r.apps}</td>
+              ${statCells(r)}
+              <td class="right ${r.avg!=null?'c-avg':'pg'}">${r.avg!=null?r.avg.toFixed(1):'—'}</td>
+            </tr>`;
+          }).join('')}
+          <tr class="total">
+            <td>Total</td>
+            <td></td>
+            ${totCell(tot.goals,'c-g')}${totCell(tot.assists,'c-a')}${totCell(tot.pts,'c-pts')}${totCell(tot.motm,'c-mom')}
+            <td class="right ${totAvg!=null?'c-avg':'pg'}">${totAvg!=null?totAvg.toFixed(1):'—'}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+  }
+  return `
+  <div class="pagehead"><div><h1>Hall of Fame</h1><div class="sub">All-time player records across whichever teams you pick</div></div>
+    <span class="hof-scope">showing <b>${esc(scopeTxt)}</b></span></div>
+  <div style="margin:0 0 14px;color:var(--ink-dim);font-size:13px;line-height:1.55;max-width:880px">
+    Toggle crests to include or exclude teams — every number recalculates. Click a column header (<b>Apps · G · A · Pts · MoM · Avg</b> — and each <b>p.G.</b>) to sort: first click = highest first, click again to flip. Your picks and sort are saved to your account.
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="hof-pick">
+      <span class="lbl">Teams</span>
+      <div class="hofbtns">${btns}</div>
+    </div>
+  </div>
+  <div class="card">${table}</div>`;
+}
+/* Delegated handlers (registered once at top level — safe across every re-render).
+   Crest toggle: flip a team's inclusion and save the set for THIS account.
+   Header click: sort — new column = highest first, same column = flip. */
+document.addEventListener('click', e=>{
+  const b = e.target.closest('[data-hof-team]');
+  if(b){
+    const id = b.dataset.hofTeam;
+    const all = hofTeamsList().map(t=>t.id);
+    let on = userSettings.hofTeams ? [...userSettings.hofTeams] : [...all];
+    const i = on.indexOf(id);
+    if(i>-1) on.splice(i,1); else on.push(id);
+    userSettings.hofTeams = (on.length===all.length) ? null : on; /* all on again → back to "all teams" */
+    render();
+    saveUserSettings();
+    return;
+  }
+  const h = e.target.closest('[data-hof-sort]');
+  if(h){
+    const k = h.dataset.hofSort;
+    if(hofSortKey===k) hofSortDir = -hofSortDir;
+    else { hofSortKey = k; hofSortDir = -1; }  /* new column → highest first */
+    userSettings.hofSortKey = hofSortKey;
+    userSettings.hofSortDir = hofSortDir;
+    render();
+    saveUserSettings();
+  }
+});
 
 /* ============================= HISTORY ============================= */
 let historyFilterSeason = '';
