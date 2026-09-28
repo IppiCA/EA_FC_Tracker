@@ -477,16 +477,22 @@ table.sheet th.sorted{color:var(--turf)}
 .dbbw-block{margin-bottom:16px}
 .dbbw-block:last-child{margin-bottom:0}
 .dbbw-cap{font-size:11px;letter-spacing:.09em;color:var(--ink-faint);font-weight:600;text-transform:uppercase;margin-bottom:6px}
-.dbbw-row{display:flex;align-items:center;gap:9px;padding:6.5px 0;font-size:13.5px;flex-wrap:wrap}
+/* Row is a fixed column layout: rank | value | crest slot (room for 3 logos) |
+   Season NN | NN Games — so every column starts in the same place on every row. */
+.dbbw-row{display:flex;align-items:center;gap:8px;padding:6.5px 0;font-size:13.5px;flex-wrap:wrap;row-gap:6px}
 .dbbw-row + .dbbw-row{border-top:1px solid var(--line)}
 .dbbw-rank{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14.5px;color:var(--ink-faint);width:26px;flex:0 0 auto}
-.dbbw-val{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:18px;min-width:44px;line-height:1}
-.dbbw-dot{color:var(--ink-faint);font-size:12px}
-.dbbw-crest{display:inline-flex;align-items:center;gap:2px}
+.dbbw-val{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:18px;width:52px;flex:0 0 auto;line-height:1}
+.dbbw-dot{color:var(--ink-faint);font-size:12px;flex:0 0 auto}
+.dbbw-crest{display:inline-flex;align-items:center;gap:2px;width:64px;flex:0 0 auto}
 .dbbw-crest img{width:20px;height:20px;object-fit:contain;border-radius:4px}
-.dbbw-meta{color:var(--ink-dim);font-size:12.5px}
+.dbbw-season{color:var(--ink-dim);font-size:12.5px;width:88px;flex:0 0 auto;white-space:nowrap}
+.dbbw-games{color:var(--ink-dim);font-size:12.5px;width:70px;flex:0 0 auto;white-space:nowrap}
 .dbbw-champ{color:var(--gold);font-size:12px}
+.dbbw-pwrap{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .dbbw-player{color:var(--ink);font-weight:600;font-size:13px}
+.dbbw-rate{color:var(--ink-dim);font-weight:600}
+@media (max-width:620px){.dbbw-val{width:46px;font-size:16px}.dbbw-season{width:80px}.dbbw-games{width:64px}}
 /* ---- team filter chip (looks like a button, opens a menu) ---- */
 .dbfilter{display:flex;align-items:center;gap:14px;padding:13px 18px;margin-top:14px}
 .dbflabel{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
@@ -1123,8 +1129,10 @@ function dashBWCard(kind, team){
           <span class="dbbw-val" style="color:var(--${color})">${st.per ? st.val(e).toFixed(2) : st.val(e)}</span>
           <span class="dbbw-dot">·</span>
           <span class="dbbw-crest">${crest}</span>
-          <span class="dbbw-meta">Season ${esc(s.number)}${seasonResultFlags(s).champion?' <span class="dbbw-champ">🏆</span>':''} &nbsp;·&nbsp; ${e.games} Games</span>
-          ${stp?`<span class="dbbw-dot">·</span><span class="dbbw-player">${esc(stp.name)}</span>`:''}
+          <span class="dbbw-season">Season ${esc(s.number)}${seasonResultFlags(s).champion?' <span class="dbbw-champ">🏆</span>':''}</span>
+          <span class="dbbw-dot">·</span>
+          <span class="dbbw-games">${e.games} Games</span>
+          ${stp?`<span class="dbbw-pwrap"><span class="dbbw-dot">·</span><span class="dbbw-player">${esc(stp.name)} <span class="dbbw-rate">${stp.avg.toFixed(2)}</span></span></span>`:''}
         </div>`;
       }).join('')}
     </div>`;
@@ -1930,7 +1938,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v62';
+const SCAN_BUILD = 'v63';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
