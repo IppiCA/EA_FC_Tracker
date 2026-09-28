@@ -1153,7 +1153,7 @@ function renderTrophy(){
   const claimed = TROPHY_SLOTS.filter(sl=>c[sl.key]>0);
   const todo    = TROPHY_SLOTS.filter(sl=>c[sl.key]===0);
   return `
-  <div class="pagehead"><div><h1>Trophy Room</h1><div class="sub">Your cabinet — every trophy you two have won together · updates automatically as seasons finish</div></div>
+  <div class="pagehead"><div><h1>Trophy Room</h1><div class="sub">The Trophy Cabinet, legendary co-op dynasty on display</div></div>
     <span class="tr-pill">🏆 ${claimed.length} of 6 claimed</span></div>
   <div class="card accent-gold">
     <div class="tr-stage">
@@ -2206,7 +2206,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v76';
+const SCAN_BUILD = 'v77';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
