@@ -111,9 +111,9 @@ nav.tabbar{display:none}
    forced the country dropdown into a floating reposition-on-scroll panel, which looped with the
    search-box auto-focus and shook the whole page.
    Top gradient stripe: the pseudo covers the WHOLE card and inherits its exact corner radius,
-   then clip-path trims it to the top 3px — so its ends follow the card's curve instead of
+   then clip-path trims it to the top 6px — so its ends follow the card's curve instead of
    floating as a rounded pill. (A 3px-tall bar can't carry a 16px corner radius itself.) */
-.card::before{content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; clip-path:inset(0 0 calc(100% - 3px) 0); pointer-events:none}
+.card::before{content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; clip-path:inset(0 0 calc(100% - 6px) 0); pointer-events:none}
 .card.accent-gold::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
 .card.accent-red::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
 .card.accent-plain::before{display:none}
@@ -212,7 +212,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .mtile .sblock{min-height:36px; margin-top:5px}
 .mtile .ablock{min-height:36px}
 .mtile .mblock{min-height:36px}
-.mtile::before{content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(90deg,var(--turf),#c4ffe0); opacity:.9; clip-path:inset(0 0 calc(100% - 3px) 0); pointer-events:none}
+.mtile::before{content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(90deg,var(--turf),#c4ffe0); opacity:.9; clip-path:inset(0 0 calc(100% - 6px) 0); pointer-events:none}
 .mtile.o-draw::before{background:linear-gradient(90deg,var(--gold),#fff3cf)}
 .mtile.o-loss::before{background:linear-gradient(90deg,var(--red),#ff9aa8)}
 .mtile .score{font-size:30px; line-height:1; margin:10px 0 4px}
@@ -1954,7 +1954,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v65';
+const SCAN_BUILD = 'v66';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
