@@ -192,11 +192,14 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 }
 .shield .n{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:19px; color:var(--gold)}
 .form-ticker{display:flex; gap:4px}
-.form-ticker .f{width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:'Rajdhani',sans-serif; color:#081008}
+.form-ticker .f{width:20px; height:20px; min-width:20px; min-height:20px; max-width:20px; max-height:20px; padding:0; border:0; flex:0 0 auto; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:'Rajdhani',sans-serif; color:#081008}
 .form-ticker .f.win{background:var(--turf)}
 .form-ticker .f.draw{background:var(--gold)}
 .form-ticker .f.loss{background:var(--red); color:#2b0006}
-.form-ticker .f.empty{background:var(--panel-2); color:transparent}
+/* Unplayed slot: own class (NOT 'empty' — the generic .empty rule adds big padding
+   and some browsers let that inflate the chip). Hard-pinned to the exact same 20x20
+   as the played chips so it can never render larger or smaller. */
+.form-ticker .f.f-none{background:var(--panel-2); color:transparent; width:20px !important; height:20px !important; padding:0 !important}
 /* ---- Form-ticker chips: hover = that match's stats (the tile itself); click = open it in Match History ---- */
 .form-ticker .fwrap{position:relative; display:inline-flex}
 .form-ticker .f{cursor:pointer; transition:transform .12s ease, box-shadow .12s ease}
@@ -1263,7 +1266,7 @@ function recentForm(seasonId, n){
    historyTile with popup=true), click jumps to it in Match History. */
 function formTickerHtml(seasonId, n){
   const {pad, gs} = recentForm(seasonId, n||10);
-  let html = Array(pad).fill('<span class="f empty"></span>').join('');
+  let html = Array(pad).fill('<span class="f f-none"></span>').join('');
   for(const g of gs){
     const o = outcome(g);
     html += `<span class="fwrap"><span class="f ${o}" data-goto-game="${g.id}">${o==='win'?'W':o==='draw'?'D':'L'}</span>`
@@ -2206,7 +2209,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v77';
+const SCAN_BUILD = 'v78';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
