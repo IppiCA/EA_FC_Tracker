@@ -119,6 +119,19 @@ nav.tabbar{display:none}
 .card.accent-green::before{background:linear-gradient(90deg,var(--turf-dim),var(--turf) 50%,#A7FFD9)}
 .card.accent-goldorange::before{background:linear-gradient(90deg,var(--gold),#F7A45F)}
 .card.accent-purpleblue::before{background:linear-gradient(90deg,var(--violet),var(--blue))}
+/* ---- Trophy Room (cabinet photo + counters inside the six blank boxes) ---- */
+.tr-stage{position:relative; line-height:0; container-type:size; aspect-ratio:1672/941}
+.tr-stage img{width:100%; display:block}
+.tr-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;color:var(--gold);background:rgba(240,196,100,.10);border:1px solid rgba(240,196,100,.35)}
+.tr-counter{position:absolute; transform:translate(-50%,-50%);
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:.8vw; font-size:1.75cqh; line-height:1; pointer-events:none;
+  color:var(--gold); text-shadow:0 0 16px rgba(240,196,100,.65), 0 1px 3px rgba(0,0,0,.9); letter-spacing:.02em}
+.tr-counter.zero{color:rgba(255,255,255,.30); text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.tr-legend{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-dim);line-height:1.4}
+.tr-legend .dot{width:3px;height:3px;border-radius:99px;background:var(--ink-faint)}
+.tr-legend b{color:var(--ink);font-weight:600}
+.tr-legend .claimed{color:var(--gold);font-weight:600}
+.tr-legend .todo{color:var(--ink-faint)}
 /* Best/Worst row needs the same 14px rhythm as the KPI rows above it. */
 .db-bwgrid{margin-top:14px}
 .card.accent-plain::before{display:none}
@@ -594,6 +607,7 @@ table.sheet th.sorted{color:var(--turf)}
     <div class="rail-brand"><img class="crest" src="app-icon.webp" alt="" width="36" height="36"><div class="brand">EA FC<br>Tracker</div></div>
     <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
     <button class="navbtn" data-tab="history"><span class="ic">≡</span> Match History</button>
+    <button class="navbtn" data-tab="trophy"><span class="ic">♛</span> Trophy Room</button>
     <button class="navbtn" data-tab="log" style="margin-top:auto"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> New Season</button>
     <button class="navbtn" data-tab="settings"><span class="ic">⚙</span> Team Sheets</button>
@@ -612,6 +626,7 @@ table.sheet th.sorted{color:var(--turf)}
   <nav class="tabbar">
     <button data-tab="dashboard"><span class="ic">◆</span>Dashboard</button>
     <button data-tab="history"><span class="ic">≡</span>History</button>
+    <button data-tab="trophy"><span class="ic">♛</span>Trophy</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
     <button data-tab="settings"><span class="ic">⚙</span>Team Sheets</button>
@@ -1111,6 +1126,51 @@ function seasonResultFlags(s){
   return {champion:(o.state==='title'), perfectSeason:o.perfect, relegated:(o.state==='relegated')};
 }
 
+/* ============================= TROPHY ROOM ============================= */
+/* The six cabinet slots, in the order they appear in the artwork (left→right).
+   Counters sit at the exact center of each blank box — measured from the gold box
+   borders in the full-res image (1672×941); centers drift slightly right+down
+   left→right (photo perspective). */
+const TROPHY_SLOTS = [
+  {key:'d5',      label:'Division 5 Title', left:'18.03%', top:'73.11%'},
+  {key:'d4',      label:'Division 4 Title', left:'30.23%', top:'73.22%'},
+  {key:'d1',      label:'Division 1 Title', left:'42.49%', top:'73.27%'},
+  {key:'perfect', label:'Perfect Season',   left:'55.29%', top:'73.27%'},
+  {key:'d2',      label:'Division 2 Title', left:'68.27%', top:'73.27%'},
+  {key:'d3',      label:'Division 3 Title', left:'81.16%', top:'73.33%'},
+];
+function trophyCounts(){
+  const c = {d1:0, d2:0, d3:0, d4:0, d5:0, perfect:0};
+  seasons.forEach(s=>{
+    const f = seasonResultFlags(s);   // honors manual champion / perfect overrides
+    if(f.champion) c['d'+divisionOf(s)]++;
+    if(f.perfectSeason) c.perfect++;
+  });
+  return c;
+}
+function renderTrophy(){
+  const c = trophyCounts();
+  const claimed = TROPHY_SLOTS.filter(sl=>c[sl.key]>0);
+  const todo    = TROPHY_SLOTS.filter(sl=>c[sl.key]===0);
+  return `
+  <div class="pagehead"><div><h1>Trophy Room</h1><div class="sub">Your cabinet — every trophy you two have won together · updates automatically as seasons finish</div></div>
+    <span class="tr-pill">🏆 ${claimed.length} of 6 claimed</span></div>
+  <div class="card accent-gold">
+    <div class="tr-stage">
+      <img src="trophy-room.webp" alt="Trophy cabinet with six blank slots in front of the Matterhorn">
+      ${TROPHY_SLOTS.map(sl=>`<span class="tr-counter${c[sl.key]?'':' zero'}" style="left:${sl.left};top:${sl.top}">${c[sl.key]}</span>`).join('')}
+    </div>
+    <div class="tr-legend">
+      ${claimed.length
+        ? `<span><span class="claimed">Claimed:</span> ${claimed.map(sl=>`<b>${sl.label} ×${c[sl.key]}</b>`).join(' · ')}</span><span class="dot"></span>`
+        : `<span class="todo">No trophies claimed yet — every slot is still waiting.</span><span class="dot"></span>`}
+      <span class="todo">${todo.length ? 'Still to win: '+todo.map(sl=>sl.label).join(' · ') : 'Cabinet complete — all 6 claimed 🎉'}</span>
+      <span class="dot"></span>
+      <span class="todo">Perfect Season = title won with every single game a win</span>
+    </div>
+  </div>`;
+}
+
 function careerTotals(){
   let gf=0,ga=0,w=0,d=0,l=0,rq=0,dc=0;
   games.forEach(g=>{
@@ -1184,6 +1244,7 @@ function render(){
   else if(currentTab==='squad') main.innerHTML = renderSquad();
   else if(currentTab==='settings') main.innerHTML = renderSettings();
   else if(currentTab==='history') main.innerHTML = renderHistory();
+  else if(currentTab==='trophy') main.innerHTML = renderTrophy();
   /* Full-width season bar (under the rail too) — Match History screen only. */
   const sb = document.getElementById('seasonbar');
   const sbOn = currentTab==='history' && seasons.length>0;
@@ -2145,7 +2206,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v75';
+const SCAN_BUILD = 'v76';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
