@@ -443,6 +443,36 @@ table.sheet th.sorted{color:var(--turf)}
 @media (prefers-reduced-motion: reduce){
   .login-wrap .zc-snow{ display:none; }
 }
+
+/* ---- Dashboard v2 — control-panel layout (mockup option 2) ---- */
+.db-big{display:grid;grid-template-columns:1fr auto;align-items:center;gap:28px;padding:22px 26px}
+@media (max-width:860px){.db-big{grid-template-columns:1fr;justify-items:center;text-align:center}}
+.db-cap{font-size:11px;letter-spacing:.1em;color:var(--ink-faint);font-weight:600;margin-bottom:10px}
+.db-recbar{display:flex;height:46px;border-radius:12px;overflow:hidden;background:var(--panel-2);gap:3px}
+.dbseg{display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;color:#081008;min-width:0;overflow:hidden;white-space:nowrap}
+.dbseg.w{background:var(--turf)} .dbseg.d{background:var(--gold)} .dbseg.l{background:var(--red);color:#2b0006}
+.dbann{display:flex;gap:3px;margin-top:7px}
+.dbann .slot{display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;min-width:0;overflow:hidden;white-space:nowrap}
+.db-recleg{display:flex;gap:18px;margin-top:10px;font-size:12.5px;color:var(--ink-dim);flex-wrap:wrap}
+.db-recleg b{font-family:'Rajdhani',sans-serif;font-size:15px;color:var(--ink)}
+.db-gaugewrap{position:relative;width:190px;height:190px}
+.db-gauge{width:190px;height:190px;transform:rotate(-90deg)}
+.db-gtrack{fill:none;stroke:var(--panel-2);stroke-width:15}
+.db-garc{fill:none;stroke:url(#dbggrad);stroke-width:15;stroke-linecap:round;stroke-dasharray:527.79;transition:stroke-dashoffset .6s ease}
+.db-gcenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.db-gcenter .gv{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:44px;line-height:1}
+.db-gcenter .gl{font-size:11px;letter-spacing:.12em;color:var(--ink-faint);font-weight:600}
+.db-r1{display:grid;gap:14px;grid-template-columns:1fr 2fr 2fr 1fr;margin-top:14px}
+.db-r2{display:grid;gap:14px;grid-template-columns:repeat(4,1fr);margin-top:14px}
+@media (max-width:900px){.db-r1{grid-template-columns:1fr 1fr}.db-r2{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:620px){.db-r1,.db-r2{grid-template-columns:1fr}}
+.dbtile{display:flex;flex-direction:column;justify-content:center;gap:8px;min-height:128px}
+.dbtile .kl{font-size:11.5px;letter-spacing:.06em;color:var(--ink-faint);font-weight:600;text-transform:uppercase}
+.dbtile .kv{font-size:38px;line-height:.95;font-family:'Rajdhani',sans-serif;font-weight:700}
+.dbtile .kc{font-size:12px;color:var(--ink-dim)}
+.dbtile .avg2{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.dbtile .avg2 > div{display:flex;flex-direction:column;gap:8px}
+.dbpick{margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -1026,27 +1056,138 @@ function formTickerHtml(seasonId, n){
 }
 
 /* ============================= DASHBOARD ============================= */
+/* Best/worst card team filter ('' = Overall) — kept across re-renders. */
+let dashBW = { best:'', worst:'' };
+function dashPct(a,b){ return b ? Math.round(a/b*100) : 0; }
+function dashBWOptions(sel){
+  const names = [...new Set(seasons.map(seasonTeamName).filter(Boolean))];
+  return `<option value="">Overall — all teams</option>` +
+    names.map(t=>`<option value="${esc(t)}"${t===sel?' selected':''}>${esc(t)}</option>`).join('');
+}
+/* Body of a best/worst card: logo(s) + season name | points, then W/D/L · goals · GD, champions badge. */
+function seasonCardBody(entry, color){
+  const s = entry.season;
+  const logos = seasonTeams(s).map(t=>t.logo).filter(Boolean);
+  const crest = logos.length
+    ? logos.map(lg=>`<img class="tlogo-big" style="width:38px;height:38px" src="${lg}" alt="">`).join('')
+    : crestHTML(s, 38, 44, 16, esc(s.number));
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">${crest}<div class="num" style="font-size:21px">${esc(seasonTeamName(s))}</div></div>
+      <div class="num" style="font-size:30px;color:var(--${color})">${entry.points} pts</div>
+    </div>
+    <div class="subtle" style="margin-top:8px">${entry.w}W ${entry.d}D ${entry.l}L &nbsp;·&nbsp; ${entry.gf}–${entry.ga} goals &nbsp;·&nbsp; GD ${entry.gd>=0?'+':''}${entry.gd}</div>
+    ${seasonResultFlags(s).champion?`<div class="badge-champ" style="margin-top:8px">🏆 Champions</div>`:''}`;
+}
+function dashBWBody(kind, team){
+  const r = bestWorstSeasons(team || undefined);
+  const entry = kind==='best' ? r.best : r.worst;
+  if(!entry) return `<div class="empty">Not enough data yet</div>`;
+  return seasonCardBody(entry, kind==='best' ? 'turf' : 'red');
+}
+function wireDashboardHandlers(){
+  ['best','worst'].forEach(kind=>{
+    const sel = document.getElementById('db-'+kind+'-pick');
+    const body = document.getElementById('db-'+kind+'-body');
+    if(sel && body) sel.addEventListener('change', ()=>{ dashBW[kind] = sel.value; body.innerHTML = dashBWBody(kind, sel.value); });
+  });
+}
+
 function renderDashboard(){
   const ct = careerTotals();
-  const {best, worst} = bestWorstSeasons();
+  const n = ct.games;
+  const winPct = n ? Math.round(ct.w/n*100) : 0;
+  const wp = dashPct(ct.w,n), dp = dashPct(ct.d,n), lp = dashPct(ct.l,n);
+  const nSeasons = seasons.length;
+  const titles = seasons.filter(s=>seasonResultFlags(s).champion).length;
+  const perfect = seasons.filter(s=>seasonResultFlags(s).perfectSeason).length;
+  const gd = ct.gf - ct.ga;
+  const perGame = v => n ? (v/n).toFixed(2) : '0.00';
+  const gOff = (527.79 * (1 - winPct/100)).toFixed(2);
   const lb = leaderboard().slice(0,8);
   const activeSeason = seasons[0];
-  const winPct = ct.games ? Math.round(ct.w/ct.games*100) : 0;
+
+  /* Record bar — order is always W → D → L, zero segments hidden.
+     Under the bar: draw % centred under the yellow block, loss % under the red. */
+  const barSegs =
+    (ct.w>0?`<div class="dbseg w" style="width:${wp}%">W ${ct.w}</div>`:'') +
+    (ct.d>0?`<div class="dbseg d" style="width:${dp}%">D ${ct.d}</div>`:'') +
+    (ct.l>0?`<div class="dbseg l" style="width:${lp}%">L ${ct.l}</div>`:'');
+  const annSlots =
+    (ct.w>0?`<div class="slot" style="width:${wp}%"></div>`:'') +
+    (ct.d>0?`<div class="slot" style="width:${dp}%;color:var(--gold)">${dp}%</div>`:'') +
+    (ct.l>0?`<div class="slot" style="width:${lp}%;color:var(--red)">${lp}%</div>`:'');
 
   return `
   <div class="pagehead"><div><h1>Dashboard</h1><div class="sub">Career overview across every season logged</div></div>${ct.games?formTickerHtml(null,10):''}</div>
 
-  <div class="grid g4">
-    <div class="card stat accent-plain"><div class="num">${ct.games}</div><div class="lbl">Games played</div></div>
-    <div class="card stat accent-plain"><div class="num">${winPct}%</div><div class="lbl">Win rate · ${ct.w}W ${ct.d}D ${ct.l}L</div></div>
-    <div class="card stat accent-gold"><div class="num gold">${ct.gf}</div><div class="lbl">Goals scored · ${ct.games? (ct.gf/ct.games).toFixed(2):'0.00'} / game</div></div>
-    <div class="card stat accent-red"><div class="num red">${ct.ga}</div><div class="lbl">Goals conceded · ${ct.rq} rage quits by them</div></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="dbggrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3CFF9A"/><stop offset="100%" stop-color="#8B6CFF"/>
+    </linearGradient>
+  </defs></svg>
+
+  <div class="card db-big">
+    <div>
+      <div class="db-cap">RECORD · ALL GAMES</div>
+      <div class="db-recbar">${barSegs}</div>
+      <div class="dbann">${annSlots}</div>
+      <div class="db-recleg">
+        <span><b>${ct.w}</b> wins</span><span><b>${ct.d}</b> draws</span><span><b>${ct.l}</b> losses</span>
+      </div>
+    </div>
+    <div class="db-gaugewrap">
+      <svg class="db-gauge" viewBox="0 0 200 200">
+        <circle class="db-gtrack" cx="100" cy="100" r="84"></circle>
+        <circle class="db-garc" cx="100" cy="100" r="84" style="stroke-dashoffset:${gOff}"></circle>
+      </svg>
+      <div class="db-gcenter"><div class="gv" style="color:var(--turf)">${winPct}%</div><div class="gl">WIN RATE</div></div>
+    </div>
   </div>
 
-  <div class="section-title">Best & worst season overall</div>
+  <div class="db-r1">
+    <div class="card dbtile">
+      <div class="kl">Games played</div>
+      <div class="kv">${ct.games}</div>
+      <div class="kc">across ${nSeasons} season${nSeasons===1?'':'s'}</div>
+    </div>
+    <div class="card dbtile">
+      <div class="avg2">
+        <div><div class="kl">Goals scored</div><div class="kv" style="color:var(--turf)">${ct.gf}</div></div>
+        <div><div class="kl">Avg Goals</div><div class="kv" style="color:var(--turf)">${perGame(ct.gf)}</div><div class="kc">per game</div></div>
+      </div>
+    </div>
+    <div class="card dbtile">
+      <div class="avg2">
+        <div><div class="kl">Goals conceded</div><div class="kv" style="color:var(--red)">${ct.ga}</div></div>
+        <div><div class="kl">Avg Goals Conceded</div><div class="kv" style="color:var(--red)">${perGame(ct.ga)}</div><div class="kc">per game</div></div>
+      </div>
+    </div>
+    <div class="card dbtile">
+      <div class="kl">Goal difference</div>
+      <div class="kv" style="color:${gd>=0?'var(--turf)':'var(--red)'}">${gd>=0?'+':''}${gd}</div>
+      <div class="kc">${ct.gf} scored · ${ct.ga} conceded</div>
+    </div>
+  </div>
+
+  <div class="db-r2">
+    <div class="card dbtile"><div class="kl">🏆 Titles</div><div class="kv" style="color:var(--gold)">${titles}</div><div class="kc">of ${nSeasons} seasons · ${dashPct(titles,nSeasons)}%</div></div>
+    <div class="card dbtile"><div class="kl"><span style="color:var(--violet)">✦</span> Perfect seasons</div><div class="kv" style="color:var(--violet)">${perfect}</div><div class="kc">Legendary Performance · ${dashPct(perfect,nSeasons)}%</div></div>
+    <div class="card dbtile"><div class="kl">⚡ Rage quits</div><div class="kv" style="color:var(--gold)">${ct.rq}</div><div class="kc">Too Powerful · ${dashPct(ct.rq, ct.w)}%</div></div>
+    <div class="card dbtile"><div class="kl">📡 Disconnects</div><div class="kv">${ct.dc}</div><div class="kc">Come on EA... · ${dashPct(ct.dc, ct.l)}%</div></div>
+  </div>
+
   <div class="grid g2">
-    ${seasonSummaryCard(best, 'Best season', 'turf')}
-    ${seasonSummaryCard(worst, 'Worst season', 'red')}
+    <div class="card">
+      <div class="section-title" style="margin-top:0">Best season</div>
+      <select class="dbpick" id="db-best-pick">${dashBWOptions(dashBW.best)}</select>
+      <div id="db-best-body">${dashBWBody('best', dashBW.best)}</div>
+    </div>
+    <div class="card accent-red">
+      <div class="section-title" style="margin-top:0">Worst season</div>
+      <select class="dbpick" id="db-worst-pick">${dashBWOptions(dashBW.worst)}</select>
+      <div id="db-worst-body">${dashBWBody('worst', dashBW.worst)}</div>
+    </div>
   </div>
 
   ${activeSeason ? `
@@ -1704,7 +1845,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v60';
+const SCAN_BUILD = 'v61';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3802,6 +3943,7 @@ function wireHistoryHandlers(){
 
 /* ============================= DISPATCH ============================= */
 function wireTabHandlers(){
+  if(currentTab==='dashboard') wireDashboardHandlers();
   if(currentTab==='log') wireLogHandlers();
   if(currentTab==='squad') wireSquadHandlers();
   if(currentTab==='settings') wireSettingsHandlers();
