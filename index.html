@@ -495,6 +495,9 @@ table.sheet th.sorted{color:var(--turf)}
 @media (max-width:620px){.dbbw-val{width:46px;font-size:16px}.dbbw-season{width:80px}.dbbw-games{width:64px}}
 /* ---- team filter chip (looks like a button, opens a menu) ---- */
 .dbfilter{display:flex;align-items:center;gap:14px;padding:13px 18px;margin-top:14px}
+/* backdrop-filter gives every card its own paint layer, so a high z-index INSIDE the
+   card can't beat the card below. Raise the whole card while the menu is open instead. */
+.dbfilter.menu-open{z-index:60}
 .dbflabel{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
 .dbchipwrap{position:relative;display:inline-block}
 .dbchip{display:inline-flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);
@@ -1165,17 +1168,28 @@ function renderDashBW(){
   document.getElementById('db-worst-scope').textContent = scope;
   const box = document.getElementById('db-bwfilter');
   if(box) box.innerHTML = `<span class="dbflabel">Team</span>` + dashBWChipInner();
+  /* The chip element above is brand new — wire its handlers again (they lived on the
+     old element and were just replaced). Safe: fresh element, no listener stacking. */
+  wireDashboardHandlers();
+}
+/* Open/close the team menu, floating the filter card above the cards below it. */
+function setBWMenu(open){
+  const menu = document.getElementById('db-bwmenu');
+  const card = document.getElementById('db-bwfilter');
+  if(!menu || !card) return;
+  menu.hidden = !open;
+  card.classList.toggle('menu-open', open);
 }
 function wireDashboardHandlers(){
   const chip = document.getElementById('db-bwchip');
   const menu = document.getElementById('db-bwmenu');
   if(chip && menu){
-    chip.addEventListener('click', e=>{ e.stopPropagation(); menu.hidden = !menu.hidden; });
-    chip.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); menu.hidden = !menu.hidden; } });
+    chip.addEventListener('click', e=>{ e.stopPropagation(); setBWMenu(menu.hidden); });
+    chip.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setBWMenu(menu.hidden); } });
     menu.addEventListener('click', e=>{
       const o = e.target.closest('.dbopt'); if(!o) return;
       dashBW.team = o.dataset.t || '';
-      menu.hidden = true;
+      setBWMenu(false);
       renderDashBW();
     });
   }
@@ -1183,7 +1197,7 @@ function wireDashboardHandlers(){
 /* Close the team menu on any outside click (registered once, at top level). */
 document.addEventListener('click', e=>{
   const menu = document.getElementById('db-bwmenu');
-  if(menu && !menu.hidden && !e.target.closest('#db-bwchip') && !e.target.closest('#db-bwmenu')) menu.hidden = true;
+  if(menu && !menu.hidden && !e.target.closest('#db-bwchip') && !e.target.closest('#db-bwmenu')) setBWMenu(false);
 });
 
 function renderDashboard(){
@@ -1938,7 +1952,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v63';
+const SCAN_BUILD = 'v64';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
