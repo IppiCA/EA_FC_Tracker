@@ -184,6 +184,30 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .form-ticker .f.draw{background:var(--gold)}
 .form-ticker .f.loss{background:var(--red); color:#2b0006}
 .form-ticker .f.empty{background:var(--panel-2); color:transparent}
+/* ---- Form-ticker chips: hover = that match's stats (the tile itself); click = open it in Match History ---- */
+.form-ticker .fwrap{position:relative; display:inline-flex}
+.form-ticker .f{cursor:pointer; transition:transform .12s ease, box-shadow .12s ease}
+.fwrap:hover .f{transform:scale(1.18); box-shadow:0 0 0 2px rgba(255,255,255,.28)}
+.fpop{position:absolute; top:calc(100% + 12px); right:-10px; z-index:300;
+  opacity:0; visibility:hidden; transform:translateY(6px);
+  transition:opacity .14s ease, transform .14s ease, visibility .14s; pointer-events:none}
+.fpop::after{content:''; position:absolute; top:-4.5px; right:16px; width:9px; height:9px;
+  background:#141b23; border-left:1px solid var(--line); border-top:1px solid var(--line);
+  transform:rotate(45deg); z-index:1}
+.fwrap:hover .fpop{opacity:1; visibility:visible; transform:translateY(0)}
+.fpop .mtile{width:252px; margin:0; scroll-snap-align:none; flex:none}
+/* The card holding the hovered chip must float above the cards after it
+   (backdrop-filter creates stacking contexts that would paint over the popup). */
+.pagehead{position:relative; z-index:1}
+.pagehead:has(.fwrap:hover){z-index:60}
+.card:has(.fwrap:hover){z-index:60}
+/* Brief glow when a chip click lands on that match in Match History. */
+@keyframes tileflash{
+  0%{box-shadow:0 0 0 0 rgba(60,255,154,0)}
+  20%{box-shadow:0 0 0 2px var(--turf), 0 0 34px rgba(60,255,154,.65)}
+  100%{box-shadow:0 0 0 2px rgba(60,255,154,0), 0 12px 30px rgba(0,0,0,.25)}
+}
+.mtile.tile-flash{animation:tileflash 2.4s ease}
 
 .vs-bar{display:flex; align-items:center; gap:10px; margin:0 0 8px 0}
 .vs-bar .track{flex:1; height:7px; background:var(--panel-2); border-radius:99px; overflow:hidden; display:flex}
@@ -1171,12 +1195,40 @@ function render(){
 function recentForm(seasonId, n){
   const gs = (seasonId ? gamesFor(seasonId) : games).slice(0, n).reverse();
   const pad = Math.max(0, n - gs.length);
-  return Array(pad).fill('empty').concat(gs.map(outcome));
+  return {pad, gs};
 }
+/* Each chip IS a match: hover shows its stats (the match tile, rendered via
+   historyTile with popup=true), click jumps to it in Match History. */
 function formTickerHtml(seasonId, n){
-  const form = recentForm(seasonId, n||10);
-  return `<div class="form-ticker">${form.map(o=>`<div class="f ${o}">${o==='win'?'W':o==='draw'?'D':o==='loss'?'L':''}</div>`).join('')}</div>`;
+  const {pad, gs} = recentForm(seasonId, n||10);
+  let html = Array(pad).fill('<span class="f empty"></span>').join('');
+  for(const g of gs){
+    const o = outcome(g);
+    html += `<span class="fwrap"><span class="f ${o}" data-goto-game="${g.id}">${o==='win'?'W':o==='draw'?'D':'L'}</span>`
+          + `<span class="fpop">${historyTile(g, true)}</span></span>`;
+  }
+  return `<div class="form-ticker">${html}</div>`;
 }
+/* Chip click → Match History, scrolled to that match with a brief green glow. */
+function gotoGame(gameId){
+  const g = games.find(x=>x.id===gameId); if(!g) return;
+  setTab('history');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    let tile = document.querySelector(`.mtile[data-game="${g.id}"]`);
+    if(!tile){
+      historyFilterSeason = '';  /* season filter hiding it? switch to all seasons */
+      render();
+      tile = document.querySelector(`.mtile[data-game="${g.id}"]`);
+    }
+    if(!tile){ toast('Could not find that match'); return; }
+    tile.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+    tile.classList.remove('tile-flash'); void tile.offsetWidth; tile.classList.add('tile-flash');
+  }));
+}
+document.addEventListener('click', (e)=>{
+  const el = e.target.closest('[data-goto-game]');
+  if(el) gotoGame(el.dataset.gotoGame);
+});
 
 /* ============================= DASHBOARD ============================= */
 /* Best/worst seasons: top-3 lists per stat, one shared team filter ('' = All teams). */
@@ -2092,7 +2144,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v72';
+const SCAN_BUILD = 'v73';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3930,7 +3982,7 @@ function tileStatRows(g){
   }).join('');
 }
 
-function historyTile(g){
+function historyTile(g, popup=false){
   const s = seasonById(g.seasonId);
   const o = outcome(g);
   const allView = !histSeasonId();
@@ -3987,10 +4039,10 @@ function historyTile(g){
     <div class="mblock">${motmHtml}${followHtml}</div>
     <div class="mtile-b">
       ${statRows ? `<div class="stats-crossbar"></div>${statRows}` : ''}
-      <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
+      ${popup ? '' : `<div class="tile-actions" style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line)">
         <button type="button" class="link-btn" data-edit-game="${g.id}">Edit</button>
         <button type="button" class="link-btn" data-del-game="${g.id}" style="color:var(--red)">Delete</button>
-      </div>
+      </div>`}
     </div>
   </div>`;
 }
