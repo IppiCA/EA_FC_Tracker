@@ -406,8 +406,9 @@ table.sheet th.sorted{color:var(--turf)}
   animation:about-pop .26s cubic-bezier(.2,.8,.2,1)}
 /* inner mat border → gives the framed-print look */
 .about-frame::before{content:''; position:absolute; inset:17px; border-radius:19px; border:1px solid rgba(255,255,255,.10); pointer-events:none}
-.about-pic{margin:0 0 26px; padding:15px; border-radius:20px; background:#0a0e13; border:1px solid rgba(255,255,255,.12); box-shadow:inset 0 3px 22px rgba(0,0,0,.65)}
+.about-pic{position:relative; margin:0 0 26px; padding:15px; border-radius:20px; background:#0a0e13; border:1px solid rgba(255,255,255,.12); box-shadow:inset 0 3px 22px rgba(0,0,0,.65)}
 .about-pic img{width:100%; display:block; border-radius:13px; object-fit:cover; aspect-ratio:16/9; max-height:64vh}
+.about-pic .zc-snow{inset:15px; border-radius:13px}
 .about-head{display:flex; gap:26px; align-items:center; padding:4px 8px 0}
 .about-crest{width:112px; height:112px; border-radius:22px; object-fit:cover; box-shadow:0 10px 28px rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.16); flex:0 0 auto}
 .about-head h2{margin:0; font-size:46px; letter-spacing:.02em; color:#F2F6F4}
@@ -421,8 +422,8 @@ table.sheet th.sorted{color:var(--turf)}
 .login-wrap{position:relative; width:100%; height:100vh; height:100dvh; overflow:hidden; background:#f5ead8; font-family:'Figtree',system-ui,sans-serif;}
 .login-wrap .zc-bg{position:absolute; inset:0;}
 .login-wrap .zc-bg img{width:100%; height:100%; object-fit:cover; object-position:center; display:block;}
-.login-wrap .zc-snow{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
-.login-wrap .zc-snow .flake{position:absolute; top:-20px; border-radius:50%; background:#fff; animation-name:zc-fall; animation-timing-function:linear; animation-iteration-count:infinite;}
+.zc-snow{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
+.zc-snow .flake{position:absolute; top:-20px; border-radius:50%; background:#fff; animation-name:zc-fall; animation-timing-function:linear; animation-iteration-count:infinite;}
 @keyframes zc-fall{ from{ transform:translate(0,-20px); } to{ transform:translate(30px,105vh); } }
 .login-card{
   position:absolute; left:clamp(16px,2vw,48px); top:clamp(16px,6vh,120px);
@@ -448,7 +449,7 @@ table.sheet th.sorted{color:var(--turf)}
   .login-card{ left:16px; right:16px; top:auto; bottom:16px; width:auto; max-width:none; }
 }
 @media (prefers-reduced-motion: reduce){
-  .login-wrap .zc-snow{ display:none; }
+  .zc-snow{ display:none; }
 }
 
 /* ---- Dashboard v2 — control-panel layout (mockup option 2) ---- */
@@ -602,13 +603,14 @@ table.sheet th.sorted{color:var(--turf)}
         <source srcset="zermatt-scene.webp" type="image/webp">
         <img src="zermatt-scene.jpg" alt="Two friends playing EA FC on a snowy mountainside at sunset, the Matterhorn behind them">
       </picture>
+      <div class="zc-snow" aria-hidden="true"></div>
     </div>
     <div class="about-head">
       <img class="about-crest" src="app-icon.webp" alt="">
       <div>
         <h2>EA FC Tracker</h2>
         <div class="about-tag">Co-op Season · Zermatt</div>
-        <p class="about-sub">Two friends, one couch, every match remembered — EA FC 26 all the way back to FIFA 24.</p>
+        <p class="about-sub">Two friends. Two legendary winter sports enthusiasts. Even better EA FC pros. Co-op forged in Amsterdam, perfected across continents. High ping drives others away, it fuels us.<br>Stebo &amp; Ippi</p>
       </div>
     </div>
     <div class="about-foot"><span>EA FC Tracker</span><span id="about-build"></span></div>
@@ -2090,7 +2092,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v71';
+const SCAN_BUILD = 'v72';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4271,24 +4273,24 @@ async function downloadDbBackup(){
 document.getElementById('backup-btn').addEventListener('click', downloadDbBackup);
 
 function initSnowfall(){
-  const root = document.getElementById('zc-snow');
-  if(!root) return;
   if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const frag = document.createDocumentFragment();
-  for(let i=0;i<70;i++){
-    const d = document.createElement('div');
-    d.className = 'flake';
-    const size = 2 + Math.random()*4;
-    d.style.left = (Math.random()*100)+'%';
-    d.style.width = size+'px';
-    d.style.height = size+'px';
-    d.style.opacity = (0.5 + Math.random()*0.5).toFixed(2);
-    const dur = 8 + Math.random()*10;
-    d.style.animationDuration = dur+'s';
-    d.style.animationDelay = (-Math.random()*dur)+'s';
-    frag.appendChild(d);
-  }
-  root.appendChild(frag);
+  document.querySelectorAll('.zc-snow').forEach(root=>{
+    const frag = document.createDocumentFragment();
+    for(let i=0;i<70;i++){
+      const d = document.createElement('div');
+      d.className = 'flake';
+      const size = 2 + Math.random()*4;
+      d.style.left = (Math.random()*100)+'%';
+      d.style.width = size+'px';
+      d.style.height = size+'px';
+      d.style.opacity = (0.5 + Math.random()*0.5).toFixed(2);
+      const dur = 8 + Math.random()*10;
+      d.style.animationDuration = dur+'s';
+      d.style.animationDelay = (-Math.random()*dur)+'s';
+      frag.appendChild(d);
+    }
+    root.appendChild(frag);
+  });
 }
 
 initAuth();
