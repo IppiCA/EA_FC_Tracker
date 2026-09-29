@@ -1507,7 +1507,6 @@ function renderDashboard(){
   const gd = ct.gf - ct.ga;
   const perGame = v => n ? (v/n).toFixed(2) : '0.00';
   const gOff = (527.79 * (1 - winPct/100)).toFixed(2);
-  const lb = leaderboard().slice(0,8);
   const activeSeason = seasons[0];
 
   /* Record bar — order is always W → D → L, zero segments hidden.
@@ -1607,22 +1606,6 @@ function renderDashboard(){
   ${seasonPanel(activeSeason)}
   ` : ''}
 
-  <div class="section-title">All-time leaderboard <span class="subtle">(goals + assists)</span></div>
-  <div class="card tablewrap">
-    ${lb.length ? `
-    <table>
-      <tr><th>Player</th><th class="right">Apps</th><th class="right">Goals</th><th class="right">Assists</th><th class="right">Pts</th><th class="right">MOTM</th><th class="right">Avg rating</th></tr>
-      ${lb.map(r=>`<tr>
-        <td>${esc(r.player.name)}</td>
-        <td class="right">${r.apps}</td>
-        <td class="right">${r.goals}</td>
-        <td class="right">${r.assists}</td>
-        <td class="right" style="color:var(--turf);font-weight:700">${r.points}</td>
-        <td class="right">${r.motm}</td>
-        <td class="right">${r.avgRating!=null? r.avgRating.toFixed(1) : '—'}</td>
-      </tr>`).join('')}
-    </table>` : `<div class="empty">No games logged yet — head to <b>Log Match</b> to add your first one.</div>`}
-  </div>
   `;
 }
 
@@ -2258,7 +2241,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v81';
+const SCAN_BUILD = 'v82';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
