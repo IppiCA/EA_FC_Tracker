@@ -266,11 +266,39 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .mtile .vs-bar{margin:0 0 8px 0}
 .mtile .vs-bar .val{width:32px; font-size:12px}
 .opp-tags{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin:9px 0}
-.opp-tag{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); padding:3px 8px; border-radius:8px; max-width:100%}
+/* Every tag on a tile is a KNOWN rival by definition (we played them — that's why it's
+   on the tile): gold border + faint tint = "we've played this one before" (approved design). */
+.opp-tag{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ink); background:rgba(240,196,100,.08); border:1px solid rgba(240,196,100,.70); padding:3px 8px; border-radius:8px; max-width:100%}
 .opp-tag .plat-ic{display:inline-flex; width:14px; height:14px; color:var(--ink-dim); flex:0 0 auto}
 .opp-tag .plat-ic svg{width:14px; height:14px}
 .opp-tag .tgname{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .opp-tag .flagimg{width:20px; height:14px; border-radius:2px; object-fit:cover; flex:0 0 auto}
+/* ---- Known-rival hover strip: chips in Match History + lit-up tag boxes in Log Match ----
+   ONE global pop lives in <body> (cards/tiles use backdrop-filter, which would turn them
+   into containing blocks for fixed children — body never does). JS (delegated, top-level)
+   fills it on hover and positions it in viewport coordinates, so the history strip's
+   horizontal scroll can never clip it and it floats above every card. */
+.tgwrap{position:relative; display:flex; align-items:stretch}
+.tagrow .tgwrap{flex:1; min-width:84px}
+.tgwrap .tgin{width:100%}
+.tgwrap:hover .tgin{border-color:#FFE9B8; box-shadow:0 0 0 1px rgba(240,196,100,.35)}
+.tgwrap:hover .opp-tag{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.30)}
+/* the "we've played this tag" state for the Log Match tag boxes */
+.tgin.tg-known{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.25); background:rgba(240,196,100,.07)}
+.tgpop{position:fixed; z-index:400; white-space:nowrap;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--line); box-shadow:0 18px 44px rgba(0,0,0,.55);
+  opacity:0; visibility:hidden; transform:translateY(6px);
+  transition:opacity .14s ease,transform .14s ease,visibility .14s; pointer-events:none}
+.tgpop.on{opacity:1; visibility:visible; transform:translateY(0)}
+.tgpop .tgstrip{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:9px 14px}
+.tgstrip .res{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:12px; letter-spacing:.03em}
+.tgstrip .res.win{color:var(--turf)} .tgstrip .res.draw{color:var(--gold)} .tgstrip .res.loss{color:var(--red)}
+.tgstrip .sc{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px}
+.tgstrip .dot{width:3px; height:3px; border-radius:99px; background:var(--ink-faint); flex:0 0 auto}
+.tgstrip .m{color:var(--ink-dim)} .tgstrip .m b{color:var(--ink)}
+.tgstrip .motm{color:var(--gold); font-weight:600}
+.tgstrip .rq{color:var(--turf); font-weight:600}
 .ssrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 2px; border-bottom:1px solid var(--line)}
 .ssrow:last-child{border-bottom:none}
 .ssrow .l{color:var(--ink-dim); font-size:12.5px}
@@ -1904,7 +1932,9 @@ function gamertagField(i){
   return `<div class="field" style="flex:2.3; min-width:300px">
     <label>Their gamertag ${i}</label>
     <div class="tagrow">
-      <input type="text" id="f-tag${i}" class="tg-in" value="${esc(logDraft.opponentGamertags[idx]||'')}">
+      <span class="tgwrap" data-taginput="f-tag${i}">
+        <input type="text" id="f-tag${i}" class="tg-in" value="${esc(logDraft.opponentGamertags[idx]||'')}">
+      </span>
       <span class="ddrop" data-kind="plat" data-idx="${i}">
         <button type="button" class="ddrop-btn" id="dd-plat-${i}" title="Console or PC"><span class="ddrop-val"></span><span class="chev">▾</span></button>
         <span class="ddrop-pop">
@@ -2081,6 +2111,93 @@ function queueAutosave(){
   }, 900);
 }
 
+/* ============================= KNOWN RIVALS =============================
+   A gamertag already on record = "we've played this one before": the Log Match box gets
+   the gold border, and hovering it shows the LAST match we played against that tag
+   (the same one-line strip the Match History chips use). */
+function rivalKey(s){ return (s||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''); }
+function knownRivalGame(tag){
+  const k = rivalKey(tag);
+  if(!k) return null;
+  let best = null;
+  for(const g of games){
+    const tags = (g.opponentGamertags||[]).map(rivalKey).filter(Boolean);
+    if(tags.includes(k) && (!best || (g.createdAt||0) >= (best.createdAt||0))) best = g;
+  }
+  return best;
+}
+/* The one-line match strip (approved Option C): result, score (us:them), opponent,
+   season, home/away + game number, MOTM (or the best-rated player) and the rage-quit
+   minute. */
+function rivalStripHtml(g){
+  const s = seasonById(g.seasonId);
+  const o = outcome(g);
+  const parts = [
+    `<span class="res ${o}">${o.toUpperCase()}</span>`,
+    `<span class="sc">${Number(g.scoreFor)||0}:${Number(g.scoreAgainst)||0}</span>`,
+    `<span class="m">vs <b>${esc(g.opponentTeam||'\u2014')}</b></span>`,
+    `<span class="dot"></span>`,
+  ];
+  if(s) parts.push(`<span class="m"><b>Season #${esc(s.number)}</b></span><span class="dot"></span>`);
+  parts.push(`<span class="m">${g.homeAway==='home'?'Home':'Away'} \u00b7 Game ${gamePosition(g.seasonId,g.id)||(g.gameNumber||'')}</span>`);
+  const psList = g.playerStats||[];
+  const rated = psList.filter(p=>(Number(p.rating)||0)>0).sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0));
+  let top = null;
+  if(g.motmPlayerId){ top = {id:g.motmPlayerId, rating:(rated.find(p=>p.playerId===g.motmPlayerId)||{}).rating}; }
+  else if(rated[0]){ top = {id:rated[0].playerId, rating:rated[0].rating}; }
+  if(top){
+    const r = Number(top.rating);
+    parts.push(`<span class="dot"></span><span class="m">\u2b50 <span class="motm">${esc(playerName(top.id))}${r>0?` ${esc(top.rating)}`:''}</span></span>`);
+  }
+  if(g.rageQuitMin!=null){
+    parts.push(`<span class="dot"></span><span class="rq">RQ ${parseFloat(Number(g.rageQuitMin).toFixed(1))} min</span>`);
+  }
+  return `<span class="tgstrip">${parts.join('')}</span>`;
+}
+/* Light up a Log Match tag box (gold) when its tag is already on record. Called on
+   every keystroke + on render, so the state is right after an OCR paste too. (The hover
+   strip itself is the one global pop, filled on hover — see below.) */
+function paintKnownTag(el){
+  el.classList.toggle('tg-known', !!knownRivalGame(el.value));
+}
+/* Hover wiring for the strips — ONE delegated set of top-level listeners (v64 lesson:
+   never per-render) + ONE global pop in <body>. History chips carry data-gid (that
+   match); Log Match boxes carry data-taginput (resolve the typed value live). */
+const tgPop = document.createElement('div');
+tgPop.className = 'tgpop';
+document.body.appendChild(tgPop);
+let tgPopWrap = null;
+function tgPopHide(){
+  tgPopWrap = null;
+  tgPop.classList.remove('on');
+}
+document.addEventListener('mouseover', (e)=>{
+  const w = e.target.closest ? e.target.closest('.tgwrap') : null;
+  if(!w || w===tgPopWrap) return;
+  tgPopHide();
+  let g = null;
+  if(w.dataset && w.dataset.gid){ g = games.find(x=>x.id===w.dataset.gid) || null; }
+  else if(w.dataset && w.dataset.taginput){ const el = document.getElementById(w.dataset.taginput); if(el) g = knownRivalGame(el.value); }
+  if(!g) return; /* tag not on record → no strip */
+  tgPopWrap = w;
+  tgPop.innerHTML = rivalStripHtml(g);
+  const r = w.getBoundingClientRect();
+  const pw = tgPop.offsetWidth, ph = tgPop.offsetHeight;
+  tgPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8)) + 'px';
+  let top = r.bottom + 10;
+  if(top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 10); /* flip above near the bottom edge */
+  tgPop.style.top = top + 'px';
+  tgPop.classList.add('on');
+});
+document.addEventListener('mouseout', (e)=>{
+  if(!tgPopWrap) return;
+  const to = e.relatedTarget;
+  if(to && to.nodeType===1 && tgPopWrap.contains(to)) return;
+  tgPopHide();
+});
+window.addEventListener('scroll', tgPopHide, true); /* capture: also fires for the strip's own scroll */
+window.addEventListener('resize', tgPopHide);
+
 function wireLogHandlers(){
   /* The US/THEM header above the stats mirrors the two gamertag fields as you type —
      fixing an OCR-misread letter below updates the header immediately (no save needed).
@@ -2096,8 +2213,10 @@ function wireLogHandlers(){
     if(!el) return;
     el.addEventListener('input', ()=>{
       if(logDraft) logDraft.opponentGamertags[i-1] = el.value;
+      paintKnownTag(el);
       syncHeadTags();
     });
+    paintKnownTag(el); /* initial state — right after an OCR paste, or when editing a match */
   });
   const seasonSel = document.getElementById('f-season');
   if(seasonSel) seasonSel.addEventListener('change', (e)=>{
@@ -2241,7 +2360,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v82';
+const SCAN_BUILD = 'v83';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4225,7 +4344,9 @@ function oppTagsLine(g){
     const plat = (g.opponentPlatforms||[])[i];
     const cty  = (g.opponentCountries||[])[i];
     const ic = plat==='pc' ? ICONS.monitor : (plat==='console' ? ICONS.gamepad : '');
-    out.push(`<span class="opp-tag">${ic?`<span class="plat-ic">${ic}</span>`:''}<span class="tgname">${esc(tag)}</span>${cty?`<img class="flagimg" src="${countryFlag(cty)}" alt="" loading="lazy">`:''}</span>`);
+    /* Each chip is a known rival: gold highlight + hover = that match's one-line strip
+       (data-gid → the global pop resolves the game on hover). */
+    out.push(`<span class="tgwrap" data-gid="${g.id}"><span class="opp-tag">${ic?`<span class="plat-ic">${ic}</span>`:''}<span class="tgname">${esc(tag)}</span>${cty?`<img class="flagimg" src="${countryFlag(cty)}" alt="" loading="lazy">`:''}</span></span>`);
   }
   return out.length ? `<div class="opp-tags">${out.join('')}</div>` : '';
 }
