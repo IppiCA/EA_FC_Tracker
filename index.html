@@ -276,9 +276,10 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .mtile .vs-bar{margin:0 0 8px 0}
 .mtile .vs-bar .val{width:32px; font-size:12px}
 .opp-tags{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin:9px 0}
-/* Every tag on a tile is a KNOWN rival by definition (we played them — that's why it's
-   on the tile): gold border + faint tint = "we've played this one before" (approved design). */
-.opp-tag{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ink); background:rgba(240,196,100,.08); border:1px solid rgba(240,196,100,.70); padding:3px 8px; border-radius:8px; max-width:100%}
+/* Opponent tag chips: neutral by default; REPEAT rivals (the tag on record in 2+ games)
+   get the gold border + faint tint — that's the "we've played them before" state. */
+.opp-tag{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ink); background:rgba(255,255,255,.04); border:1px solid var(--line); padding:3px 8px; border-radius:8px; max-width:100%}
+.opp-tag.tg-known{background:rgba(240,196,100,.08); border-color:rgba(240,196,100,.70)}
 .opp-tag .plat-ic{display:inline-flex; width:14px; height:14px; color:var(--ink-dim); flex:0 0 auto}
 .opp-tag .plat-ic svg{width:14px; height:14px}
 .opp-tag .tgname{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -292,8 +293,8 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .tagrow .tgwrap{flex:1; min-width:84px}
 .tgwrap .tg-in{width:100%}
 .tgwrap:hover .tg-in.tg-known{border-color:#FFE9B8; box-shadow:0 0 0 1px rgba(240,196,100,.35)}
-.tgwrap:hover .opp-tag{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.30)}
-/* the "we've played this tag" state for the Log Match tag boxes */
+.tgwrap:hover .opp-tag.tg-known{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.30)}
+/* the "we've played this tag before" state for the Log Match tag boxes */
 .tg-in.tg-known{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.25); background:rgba(240,196,100,.07)}
 .tgpop{position:fixed; z-index:400; white-space:nowrap;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
@@ -302,6 +303,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
   transition:opacity .14s ease,transform .14s ease,visibility .14s; pointer-events:none}
 .tgpop.on{opacity:1; visibility:visible; transform:translateY(0)}
 .tgpop .tgstrip{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:9px 14px}
+.tgpop .tgstrip + .tgstrip{border-top:1px solid var(--line)}
 .tgstrip .res{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:12px; letter-spacing:.03em}
 .tgstrip .res.win{color:var(--turf)} .tgstrip .res.draw{color:var(--gold)} .tgstrip .res.loss{color:var(--red)}
 .tgstrip .sc{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px}
@@ -2122,19 +2124,26 @@ function queueAutosave(){
 }
 
 /* ============================= KNOWN RIVALS =============================
-   A gamertag already on record = "we've played this one before": the Log Match box gets
-   the gold border, and hovering it shows the LAST match we played against that tag
-   (the same one-line strip the Match History chips use). */
+   A gamertag on record in 2+ games = "a repeat rival": every chip for it in Match
+   History (and the Log Match box while logging a repeat game) gets the gold border.
+   Hovering a gold chip/box lists the OTHER match(es) we played against that tag — one
+   line each, newest first. (The pop is the one global pop in <body> — see below.) */
 function rivalKey(s){ return (s||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''); }
-function knownRivalGame(tag){
+function rivalGames(tag){
   const k = rivalKey(tag);
-  if(!k) return null;
-  let best = null;
+  if(!k) return [];
+  const out = [];
   for(const g of games){
     const tags = (g.opponentGamertags||[]).map(rivalKey).filter(Boolean);
-    if(tags.includes(k) && (!best || (g.createdAt||0) >= (best.createdAt||0))) best = g;
+    if(tags.includes(k)) out.push(g);
   }
-  return best;
+  return out.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); /* newest first */
+}
+/* The "other" games against a tag = the list minus the game in front of us (the match
+   being hovered in History, or the one being logged/edited in Log Match). Gold state
+   AND the hover strip are both driven by this: gold iff there is at least one other. */
+function rivalOthers(tag, excludeId){
+  return rivalGames(tag).filter(g=>g.id!==excludeId);
 }
 /* The one-line match strip (approved Option C): result, score (us:them), opponent,
    season, home/away + game number, MOTM (or the best-rated player) and the rage-quit
@@ -2164,11 +2173,12 @@ function rivalStripHtml(g){
   }
   return `<span class="tgstrip">${parts.join('')}</span>`;
 }
-/* Light up a Log Match tag box (gold) when its tag is already on record. Called on
-   every keystroke + on render, so the state is right after an OCR paste too. (The hover
-   strip itself is the one global pop, filled on hover — see below.) */
+/* Light up a Log Match tag box (gold) when this would be a REPEAT game — the tag is
+   already on record at least once (or, while editing, once outside the game being
+   edited). Called on every keystroke + on render, so the state is right after an OCR
+   paste too. (The hover strip itself is the one global pop, filled on hover — below.) */
 function paintKnownTag(el){
-  el.classList.toggle('tg-known', !!knownRivalGame(el.value));
+  el.classList.toggle('tg-known', rivalOthers(el.value, editingGameId).length > 0);
 }
 /* Hover wiring for the strips — ONE delegated set of top-level listeners (v64 lesson:
    never per-render) + ONE global pop in <body>. History chips carry data-gid (that
@@ -2185,12 +2195,20 @@ document.addEventListener('mouseover', (e)=>{
   const w = e.target.closest ? e.target.closest('.tgwrap') : null;
   if(!w || w===tgPopWrap) return;
   tgPopHide();
-  let g = null;
-  if(w.dataset && w.dataset.gid){ g = games.find(x=>x.id===w.dataset.gid) || null; }
-  else if(w.dataset && w.dataset.taginput){ const el = document.getElementById(w.dataset.taginput); if(el) g = knownRivalGame(el.value); }
-  if(!g) return; /* tag not on record → no strip */
+  let list = [];
+  if(w.dataset && w.dataset.gid){
+    /* Match History chip: the OTHER match(es) against this tag (this game excluded). */
+    list = rivalOthers(w.dataset.tag || '', w.dataset.gid);
+  }
+  else if(w.dataset && w.dataset.taginput){
+    const el = document.getElementById(w.dataset.taginput);
+    /* Log Match box: every game on record against this tag (the one being logged isn't
+       saved yet; while editing, the game being edited is excluded). */
+    list = el ? rivalOthers(el.value, editingGameId) : [];
+  }
+  if(!list.length) return; /* no other game against this tag → no strip */
   tgPopWrap = w;
-  tgPop.innerHTML = rivalStripHtml(g);
+  tgPop.innerHTML = list.map(rivalStripHtml).join('');
   const r = w.getBoundingClientRect();
   const pw = tgPop.offsetWidth, ph = tgPop.offsetHeight;
   tgPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8)) + 'px';
@@ -2370,7 +2388,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v85';
+const SCAN_BUILD = 'v86';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4354,9 +4372,10 @@ function oppTagsLine(g){
     const plat = (g.opponentPlatforms||[])[i];
     const cty  = (g.opponentCountries||[])[i];
     const ic = plat==='pc' ? ICONS.monitor : (plat==='console' ? ICONS.gamepad : '');
-    /* Each chip is a known rival: gold highlight + hover = that match's one-line strip
-       (data-gid → the global pop resolves the game on hover). */
-    out.push(`<span class="tgwrap" data-gid="${g.id}"><span class="opp-tag">${ic?`<span class="plat-ic">${ic}</span>`:''}<span class="tgname">${esc(tag)}</span>${cty?`<img class="flagimg" src="${countryFlag(cty)}" alt="" loading="lazy">`:''}</span></span>`);
+    /* Gold only for REPEAT rivals — this tag on record in 2+ games (this one + at
+       least one other). Hover then lists the other game(s) against that tag. */
+    const known = rivalOthers(tag, g.id).length > 0;
+    out.push(`<span class="tgwrap" data-gid="${g.id}" data-tag="${esc(tag)}"><span class="opp-tag${known?' tg-known':''}">${ic?`<span class="plat-ic">${ic}</span>`:''}<span class="tgname">${esc(tag)}</span>${cty?`<img class="flagimg" src="${countryFlag(cty)}" alt="" loading="lazy">`:''}</span></span>`);
   }
   return out.length ? `<div class="opp-tags">${out.join('')}</div>` : '';
 }
