@@ -291,7 +291,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .tgwrap{position:relative; display:flex; align-items:stretch}
 .tagrow .tgwrap{flex:1; min-width:84px}
 .tgwrap .tg-in{width:100%}
-.tgwrap:hover .tg-in{border-color:#FFE9B8; box-shadow:0 0 0 1px rgba(240,196,100,.35)}
+.tgwrap:hover .tg-in.tg-known{border-color:#FFE9B8; box-shadow:0 0 0 1px rgba(240,196,100,.35)}
 .tgwrap:hover .opp-tag{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.30)}
 /* the "we've played this tag" state for the Log Match tag boxes */
 .tg-in.tg-known{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.25); background:rgba(240,196,100,.07)}
@@ -2370,7 +2370,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v84';
+const SCAN_BUILD = 'v85';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
