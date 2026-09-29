@@ -166,7 +166,17 @@ tr:last-child td{border-bottom:none}
 
 input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
   width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
-  border-radius:10px; padding:9px 12px; font-size:14px;
+  border-radius:10px; padding:9px 12px; font-size:14px; color-scheme:dark;
+}
+/* Chrome repaints a box in its own light "autofill" look when it remembers a value for
+   that field (saved form entries) — pin our dark background + light text back over it.
+   background-image paints above the autofill background-color; the extra selector keeps
+   the cover on a known-rival tag box too (its own rule uses the background shorthand). */
+input:-webkit-autofill,
+select:-webkit-autofill,
+input.tg-in.tg-known:-webkit-autofill{
+  -webkit-text-fill-color:var(--ink);
+  background-image:linear-gradient(var(--panel-2), var(--panel-2));
 }
 input[type=date],input[type=time]{color-scheme:dark}
 input[type=date]::-webkit-calendar-picker-indicator,
@@ -280,11 +290,11 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
    horizontal scroll can never clip it and it floats above every card. */
 .tgwrap{position:relative; display:flex; align-items:stretch}
 .tagrow .tgwrap{flex:1; min-width:84px}
-.tgwrap .tgin{width:100%}
-.tgwrap:hover .tgin{border-color:#FFE9B8; box-shadow:0 0 0 1px rgba(240,196,100,.35)}
+.tgwrap .tg-in{width:100%}
+.tgwrap:hover .tg-in{border-color:#FFE9B8; box-shadow:0 0 0 1px rgba(240,196,100,.35)}
 .tgwrap:hover .opp-tag{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.30)}
 /* the "we've played this tag" state for the Log Match tag boxes */
-.tgin.tg-known{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.25); background:rgba(240,196,100,.07)}
+.tg-in.tg-known{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.25); background:rgba(240,196,100,.07)}
 .tgpop{position:fixed; z-index:400; white-space:nowrap;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--line); box-shadow:0 18px 44px rgba(0,0,0,.55);
@@ -2360,7 +2370,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v83';
+const SCAN_BUILD = 'v84';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
