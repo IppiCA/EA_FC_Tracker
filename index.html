@@ -2389,7 +2389,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v87';
+const SCAN_BUILD = 'v88';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4472,13 +4472,15 @@ function historyTile(g, popup=false){
   </div>`;
 }
 
-/* Left column, panel 1: season numbers (Points, Games, W/D/L, goals + per-game avg,
-   away games, rage quits, disconnects) — over the selected season, or all seasons. */
+/* Left column, panel 1: season numbers (Points, W/D/L, goals + per-game avg,
+   avg. possession, away games, rage quits, disconnects) — over the selected season,
+   or all seasons. ("Games played" left out — the match count already sits under the
+   Match History header.) */
 function seasonStatsPanel(sid){
   const s = sid ? seasonById(sid) : null;
   const gs = s ? gamesFor(s.id) : games.slice();
   const n = gs.length;
-  let w=0,d=0,l=0,gf=0,ga=0,rqW=0,dc=0,away=0,rqSum=0,rqN=0;
+  let w=0,d=0,l=0,gf=0,ga=0,rqW=0,dc=0,away=0,rqSum=0,rqN=0,possSum=0,possN=0;
   gs.forEach(g=>{
     const o = outcome(g);
     if(o==='win')w++; else if(o==='draw')d++; else l++;
@@ -4489,6 +4491,10 @@ function seasonStatsPanel(sid){
     if(o==='win' && g.rageQuit && g.rageQuit!=='none') rqW++;
     if(g.rageQuitMin!=null){ rqSum += Number(g.rageQuitMin); rqN++; }
     if(g.disconnect) dc++;
+    /* Avg. possession: only games that actually recorded it (OCR may miss it on older
+       matches) count toward the average. */
+    const possV = (g.teamStats && g.teamStats.for) ? g.teamStats.for['Possession %'] : null;
+    if(possV!=null && possV!=='' && !isNaN(Number(possV))){ possSum += Number(possV); possN++; }
   });
   const avg = x => n ? (x/n).toFixed(1) : '';
   let badge = '';
@@ -4518,9 +4524,9 @@ function seasonStatsPanel(sid){
       </div>
     </div>
     <div style="margin-top:14px">
-      <div class="ssrow"><span class="l">Games played</span><span class="v">${n}</span></div>
       <div class="ssrow"><span class="l">Goals scored</span><span class="v">${gf}${n?`<small>avg ${avg(gf)}</small>`:''}</span></div>
       <div class="ssrow"><span class="l">Goals conceded</span><span class="v" style="color:var(--red)">${ga}${n?`<small>avg ${avg(ga)}</small>`:''}</span></div>
+      <div class="ssrow"><span class="l">Avg. possession %</span><span class="v">${possN ? (possSum/possN).toFixed(1)+'%' : '—'}</span></div>
       <div class="ssrow"><span class="l">Away games</span><span class="v">${away}${n?`<small>· ${Math.round(away/n*100)}%</small>`:''}</span></div>
       <div class="ssrow"><span class="l">Rage quits</span><span class="v" style="color:var(--red)">${rqW}${w?`<small>· ${Math.round(rqW/w*100)}% of wins</small>`:''}</span></div>
       ${rqN?`<div class="ssrow"><span class="l">Avg. rage-quit time</span><span class="v" style="color:var(--gold)">${Math.round(rqSum/rqN)} min</span></div>`:''}
