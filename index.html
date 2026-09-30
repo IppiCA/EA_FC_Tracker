@@ -393,6 +393,37 @@ table.hof td.pct{color:var(--ink-faint);font-size:10.5px;font-variant-numeric:ta
 table.hof tr.total td{background:var(--panel-2);font-weight:700;border-bottom:none}
 table.hof .pname{display:flex;align-items:center;gap:8px;font-weight:600}
 table.hof .pname img{width:16px;height:16px;object-fit:contain;opacity:.9}
+/* ---- Highscores: Top 10/All switch + record tables (Hall of Fame colours) ---- */
+.hs-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hs-head .section-title{flex:1;min-width:0}
+.hsctl{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.hsctl .lbl{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-right:2px}
+.hsbtn{height:22px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink-faint);
+  font-family:'Rajdhani',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;display:grid;place-items:center;
+  transition:color .15s ease,border-color .15s ease,background .15s ease}
+.hsbtn:hover{color:var(--ink-dim);border-color:var(--ink-faint)}
+.hsbtn.on{background:linear-gradient(90deg,var(--turf-dim),var(--turf) 50%,#A7FFD9);color:#061209;border-color:transparent;box-shadow:0 4px 14px rgba(60,255,154,.22)}
+.hswrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.hs{width:100%;border-collapse:collapse;font-size:12px}
+table.hs th{text-align:left;color:var(--ink);font-weight:700;font-size:11px;padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.hs td{padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.hs tr:last-child td{border-bottom:none}
+table.hs .right{text-align:right}
+table.hs th.sortable{cursor:pointer;user-select:none}
+table.hs th.sortable:hover{color:var(--ink-dim)}
+table.hs th.sorted{color:var(--turf)}
+table.hs th.sub{color:var(--ink-faint);font-weight:600;font-size:10px}
+table.hs .pname{display:flex;align-items:center;gap:8px;font-weight:600}
+table.hs .pname img{width:16px;height:16px;object-fit:contain;opacity:.9}
+table.hs td.c-g{color:var(--red);font-weight:700}
+table.hs td.c-a{color:var(--blue);font-weight:700}
+table.hs td.c-pts{color:var(--gold);font-weight:700}
+table.hs td.c-mom{color:var(--ink);font-weight:700}
+table.hs td.c-avg{color:var(--turf);font-weight:700}
+table.hs td.seasons{white-space:normal;min-width:74px}
+.hschip{display:inline-block;padding:1px 8px;margin:1px 3px 1px 0;border:1px solid var(--line);border-radius:8px;font-size:11.5px;
+  font-weight:600;color:var(--ink-dim);cursor:pointer;font-variant-numeric:tabular-nums;transition:color .15s ease,border-color .15s ease}
+.hschip:hover{color:var(--turf);border-color:var(--turf)}
 .sheet-teams{display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 10px}
 .tchk{display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:9px;
   border:1px solid var(--line); background:var(--panel-2); color:var(--ink-faint);
@@ -703,6 +734,7 @@ table.hof .pname img{width:16px;height:16px;object-fit:contain;opacity:.9}
     <button class="navbtn" data-tab="dashboard"><span class="ic">◆</span> Dashboard</button>
     <button class="navbtn" data-tab="history"><span class="ic">≡</span> Match History</button>
     <button class="navbtn" data-tab="hof"><span class="ic">♛</span> Hall of Fame</button>
+    <button class="navbtn" data-tab="highscores"><span class="ic">★</span> Highscores</button>
     <button class="navbtn" data-tab="trophy"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span> Trophy Room</button>
     <button class="navbtn" data-tab="log" style="margin-top:auto"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> New Season</button>
@@ -723,6 +755,7 @@ table.hof .pname img{width:16px;height:16px;object-fit:contain;opacity:.9}
     <button data-tab="dashboard"><span class="ic">◆</span>Dashboard</button>
     <button data-tab="history"><span class="ic">≡</span>History</button>
     <button data-tab="hof"><span class="ic">♛</span>Hall</button>
+    <button data-tab="highscores"><span class="ic">★</span>High</button>
     <button data-tab="trophy"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>Trophy</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
@@ -954,7 +987,8 @@ async function dbDelete(collection, id){
    cover `settings` yet, everything keeps working in-memory — it just won't
    stick across logins (and a toast points to the missing rule). */
 const SHEET_SORT_KEYS = ['apps','goals','assists','points','motm','avg'];
-let userSettings = { bestDivs:[1,2,3,4,5], worstDivs:[1,2,3,4,5], sheetSortKey:'points', sheetSortDir:-1, hofTeams:null, hofSortKey:'pts', hofSortDir:-1 };
+let userSettings = { bestDivs:[1,2,3,4,5], worstDivs:[1,2,3,4,5], sheetSortKey:'points', sheetSortDir:-1, hofTeams:null, hofSortKey:'pts', hofSortDir:-1,
+  hsTeams:null, hsSKey:'pts', hsSDir:-1, hsGKey:'pts', hsGDir:-1, hsTopS:true, hsTopG:true };
 let settingsSaveTimer = null;
 let settingsWarned = false;
 function settingsUid(){
@@ -972,9 +1006,13 @@ function applySettings(){
   sheetSortDir = userSettings.sheetSortDir;
   hofSortKey = userSettings.hofSortKey;
   hofSortDir = userSettings.hofSortDir;
+  hsSKey = userSettings.hsSKey; hsSDir = userSettings.hsSDir;
+  hsGKey = userSettings.hsGKey; hsGDir = userSettings.hsGDir;
+  hsTopS = userSettings.hsTopS; hsTopG = userSettings.hsTopG;
   if(currentTab==='dashboard' && document.getElementById('db-best-body')) renderDashBW();
   else if(currentTab==='history') render();
   else if(currentTab==='hof') render();
+  else if(currentTab==='highscores') render();
 }
 async function loadUserSettings(){
   const uid = settingsUid();
@@ -989,7 +1027,14 @@ async function loadUserSettings(){
       sheetSortDir: d && d.sheetSortDir===1 ? 1 : -1,
       hofTeams: d && Array.isArray(d.hofTeams) ? d.hofTeams.filter(x=>typeof x==='string') : null,
       hofSortKey: d && HOF_SORT_KEYS.includes(d.hofSortKey) ? d.hofSortKey : 'pts',
-      hofSortDir: d && d.hofSortDir===1 ? 1 : -1
+      hofSortDir: d && d.hofSortDir===1 ? 1 : -1,
+      hsTeams: d && Array.isArray(d.hsTeams) ? d.hsTeams.filter(x=>typeof x==='string') : null,
+      hsSKey: d && HS_SORT_KEYS.includes(d.hsSKey) ? d.hsSKey : 'pts',
+      hsSDir: d && d.hsSDir===1 ? 1 : -1,
+      hsGKey: d && HS_SORT_KEYS.includes(d.hsGKey) ? d.hsGKey : 'pts',
+      hsGDir: d && d.hsGDir===1 ? 1 : -1,
+      hsTopS: d ? d.hsTopS!==false : true,
+      hsTopG: d ? d.hsTopG!==false : true
     };
     settingsWarned = false;
     applySettings();
@@ -1016,6 +1061,13 @@ function saveUserSettings(){
         hofTeams: userSettings.hofTeams,
         hofSortKey: userSettings.hofSortKey,
         hofSortDir: userSettings.hofSortDir,
+        hsTeams: userSettings.hsTeams,
+        hsSKey: userSettings.hsSKey,
+        hsSDir: userSettings.hsSDir,
+        hsGKey: userSettings.hsGKey,
+        hsGDir: userSettings.hsGDir,
+        hsTopS: userSettings.hsTopS,
+        hsTopG: userSettings.hsTopG,
         updatedAt: Date.now()
       });
       settingsWarned = false;
@@ -1355,6 +1407,7 @@ function render(){
   else if(currentTab==='settings') main.innerHTML = renderSettings();
   else if(currentTab==='history') main.innerHTML = renderHistory();
   else if(currentTab==='hof') main.innerHTML = renderHof();
+  else if(currentTab==='highscores') main.innerHTML = renderHighscores();
   else if(currentTab==='trophy') main.innerHTML = renderTrophy();
   /* Full-width season bar (under the rail too) — Match History screen only. */
   const sb = document.getElementById('seasonbar');
@@ -2512,7 +2565,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v101';
+const SCAN_BUILD = 'v102';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4451,6 +4504,248 @@ document.addEventListener('click', e=>{
     userSettings.hofSortDir = hofSortDir;
     render();
     saveUserSettings();
+  }
+});
+
+/* ============================= HISCORES ============================= */
+/* Two record tables — per season and per match — under one shared team scope
+   (same crest chips as Hall of Fame).
+   - Per season: each player's biggest single-season totals (scorer pts / goals /
+     assists / MoM) + best season-AVERAGE rating. "in Season's" lists the season
+     number(s) the record was set in.
+   - Per match: biggest single-match totals (no MoM column) + best single-match
+     rating. "in Game's" lists the game number(s).
+   - Max Rating (both tables) shows only the LAST season/game it was set — ratings
+     get redundant fast, so no long lists (user rule).
+   - Season chip → Match History with that season active; game chip → the existing
+     gotoGame jump (scrolled to the match, green glow).
+   - Top 10 / All switch per table (independent). Team scope, both sorts and both
+     switches are saved PER ACCOUNT (userSettings.hs*).  Top 10 always shows the
+     top 10 in the CURRENT sort order.
+   - Apps rule, same as Hall of Fame: a player only appears with a real rated
+     appearance in the selected scope. */
+const HS_SORT_KEYS = ['name','pts','goals','assists','mom','avg','rating'];
+let hsSKey = 'pts', hsSDir = -1;   /* per-season table sort */
+let hsGKey = 'pts', hsGDir = -1;   /* per-match table sort  */
+let hsTopS = true, hsTopG = true;  /* Top 10 / All, per table */
+function hsOnSet(){
+  const all = hofTeamsList().map(t=>t.id);
+  return new Set(userSettings.hsTeams ? userSettings.hsTeams.filter(id=>all.includes(id)) : all);
+}
+/* Same game-level team rule as Hall of Fame (v81): a game only counts when the team
+   sheet it was logged under is selected. */
+function hsGameInScope(g, on, selNames){
+  const s = seasonById(g.seasonId);
+  const gt = g.teamId || (s ? seasonPrimaryTeamId(s) : '');
+  if(gt && on.has(gt)) return true;
+  if(!gt && s){
+    const nm = s.team || seasonTeams(s).map(t=>t.name).join(' / ');
+    return nm.split(' / ').some(n=> selNames.has(normName(n)));
+  }
+  return false;
+}
+/* Seasons ascending by number — so "last time it was set" = the highest season. */
+function hsSeasonRecords(on){
+  const selNames = new Set();
+  hofTeamsList().forEach(t=>{ if(on.has(t.id)) selNames.add(normName(t.name)); });
+  const best = {};
+  seasons.slice().sort((a,b)=>(Number(a.number)||0)-(Number(b.number)||0)).forEach(s=>{
+    const gs = gamesFor(s.id).filter(g=>hsGameInScope(g,on,selNames));
+    if(!gs.length) return;
+    const agg = {};
+    gs.forEach(g=>{
+      (g.playerStats||[]).forEach(ps=>{
+        if(!ps || !ps.playerId) return;
+        const rt = Number(ps.rating);
+        const a = agg[ps.playerId] || (agg[ps.playerId] = {apps:0,goals:0,assists:0,motm:0,rateSum:0,rateN:0});
+        a.goals += Number(ps.goals)||0;
+        a.assists += Number(ps.assists)||0;
+        if(rt>0){ a.apps++; a.rateSum += rt; a.rateN++; }
+      });
+      if(g.motmPlayerId && agg[g.motmPlayerId]) agg[g.motmPlayerId].motm++;
+    });
+    Object.keys(agg).forEach(id=>{
+      const a = agg[id];
+      if(a.apps<=0) return;                        /* apps rule */
+      const pts = a.goals + a.assists;
+      const avg = a.rateN ? a.rateSum/a.rateN : 0; /* apps>0 → rateN>0 */
+      const b = best[id] || (best[id] = {pts:[0,[]],goals:[0,[]],assists:[0,[]],mom:[0,[]],avg:[0,'']});
+      const bump = (r,v)=>{ if(v>r[0]) r[0]=v, r[1]=[s.id]; else if(v===r[0] && v>0) r[1].push(s.id); };
+      bump(b.pts,pts); bump(b.goals,a.goals); bump(b.assists,a.assists); bump(b.mom,a.motm);
+      if(avg>b.avg[0]) b.avg=[avg,s.id];
+      else if(avg===b.avg[0]) b.avg[1]=s.id;       /* keep the last (highest) season */
+    });
+  });
+  return Object.keys(best).map(id=>({id, name:playerName(id), ...best[id]}));
+}
+/* Games oldest-first — so "last time it was set" = the most recent game. */
+function hsGameRecords(on){
+  const selNames = new Set();
+  hofTeamsList().forEach(t=>{ if(on.has(t.id)) selNames.add(normName(t.name)); });
+  const gs = games.filter(g=>g.seasonId && hsGameInScope(g,on,selNames))
+    .sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const best = {};
+  gs.forEach(g=>{
+    (g.playerStats||[]).forEach(ps=>{
+      if(!ps || !ps.playerId) return;
+      const rt = Number(ps.rating);
+      if(rt<=0) return;                            /* apps rule */
+      const goals = Number(ps.goals)||0, assists = Number(ps.assists)||0;
+      const b = best[ps.playerId] || (best[ps.playerId] = {pts:[0,''],goals:[0,''],assists:[0,''],rating:[0,'']});
+      const bump = (r,v)=>{ if(v>r[0]) r[0]=v, r[1]=g.id; else if(v===r[0] && v>0) r[1]=g.id; };
+      bump(b.pts,goals+assists); bump(b.goals,goals); bump(b.assists,assists);
+      if(rt>b.rating[0]) b.rating=[rt,g.id];
+      else if(rt===b.rating[0]) b.rating[1]=g.id;  /* keep the most recent one */
+    });
+  });
+  return Object.keys(best).map(id=>({id, name:playerName(id), ...best[id]}));
+}
+const gameById = id=> games.find(x=>x.id===id);
+function hsSeasonChips(seasonIds){
+  return (seasonIds||[]).map(id=>{
+    const s = seasonById(id); if(!s) return '';
+    return `<span class="hschip" data-hs-season="${id}" title="Open Season #${esc(s.number)} in Match History">S${esc(s.number)}</span>`;
+  }).join('');
+}
+function hsGameChip(gameId){
+  const g = gameById(gameId); if(!g) return '';
+  const s = seasonById(g.seasonId);
+  const pos = gamePosition(g.seasonId, g.id);
+  const label = s ? `S${esc(s.number)} · G${pos}` : `G${pos}`;
+  return `<span class="hschip" data-goto-game="${g.id}" title="Jump to this match in Match History">${label}</span>`;
+}
+function hsSortTh(label, key, cur, d, prefix, right=true){
+  const active = cur===key;
+  return `<th class="${right?'right ':''}sortable${active?' sorted':''}" data-hs-${prefix}-sort="${key}" title="Click to sort">${label}${active ? (d<0 ? ' ↓' : ' ↑') : ''}</th>`;
+}
+function renderHighscores(){
+  const all = hofTeamsList();
+  if(!all.length){
+    return `<div class="pagehead"><div><h1>Highscores</h1><div class="sub">Your biggest moments — best single season and best single match, per player</div></div></div>
+    <div class="card"><div class="empty">No teams yet — create a season in <b>New Season</b> and the Highscores fill themselves up.</div></div>`;
+  }
+  const on = hsOnSet();
+  const sel = all.filter(t=>on.has(t.id));
+  const scopeTxt = sel.length===all.length ? 'all teams' : (sel.length ? sel.map(t=>t.name).join(' + ') : 'none');
+  const teamOf = {};
+  teams.forEach(t=>(t.playerIds||[]).forEach(pid=>{ if(teamOf[pid]===undefined) teamOf[pid]=t.id; }));
+  const pname = r=>{ const t = r.teamId ? teamById(r.teamId) : null;
+    return `<td class="pname">${t&&t.logo?`<img src="${esc(t.logo)}" alt=\"\">`:''}${esc(r.name)}</td>`; };
+  const mkRows = (recs, key, dir)=> recs.map(r=>({ ...r, teamId:teamOf[r.id]||'' }))
+    .sort((a,b)=> key==='name'
+      ? dir*a.name.localeCompare(b.name)
+      : dir*((a[key]&&a[key][0]) - (b[key]&&b[key][0])) || (b.pts[0]-a.pts[0]) || a.name.localeCompare(b.name));
+  const sRows = mkRows(hsSeasonRecords(on), hsSKey, hsSDir).slice(0, hsTopS?10:1e9);
+  const gRows = mkRows(hsGameRecords(on), hsGKey, hsGDir).slice(0, hsTopG?10:1e9);
+  const btns = all.map(t=>{
+    const isOn = on.has(t.id);
+    return `<button type="button" class="hofbtn${isOn?' on':''}" data-hs-team="${t.id}" title="${esc(t.name)} — click to ${isOn?'exclude':'include'}">
+      ${t.logo ? `<img src="${esc(t.logo)}" alt=\"\">` : `<span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:var(--ink-dim)">${esc((t.name||'?').slice(0,2).toUpperCase())}</span>`}
+    </button>`;
+  }).join('');
+  const head = (title, ctl, top)=> `
+    <div class="hs-head">
+      <div class="section-title">${title}</div>
+      <div class="hsctl"><span class="lbl">Show</span>
+        <button type="button" class="hsbtn${top?' on':''}" data-hs-top="${ctl}" data-hs-mode="top">Top 10</button>
+        <button type="button" class="hsbtn${top?'':' on'}" data-hs-top="${ctl}" data-hs-mode="all">All</button>
+      </div>
+    </div>`;
+  const noData = (colspan)=> `<tr><td colspan="${colspan}" class="empty" style="padding:26px">No records for <b>${esc(scopeTxt)}</b> yet — log some matches and the Highscores fill themselves up.</td></tr>`;
+  const seasonTable = `
+    <div class="hswrap"><table class="hs">
+      <thead><tr>
+        ${hsSortTh('Player','name',hsSKey,hsSDir,'s',false)}
+        ${hsSortTh('Max Scorer Pts','pts',hsSKey,hsSDir,'s')}<th class="sub">in Season's</th>
+        ${hsSortTh('Max Goals','goals',hsSKey,hsSDir,'s')}<th class="sub">in Season's</th>
+        ${hsSortTh('Max Assists','assists',hsSKey,hsSDir,'s')}<th class="sub">in Season's</th>
+        ${hsSortTh('Max MoM','mom',hsSKey,hsSDir,'s')}<th class="sub">in Season's</th>
+        ${hsSortTh('Max Rating','avg',hsSKey,hsSDir,'s')}<th class="sub">in Season's</th>
+      </tr></thead>
+      <tbody>${sRows.length ? sRows.map(r=>`
+        <tr>
+          ${pname(r)}
+          <td class="right c-pts">${r.pts[0]}</td><td class="seasons">${hsSeasonChips(r.pts[1])}</td>
+          <td class="right c-g">${r.goals[0]}</td><td class="seasons">${hsSeasonChips(r.goals[1])}</td>
+          <td class="right c-a">${r.assists[0]}</td><td class="seasons">${hsSeasonChips(r.assists[1])}</td>
+          <td class="right c-mom">${r.mom[0]}</td><td class="seasons">${hsSeasonChips(r.mom[1])}</td>
+          <td class="right c-avg">${r.avg[0].toFixed(1)}</td><td class="seasons">${hsSeasonChips([r.avg[1]])}</td>
+        </tr>`).join('') : noData(11)}</tbody>
+    </table></div>`;
+  const gameTable = `
+    <div class="hswrap"><table class="hs">
+      <thead><tr>
+        ${hsSortTh('Player','name',hsGKey,hsGDir,'g',false)}
+        ${hsSortTh('Max Scorer Pts','pts',hsGKey,hsGDir,'g')}<th class="sub">in Game's</th>
+        ${hsSortTh('Max Goals','goals',hsGKey,hsGDir,'g')}<th class="sub">in Game's</th>
+        ${hsSortTh('Max Assists','assists',hsGKey,hsGDir,'g')}<th class="sub">in Game's</th>
+        ${hsSortTh('Max Rating','rating',hsGKey,hsGDir,'g')}<th class="sub">in Game's</th>
+      </tr></thead>
+      <tbody>${gRows.length ? gRows.map(r=>`
+        <tr>
+          ${pname(r)}
+          <td class="right c-pts">${r.pts[0]}</td><td class="seasons">${r.pts[0]>0 ? hsGameChip(r.pts[1]) : ''}</td>
+          <td class="right c-g">${r.goals[0]}</td><td class="seasons">${r.goals[0]>0 ? hsGameChip(r.goals[1]) : ''}</td>
+          <td class="right c-a">${r.assists[0]}</td><td class="seasons">${r.assists[0]>0 ? hsGameChip(r.assists[1]) : ''}</td>
+          <td class="right c-avg">${r.rating[0].toFixed(1)}</td><td class="seasons">${hsGameChip(r.rating[1])}</td>
+        </tr>`).join('') : noData(9)}</tbody>
+    </table></div>`;
+  return `
+  <div class="pagehead"><div><h1>Highscores</h1><div class="sub">Your biggest moments — best single season and best single match, per player</div></div>
+    <span class="hof-scope">showing <b>${esc(scopeTxt)}</b></span></div>
+  <div style="margin:0 0 14px;color:var(--ink-dim);font-size:13px;line-height:1.55;max-width:900px">
+    Toggle crests to include or exclude teams — both tables follow. Each table has its own <b>Top 10 / All</b> switch. Click a column header to sort: first click = highest first, click again to flip. Click a <b>season</b> or <b>game</b> number to jump to it in Match History. <b>Max Rating</b>: per season = best season-average rating, per match = best single-match rating — both show only the last time it was set.
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="hof-pick"><span class="lbl">Teams</span><div class="hofbtns">${btns}</div></div>
+  </div>
+  <div class="card" style="margin-bottom:14px">${head('Per season — biggest single-season totals','s',hsTopS)}${seasonTable}</div>
+  <div class="card">${head('Per match — biggest single-match totals','g',hsTopG)}${gameTable}</div>`;
+}
+/* One delegated listener (top level, registered once — safe across re-renders).
+   Crest toggle / Top-10 switch / header sorts / season jump all live here.
+   Game chips use the existing [data-goto-game] jump. */
+document.addEventListener('click', e=>{
+  const t = e.target.closest('[data-hs-team]');
+  if(t){
+    const id = t.dataset.hsTeam;
+    const all = hofTeamsList().map(x=>x.id);
+    let on = userSettings.hsTeams ? [...userSettings.hsTeams] : [...all];
+    const i = on.indexOf(id);
+    if(i>-1) on.splice(i,1); else on.push(id);
+    userSettings.hsTeams = (on.length===all.length) ? null : on;  /* all on again → "all teams" */
+    render(); saveUserSettings();
+    return;
+  }
+  const top = e.target.closest('[data-hs-top]');
+  if(top){
+    const isS = top.dataset.hsTop==='s';
+    const wantTop = top.dataset.hsMode==='top';
+    if(isS) hsTopS = wantTop; else hsTopG = wantTop;
+    userSettings.hsTopS = hsTopS; userSettings.hsTopG = hsTopG;
+    render(); saveUserSettings();
+    return;
+  }
+  const sh = e.target.closest('[data-hs-s-sort]');
+  if(sh){
+    const k = sh.getAttribute('data-hs-s-sort');
+    if(hsSKey===k) hsSDir = -hsSDir; else { hsSKey=k; hsSDir=-1; }  /* new column → highest first */
+    userSettings.hsSKey = hsSKey; userSettings.hsSDir = hsSDir;
+    render(); saveUserSettings();
+    return;
+  }
+  const gh = e.target.closest('[data-hs-g-sort]');
+  if(gh){
+    const k = gh.getAttribute('data-hs-g-sort');
+    if(hsGKey===k) hsGDir = -hsGDir; else { hsGKey=k; hsGDir=-1; }
+    userSettings.hsGKey = hsGKey; userSettings.hsGDir = hsGDir;
+    render(); saveUserSettings();
+    return;
+  }
+  const sp = e.target.closest('[data-hs-season]');
+  if(sp){
+    historyFilterSeason = sp.dataset.hsSeason;   /* Match History opens with that season active */
+    setTab('history');
   }
 });
 
