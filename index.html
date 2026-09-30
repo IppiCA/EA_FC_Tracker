@@ -1702,7 +1702,10 @@ function seasonAvgTeamStats(s){
     return Number.isInteger(r) ? String(r) : r.toFixed(1);
   };
   const rows = [];
-  for(const label of HIST_STAT_ORDER){
+  /* Every collected stat: the 13 tile rows in their tile order, then the rest in
+     the edit-screen order. Only stats actually recorded this season appear. */
+  const order = HIST_STAT_ORDER.concat(STAT_DISPLAY_ORDER.filter(l=> !HIST_STAT_ORDER.includes(l)));
+  for(const label of order){
     let fS=0,fN=0,aS=0,aN=0;
     for(const g of gs){
       const t = g.teamStats||{};
@@ -2509,7 +2512,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v100';
+const SCAN_BUILD = 'v101';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
