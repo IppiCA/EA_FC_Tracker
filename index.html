@@ -1454,7 +1454,7 @@ function dashBWCard(kind, team){
           <span class="dbbw-season">Season ${esc(s.number)}${seasonResultFlags(s).champion?' <span class="dbbw-champ">🏆</span>':''}</span>
           <span class="dbbw-dot">·</span>
           <span class="dbbw-games">${e.games} Games</span>
-          ${stp?`<span class="dbbw-pwrap"><span class="dbbw-dot">·</span><span class="dbbw-player">${esc(stp.name)} <span class="dbbw-rate">${stp.avg.toFixed(2)}</span></span></span>`:''}
+          ${stp?`<span class="dbbw-pwrap"><span class="dbbw-dot">·</span><span class="dbbw-player">${esc(stp.name)} <span class="dbbw-rate">${stp.avg.toFixed(1)}</span></span></span>`:''}
         </div>`;
       }).join('')}
     </div>`;
@@ -2389,7 +2389,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v90';
+const SCAN_BUILD = 'v91';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
