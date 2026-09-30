@@ -1367,7 +1367,8 @@ function leaderboard(seasonId){
 
 
 /* ============================= RENDER SHELL ============================= */
-function setTab(t){
+const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy'];
+function setTab(t, fromHash){
   if(currentTab==='log' && t!=='log'){
     /* Leaving Log Match: drop any in-progress / being-edited match so the tab always
        opens as a FRESH, EMPTY form (user rule — "log match" in the nav = new match). */
@@ -1376,7 +1377,14 @@ function setTab(t){
     logDraft = null;
   }
   currentTab = t; render();
+  /* Give each screen its own URL (#screen) so the mouse/browser BACK button moves
+     between screens instead of leaving the app. */
+  if(!fromHash && location.hash !== '#'+t){ location.hash = t; }
 }
+window.addEventListener('hashchange', ()=>{
+  const h = location.hash.replace(/^#\/?,/,'');
+  if(TABS.includes(h) && h!==currentTab) setTab(h, true);
+});
 document.addEventListener('click', (e)=>{
   const b = e.target.closest('[data-tab]');
   if(b){ setTab(b.dataset.tab); }
@@ -5196,6 +5204,14 @@ function initSnowfall(){
 
 initAuth();
 initSnowfall();
+/* Start on the screen named in the URL (#highscores etc.) if present, otherwise seed
+   the start screen onto the URL without adding a history entry — so the FIRST back
+   press leaves the app, like a normal page would. */
+(()=>{
+  const h = location.hash.replace(/^#\/?,/,'');
+  if(TABS.includes(h)) currentTab = h;
+  else history.replaceState(null,'','#dashboard');
+})();
 render();
 </script>
 </body>
