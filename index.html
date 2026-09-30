@@ -1290,20 +1290,21 @@ function careerTotals(){
 }
 
 function playerCareer(playerId, seasonId){
-  let goals=0, assists=0, motm=0, apps=0, ratingSum=0, ratingN=0;
+  let goals=0, assists=0, motm=0, apps=0, sheet=0, ratingSum=0, ratingN=0;
   games.forEach(g=>{
     if(seasonId && g.seasonId!==seasonId) return;
     const ps = (g.playerStats||[]).find(p=>p.playerId===playerId);
     if(!ps) return;
-    /* An appearance only counts when the player got a real match rating (>0) —
-       same rule as the Hall of Fame / Player sheet. On the sheet without a
-       rating = 0 apps, so the player does not appear in the season table. */
+    sheet++; /* listed on the match sheet — used to keep the player on season lists */
+    /* An appearance (app) only counts when the player got a real match rating
+       (>0) — same rule as the Hall of Fame / Player sheet. On the sheet without
+       a rating = 0 apps, but the player still stays on the list. */
     const rt = Number(ps.rating)||0;
     if(rt>0){ apps++; ratingSum += rt; ratingN++; }
     goals += Number(ps.goals||0); assists += Number(ps.assists||0);
     if(g.motmPlayerId===playerId) motm++;
   });
-  return {goals, assists, points: goals+assists, motm, apps, avgRating: ratingN? (ratingSum/ratingN) : null};
+  return {goals, assists, points: goals+assists, motm, apps, sheet, avgRating: ratingN? (ratingSum/ratingN) : null};
 }
 
 function leaderboard(seasonId){
@@ -1736,7 +1737,11 @@ function seasonSortTh(label, key){
   return `<th class="right${active?' sorted':''}" data-sseas-sort="${key}" title="Click to sort">${label}${active ? (seasonSortDir<0 ? ' ↓' : ' ↑') : ''}</th>`;
 }
 function seasonPlayerTable(s){
-  const rows = leaderboard(s.id).map(r=>({
+  /* Every player listed on the sheet this season stays in the list — apps are
+     counted accurately (rated matches only), so 0-app players simply show 0. */
+  const rows = players.map(p=>({player:p, ...playerCareer(p.id, s.id)}))
+    .filter(r=> r.sheet>0)
+    .map(r=>({
     name: r.player.name, apps:r.apps, goals:r.goals, assists:r.assists,
     pts:r.points, motm:r.motm, avg:r.avgRating,
     pg_goals: r.apps ? r.goals/r.apps : 0,
@@ -2504,7 +2509,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v99';
+const SCAN_BUILD = 'v100';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
