@@ -129,6 +129,16 @@ nav.tabbar{display:none}
   font-family:'Rajdhani',sans-serif; font-weight:700; font-size:.8vw; font-size:1.75cqh; line-height:1; pointer-events:none;
   color:var(--gold); text-shadow:0 0 16px rgba(240,196,100,.65), 0 1px 3px rgba(0,0,0,.9); letter-spacing:.02em}
 .tr-counter.zero{color:rgba(255,255,255,.30); text-shadow:0 1px 3px rgba(0,0,0,.9)}
+/* Full-height room: the stage fills whatever vertical space the screen offers
+   (HEIGHT decides), width follows the artwork's 1672:941 ratio and is capped so
+   it never overflows. The trackers stay perfectly aligned — they are positioned
+   in % inside the stage and their size scales with the stage (cqh). */
+#app.trophy-full main{max-width:none}
+#app.trophy-full .tr-stage{
+  width:min(100%, calc((100vh - 230px) * 1.7768));
+  width:min(100%, calc((100dvh - 230px) * 1.7768));
+  margin-inline:auto
+}
 .tr-legend{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-dim);line-height:1.4}
 .tr-legend .dot{width:3px;height:3px;border-radius:99px;background:var(--ink-faint)}
 .tr-legend b{color:var(--ink);font-weight:600}
@@ -1423,6 +1433,7 @@ function render(){
   if(sb){ sb.hidden = !sbOn; if(sbOn) sb.innerHTML = seasonBarHTML(); }
   document.getElementById('app').classList.toggle('sb-on', sbOn);
   document.getElementById('app').classList.toggle('hist-full', currentTab==='history');
+  document.getElementById('app').classList.toggle('trophy-full', currentTab==='trophy');
   wireTabHandlers();
 }
 
@@ -2573,7 +2584,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v104';
+const SCAN_BUILD = 'v105';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
