@@ -258,7 +258,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .season-split .side .vs-bar{margin:0 0 9px}
 @media (max-width:900px){.season-split{grid-template-columns:1fr}.season-split .side{border-left:none;padding-left:0;border-top:1px solid var(--line);padding-top:14px}}
 /* The 4 KPI boxes sit over the 3/4 player-table column — same width as the table,
-   centred content, even gaps. pG suffix = per-game average for the season. */
+   centred content, even gaps. p.G. suffix = per-game average for the season. */
 .season-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:16px;width:calc((100% - 18px) * 0.75)}
 .season-kpis .stat{text-align:center}
 .season-kpis .num{display:flex;align-items:baseline;justify-content:center;gap:8px}
@@ -1740,8 +1740,8 @@ function seasonPanel(s){
     <div class="season-kpis">
       <div class="stat" style="padding:0"><div class="num" style="font-size:24px">${r.games}</div><div class="lbl">Games</div></div>
       <div class="stat" style="padding:0"><div class="num" style="font-size:24px">${r.points}</div><div class="lbl">Points</div></div>
-      <div class="stat" style="padding:0"><div class="num gold" style="font-size:24px">${r.gf}${r.games?`<span class="pg">${pgF(r.gf)} pG</span>`:''}</div><div class="lbl">Scored</div></div>
-      <div class="stat" style="padding:0"><div class="num red" style="font-size:24px">${r.ga}${r.games?`<span class="pg">${pgF(r.ga)} pG</span>`:''}</div><div class="lbl">Conceded</div></div>
+      <div class="stat" style="padding:0"><div class="num gold" style="font-size:24px">${r.gf}${r.games?`<span class="pg">${pgF(r.gf)} p.G.</span>`:''}</div><div class="lbl">Scored</div></div>
+      <div class="stat" style="padding:0"><div class="num red" style="font-size:24px">${r.ga}${r.games?`<span class="pg">${pgF(r.ga)} p.G.</span>`:''}</div><div class="lbl">Conceded</div></div>
     </div>
     <div class="season-split">
       <div class="tablewrap">
@@ -2450,7 +2450,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v96';
+const SCAN_BUILD = 'v97';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
