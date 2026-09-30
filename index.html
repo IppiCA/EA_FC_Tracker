@@ -120,6 +120,7 @@ nav.tabbar{display:none}
 .card.accent-green::before{background:linear-gradient(90deg,var(--turf-dim),var(--turf) 50%,#A7FFD9)}
 .card.accent-goldorange::before{background:linear-gradient(90deg,var(--gold),#F7A45F)}
 .card.accent-purpleblue::before{background:linear-gradient(90deg,var(--violet),var(--blue))}
+.card.accent-white::before{background:#fff}
 /* ---- Trophy Room (cabinet photo + counters inside the six blank boxes) ---- */
 .tr-stage{position:relative; line-height:0; container-type:size; aspect-ratio:1672/941}
 .tr-stage img{width:100%; display:block}
@@ -1589,7 +1590,7 @@ function renderDashboard(){
   </div>
 
   <div class="db-r1">
-    <div class="card dbtile">
+    <div class="card dbtile accent-white">
       <div class="kl">Games played</div>
       <div class="kv">${ct.games}</div>
       <div class="kc">across ${nSeasons} season${nSeasons===1?'':'s'}</div>
@@ -1606,9 +1607,9 @@ function renderDashboard(){
         <div><div class="kl">Avg Goals Conceded</div><div class="kv" style="color:var(--red)">${perGame(ct.ga)}</div><div class="kc">per game</div></div>
       </div>
     </div>
-    <div class="card dbtile">
+    <div class="card dbtile accent-white">
       <div class="kl">Goal difference</div>
-      <div class="kv" style="color:${gd>=0?'var(--turf)':'var(--red)'}">${gd>=0?'+':''}${gd}</div>
+      <div class="kv">${gd>=0?'+':''}${gd}</div>
       <div class="kc">${ct.gf} scored · ${ct.ga} conceded</div>
     </div>
   </div>
@@ -1617,7 +1618,7 @@ function renderDashboard(){
     <div class="card dbtile accent-goldorange"><div class="kl">🏆 Titles</div><div class="kv" style="color:var(--gold)">${titles}</div><div class="kc">of ${nSeasons} seasons · ${dashPct(titles,nSeasons)}%</div></div>
     <div class="card dbtile accent-purpleblue"><div class="kl"><span style="color:var(--violet)">✦</span> Perfect seasons</div><div class="kv" style="color:var(--violet)">${perfect}</div><div class="kc">Legendary Performance · ${dashPct(perfect,nSeasons)}%</div></div>
     <div class="card dbtile accent-goldorange"><div class="kl">⚡ Rage quits</div><div class="kv" style="color:var(--gold)">${ct.rq}</div><div class="kc">Too Powerful · ${dashPct(ct.rq, ct.w)}%</div></div>
-    <div class="card dbtile"><div class="kl">📡 Disconnects</div><div class="kv">${ct.dc}</div><div class="kc">Come on EA... · ${dashPct(ct.dc, ct.l)}%</div></div>
+    <div class="card dbtile accent-white"><div class="kl">📡 Disconnects</div><div class="kv">${ct.dc}</div><div class="kc">Come on EA... · ${dashPct(ct.dc, ct.l)}%</div></div>
   </div>
 
   <div class="grid g2 db-bwgrid">
@@ -2389,7 +2390,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v91';
+const SCAN_BUILD = 'v92';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
