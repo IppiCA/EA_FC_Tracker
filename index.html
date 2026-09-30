@@ -2389,7 +2389,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v89';
+const SCAN_BUILD = 'v90';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4526,7 +4526,7 @@ function seasonStatsPanel(sid){
     <div style="margin-top:14px">
       <div class="ssrow"><span class="l">Goals scored</span><span class="v">${gf}${n?`<small>avg ${avg(gf)}</small>`:''}</span></div>
       <div class="ssrow"><span class="l">Goals conceded</span><span class="v" style="color:var(--red)">${ga}${n?`<small>avg ${avg(ga)}</small>`:''}</span></div>
-      <div class="ssrow"><span class="l">Avg. possession %</span><span class="v">${possN ? (possSum/possN).toFixed(1)+'%' : '—'}</span></div>
+      <div class="ssrow"><span class="l">Possession %</span><span class="v">${possN ? (possSum/possN).toFixed(1)+'%' : '—'}${possN?'<small>avg.</small>':''}</span></div>
       <div class="ssrow"><span class="l">Away games</span><span class="v">${away}${n?`<small>· ${Math.round(away/n*100)}%</small>`:''}</span></div>
       <div class="ssrow"><span class="l">Rage quits</span><span class="v" style="color:var(--red)">${rqW}${w?`<small>· ${Math.round(rqW/w*100)}% of wins</small>`:''}</span></div>
       ${rqN?`<div class="ssrow"><span class="l">Avg. rage-quit time</span><span class="v" style="color:var(--gold)">${Math.round(rqSum/rqN)}<small>min</small></span></div>`:''}
