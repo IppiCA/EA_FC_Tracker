@@ -405,8 +405,8 @@ table.hof .pname img{width:16px;height:16px;object-fit:contain;opacity:.9}
 .hsbtn.on{background:linear-gradient(90deg,var(--turf-dim),var(--turf) 50%,#A7FFD9);color:#061209;border-color:transparent;box-shadow:0 4px 14px rgba(60,255,154,.22)}
 .hswrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.hs{width:100%;border-collapse:collapse;font-size:12px}
-table.hs th{text-align:left;color:var(--ink);font-weight:700;font-size:11px;padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
-table.hs td{padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.hs th{text-align:left;color:var(--ink);font-weight:700;font-size:11px;padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+table.hs td{padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
 table.hs tr:last-child td{border-bottom:none}
 table.hs .right{text-align:right}
 table.hs th.sortable{cursor:pointer;user-select:none}
@@ -2565,7 +2565,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v102';
+const SCAN_BUILD = 'v103';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4630,7 +4630,7 @@ function renderHighscores(){
   const teamOf = {};
   teams.forEach(t=>(t.playerIds||[]).forEach(pid=>{ if(teamOf[pid]===undefined) teamOf[pid]=t.id; }));
   const pname = r=>{ const t = r.teamId ? teamById(r.teamId) : null;
-    return `<td class="pname">${t&&t.logo?`<img src="${esc(t.logo)}" alt=\"\">`:''}${esc(r.name)}</td>`; };
+    return `<td><span class="pname">${t&&t.logo?`<img src="${esc(t.logo)}" alt=\"\">`:''}${esc(r.name)}</span></td>`; };
   const mkRows = (recs, key, dir)=> recs.map(r=>({ ...r, teamId:teamOf[r.id]||'' }))
     .sort((a,b)=> key==='name'
       ? dir*a.name.localeCompare(b.name)
