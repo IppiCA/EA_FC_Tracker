@@ -1176,10 +1176,17 @@ async function resolveOrCreatePlayer(rawName){
   cand.sort((a,b)=>a.d-b.d);
   if(cand.length && cand[0].d<=2 && (cand.length<2 || cand[1].d>cand[0].d)) return cand[0].p.id;
   const id = await dbAdd('players', {name});
-  // A player the scanner met for the first time joins the active team's sheet automatically
+  // A player the scanner met for the first time joins the sheet of the team in the Team box
+  // (logDraft.teamId). NOT the season's first team: in a mid-season-switch season those
+  // differ, and a new player from a Manchester City screenshot must not land on the
+  // Real Madrid sheet just because the season started under Real Madrid (v107 fix).
   try{
-    const s = (typeof logDraft!=='undefined' && logDraft && logDraft.seasonId) ? seasonById(logDraft.seasonId) : seasons[0];
-    const t = s && s.teamId ? teamById(s.teamId) : null;
+    let tid = (typeof logDraft!=='undefined' && logDraft && logDraft.teamId) ? logDraft.teamId : '';
+    if(!tid){
+      const s = (typeof logDraft!=='undefined' && logDraft && logDraft.seasonId) ? seasonById(logDraft.seasonId) : seasons[0];
+      tid = (s && s.teamId) ? s.teamId : '';
+    }
+    const t = tid ? teamById(tid) : null;
     if(t && !(t.playerIds||[]).includes(id)){
       await dbSet('teams', t.id, {...stripId(t), playerIds:[...(t.playerIds||[]), id]});
     }
@@ -2257,12 +2264,33 @@ function readDraftFromForm(){
 }
 
 /* Shared save core: writes the match AND keeps the season/team rosters in sync.
-   Returns true on success. Used by the Save button and by Edit-Match autosave. */
+   Returns true on success, 'no-season' when no season is picked, 'cancelled' when the
+   user bails at the one-team-rule check. Used by the Save button and Edit-Match autosave. */
 async function commitGame(){
   if(!logDraft) return false;
   readDraftFromForm();
-  if(!logDraft.seasonId) return false;
+  if(!logDraft.seasonId) return 'no-season';
   const {seasonId, ...rest} = logDraft;
+  /* ONE-TEAM RULE (checked BEFORE anything is written): a player already on a DIFFERENT
+     team's sheet stays there. Without this, saving a match under the wrong team — e.g. a
+     Manchester City screenshot while the Team box says Real Madrid — drags all of MC's
+     players onto the RM sheet (the season-4 pollution, v107). */
+  let crossTeam = [];
+  {
+    const s0 = seasonById(seasonId);
+    const t0 = (rest.teamId && teamById(rest.teamId)) || (s0 && s0.teamId ? teamById(s0.teamId) : null);
+    if(t0){
+      const playedIds = (rest.playerStats||[]).map(p=>p.playerId).filter(Boolean);
+      const otherTaken = new Set();
+      teams.forEach(o=>{ if(o && o.id!==t0.id && !o.logoOnly) (o.playerIds||[]).forEach(pid=>otherTaken.add(pid)); });
+      crossTeam = playedIds.filter(pid=>otherTaken.has(pid));
+      if(crossTeam.length){
+        const owners = teams.filter(o=>o && o.id!==t0.id && (o.playerIds||[]).some(pid=>crossTeam.includes(pid))).map(o=>o.name);
+        const names = crossTeam.slice(0,4).map(pid=>{ const p=players.find(x=>x.id===pid); return p?p.name:'?'; });
+        if(!confirm(`Heads up — ${crossTeam.length} player(s) in this match (${names.join(', ')}${crossTeam.length>4?'…':''}) are already on ${owners.join(' and ')}'s sheet, but the match is under ${t0.name}.\n\nSave anyway? They will NOT be added to ${t0.name}'s squad (a player only counts for one team).\n\nIf this was actually a ${owners[0]} match, cancel and switch the Team box to ${owners[0]} instead.`)) return 'cancelled';
+      }
+    }
+  }
   if(editingGameId){
     const orig = games.find(g=>g.id===editingGameId);
     await dbSet('games', editingGameId, {seasonId, ...rest, gameNumber: orig?.gameNumber||1, createdAt: orig?.createdAt||Date.now()});
@@ -2287,7 +2315,10 @@ async function commitGame(){
     }
     const t = (rest.teamId && teamById(rest.teamId)) || (s.teamId ? teamById(s.teamId) : null);
     if(t){
-      const combinedT = Array.from(new Set([...(t.playerIds||[]), ...playedIds]));
+      /* One-team rule: players flagged cross-team above (already on another team's sheet)
+         are NOT dragged onto this team's sheet. */
+      const addable = playedIds.filter(pid=>crossTeam.indexOf(pid)===-1);
+      const combinedT = Array.from(new Set([...(t.playerIds||[]), ...addable]));
       if(combinedT.length !== (t.playerIds||[]).length){
         await dbSet('teams', t.id, {...stripId(t), playerIds: combinedT});
       }
@@ -2312,7 +2343,7 @@ function queueAutosave(){
     if(!editingGameId || autosaveBusy) return;
     autosaveBusy = true;
     try{
-      if(await commitGame()) toast('✓ Saved');
+      if((await commitGame())===true) toast('✓ Saved');
     }catch(err){
       console.warn('autosave failed', err);
       toast("Couldn't save automatically — use the Save button at the bottom");
@@ -2533,7 +2564,7 @@ function wireLogHandlers(){
     saveBusy = true;
     try{
     const ok = await commitGame();
-    if(!ok){ toast('Pick a season first'); return; }
+    if(ok!==true){ toast(ok==='no-season' ? 'Pick a season first' : 'Not saved — the match was not stored'); return; }
     toast(editingGameId ? 'Match updated' : 'Match saved');
     editingGameId = null;
     logDraft = null;
@@ -2587,7 +2618,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v106';
+const SCAN_BUILD = 'v107';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -3372,8 +3403,31 @@ async function scanPlayerImages(files, progId){
     recomputeMotmGuess();
     render();
     toast(`Filled in ${found.length} player row(s) — MOTM guessed as the highest rating, check it's right`);
+    /* v107: Team box vs the screenshot — if these players already sit on ANOTHER team's
+       sheet, say so right here (commitGame still enforces the one-team rule at save). */
+    let mismatchNote = '';
+    {
+      const sel = (logDraft && logDraft.teamId) ? teamById(logDraft.teamId) : null;
+      if(sel){
+        const scannedIds = (logDraft.playerStats||[]).map(ps=>ps.playerId).filter(Boolean);
+        const owners = [];
+        const mis = scannedIds.filter(pid=>{
+          for(const o of teams){
+            if(!o || o.id===sel.id || o.logoOnly) continue;
+            if((o.playerIds||[]).includes(pid)){
+              if(owners.indexOf(o.name)===-1) owners.push(o.name);
+              return true;
+            }
+          }
+          return false;
+        });
+        if(mis.length && owners.length){
+          mismatchNote = `<div class="hint" style="color:var(--gold); margin-bottom:8px">⚠️ ${mis.length} of these players are already on ${owners.join(' and ')}'s sheet, but the Team box says ${sel.name}. If this was a ${owners[0]} match, switch the Team box to ${owners[0]} before saving.</div>`;
+        }
+      }
+    }
     const prog2 = document.getElementById(progId);
-    if(prog2) prog2.innerHTML = `<div class="hint" style="color:var(--turf)">Scan complete — review the rows below (and the Man of the Match pick), then paste another screenshot or save.</div>`;
+    if(prog2) prog2.innerHTML = `${mismatchNote}<div class="hint" style="color:var(--turf)">Scan complete — review the rows below (and the Man of the Match pick), then paste another screenshot or save.</div>`;
   }catch(err){
     const timedOut = /timed out/.test(err.message||'');
     prog.innerHTML = `<div class="hint" style="color:var(--red)">${timedOut ? "This is taking too long — check your connection." : `Couldn't read that image automatically (${esc(err.message||'scan failed')}).`} Just type the values in below for now.</div>`;
@@ -4147,13 +4201,27 @@ function openNewSeasonModal(){
     }
     const carry = document.getElementById('ns-carry').value==='1';
     const prevTeams = seasons[0] ? seasonTeams(seasons[0]) : [];
-    const carryTeam = prevTeams.length ? prevTeams[prevTeams.length-1] : null;  // carry the most recent team's sheet
+    /* v107: carry over the sheet of the team picked in the modal (if it played last
+       season); otherwise the most recent team's sheet as before. */
+    const carryTeam = prevTeams.find(x=>x && x.id===teamId) || (prevTeams.length ? prevTeams[prevTeams.length-1] : null);
     const squadIds = carry && seasons[0] ? [...(carryTeam ? (carryTeam.playerIds||[]) : (seasons[0].squadIds||[]))] : [];
     const division = Number(document.getElementById('ns-division').value||5);
     await dbAdd('seasons', {number, gameVersion, team: teamName, teamId, squadIds, division, champion:false, perfectSeason:false, relegated:false, createdAt:Date.now()});
     closeModal();
     toast('Season created');
   });
+  /* v107: keep the "carry squad over" label in sync with the Team pick — a mid-season
+     switch season used to always offer the LAST team's squad no matter who you picked. */
+  const nsTeamSel = document.getElementById('ns-team');
+  if(nsTeamSel && nsTeamSel.tagName==='SELECT'){
+    const carryOpt = document.querySelector('#ns-carry option[value="1"]');
+    const relabel = (name)=>{ if(carryOpt) carryOpt.textContent = `Yes — copy ${name ? name+' ' : ''}squad from #${seasons[0]?.number||'-'}`; };
+    nsTeamSel.addEventListener('change', ()=>{
+      const played = prevTeams.some(t=>t && t.id===nsTeamSel.value);
+      const picked = teamById(nsTeamSel.value);
+      relabel(played && picked ? picked.name : (lastTeamObj ? lastTeamObj.name : lastTeam));
+    });
+  }
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
@@ -4196,9 +4264,40 @@ async function maybeSeedTeams(){
   }finally{ seedingTeams = false; }
 }
 
+/* v107: players sitting on 2+ team sheets (a one-team-rule violation, e.g. a screenshot
+   of one team's match saved under another team dragged its players onto that sheet).
+   Per player, sheets are sorted biggest→smallest. */
+function sheetDuplicates(){
+  const byPid = {};
+  teams.forEach(t=>{
+    if(!t || t.logoOnly) return;
+    (t.playerIds||[]).forEach(pid=>{ (byPid[pid] = byPid[pid] || []).push(t); });
+  });
+  const out = [];
+  Object.keys(byPid).forEach(pid=>{
+    const sheets = byPid[pid];
+    if(sheets.length < 2) return;
+    const p = players.find(x=>x.id===pid);
+    sheets.sort((a,b)=>((b.playerIds||[]).length-((a.playerIds||[]).length))||a.name.localeCompare(b.name));
+    out.push({pid, name: p ? p.name : '?', sheets});
+  });
+  out.sort((a,b)=>a.name.localeCompare(b.name));
+  return out;
+}
 function renderSettings(){
+  const dups = sheetDuplicates();
   return `
   <div class="pagehead"><div><h1>Team Sheets</h1><div class="sub">Each team's sheet, plus the shared player pool they're built from</div></div></div>
+  ${dups.length ? `
+  <div class="card accent-gold" style="margin-bottom:16px">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap">
+      <div>
+        <b style="color:var(--gold)">⚠️ ${dups.length} player(s) are on more than one team sheet</b>
+        <div class="hint" style="margin-top:4px">A player can only count for one team. "Fix duplicates" keeps each one on the <b>smaller</b> sheet and removes them from the bigger one — the bigger sheet is the one that got polluted.</div>
+      </div>
+      <button class="btn" id="fix-dups-btn" style="flex:0 0 auto">Fix duplicates</button>
+    </div>
+  </div>` : ''}
 
   <div class="section-title">Teams <span class="subtle">— each team has its own player sheet; the scanner matches names against the sheet of the team you pick</span></div>
   <div class="card" style="margin-bottom:16px">
@@ -4283,6 +4382,23 @@ function wireSettingsHandlers(){
     inp.value='';
   });
   document.getElementById('new-team-name')?.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('add-team-btn').click(); });
+  /* v107: one-click repair for players on 2+ sheets — keep each on the smaller sheet,
+     remove from the bigger one (the polluted one). */
+  const fixDups = document.getElementById('fix-dups-btn');
+  if(fixDups) fixDups.addEventListener('click', async ()=>{
+    const dups = sheetDuplicates();
+    if(!dups.length){ toast('No duplicates to fix'); return; }
+    const lines = dups.map(d=> `• ${d.name} — keep on ${d.sheets[d.sheets.length-1].name}, remove from ${d.sheets[0].name}`);
+    if(!confirm(`Fix ${dups.length} duplicated player(s)?\n\n${lines.join('\n')}`)) return;
+    let fixed = 0;
+    for(const d of dups){
+      const big = teamById(d.sheets[0].id);
+      if(!big) continue;
+      await dbSet('teams', big.id, {...stripId(big), playerIds:(big.playerIds||[]).filter(x=>x!==d.pid)});
+      fixed++;
+    }
+    toast(`Removed ${fixed} player(s) from the bigger sheet — they stay on the smaller one`);
+  });
   document.querySelectorAll('[data-rename-team]').forEach(b=> b.addEventListener('click', async ()=>{
     const t = teamById(b.dataset.renameTeam); if(!t) return;
     const name = (prompt(`Rename team "${t.name}":`, t.name)||'').trim();
