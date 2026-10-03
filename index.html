@@ -2618,7 +2618,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v107';
+const SCAN_BUILD = 'v108';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4163,6 +4163,16 @@ function openNewSeasonModal(){
   const lastTeamObj = prevTeams.length ? prevTeams[prevTeams.length-1] : null;  // most recent team
   const lastTeam = lastTeamObj ? lastTeamObj.name : (prev?.team || '');
   const lastTeamId = lastTeamObj && lastTeamObj.id ? lastTeamObj.id : (prev?.teamId || '');
+  /* v108: one "Yes — copy …" option per team that played last season, so a new season
+     can start under ANY of them (e.g. Real Madrid after a Real Madrid/Manchester City
+     season) and copy that team's squad. Picking a team in the Team box below
+     auto-selects its option when it exists. */
+  const prevNumber = seasons[0] ? (seasons[0].number||'-') : '-';
+  const carryOptionsHtml = prevTeams.map(t=>{
+    const val = t.id ? esc(t.id) : esc('name:'+t.name);
+    const def = t.id ? (t.id===lastTeamId) : (lastTeam && t.name===lastTeam);
+    return `<option value="${val}" data-tid="${esc(t.id||'')}"${def?' selected':''}>Yes — copy ${esc(t.name)} squad from #${prevNumber}</option>`;
+  }).join('') + `<option value="0"${prevTeams.length?'':' selected'}>No — start empty</option>`;
   const html = `<div class="modal-bg" id="modal"><div class="modal">
     <div class="modal-head"><h3>New season</h3><button class="xbtn" id="modal-close">×</button></div>
     <div class="row">
@@ -4179,7 +4189,7 @@ function openNewSeasonModal(){
       : `<input type="text" id="ns-team" placeholder="Real Madrid" value="${esc(lastTeam)}">`}
     </div>
     <div class="field"><label>Carry squad over from last season?</label>
-      <select id="ns-carry"><option value="1">Yes — copy ${esc(lastTeam)?lastTeam+' ':''}squad from #${seasons[0]?.number||'-'}</option><option value="0">No — start empty</option></select>
+      <select id="ns-carry">${carryOptionsHtml}</select>
     </div>
     <button class="btn" id="ns-save" style="width:100%; justify-content:center; margin-top:6px">Create season</button>
   </div></div>`;
@@ -4199,27 +4209,33 @@ function openNewSeasonModal(){
       const existing = teams.find(t=>t.name.toLowerCase()===teamName.toLowerCase());
       teamId = existing ? existing.id : await dbAdd('teams', {name:teamName, playerIds:[]});
     }
-    const carry = document.getElementById('ns-carry').value==='1';
+    /* v108: the carry dropdown lists every team that played last season — copy the one
+       the user picked (legacy name-only teams use name:<Name> values). */
+    const carryVal = document.getElementById('ns-carry').value;
+    const carry = carryVal !== '0';
     const prevTeams = seasons[0] ? seasonTeams(seasons[0]) : [];
-    /* v107: carry over the sheet of the team picked in the modal (if it played last
-       season); otherwise the most recent team's sheet as before. */
-    const carryTeam = prevTeams.find(x=>x && x.id===teamId) || (prevTeams.length ? prevTeams[prevTeams.length-1] : null);
+    let carryTeam = null;
+    if(carryVal.indexOf('name:')===0){
+      const nm = carryVal.slice(5);
+      carryTeam = prevTeams.find(t=>t && t.name===nm) || null;
+    } else if(carryVal){
+      carryTeam = prevTeams.find(t=>t && t.id===carryVal) || null;
+    }
+    if(!carryTeam && carryVal) carryTeam = prevTeams.length ? prevTeams[prevTeams.length-1] : null;
     const squadIds = carry && seasons[0] ? [...(carryTeam ? (carryTeam.playerIds||[]) : (seasons[0].squadIds||[]))] : [];
     const division = Number(document.getElementById('ns-division').value||5);
     await dbAdd('seasons', {number, gameVersion, team: teamName, teamId, squadIds, division, champion:false, perfectSeason:false, relegated:false, createdAt:Date.now()});
     closeModal();
     toast('Season created');
   });
-  /* v107: keep the "carry squad over" label in sync with the Team pick — a mid-season
-     switch season used to always offer the LAST team's squad no matter who you picked. */
+  /* v108: picking a team auto-selects that team's carry-over option (when it played
+     last season) — the dropdown still offers every other team's squad too. */
   const nsTeamSel = document.getElementById('ns-team');
-  if(nsTeamSel && nsTeamSel.tagName==='SELECT'){
-    const carryOpt = document.querySelector('#ns-carry option[value="1"]');
-    const relabel = (name)=>{ if(carryOpt) carryOpt.textContent = `Yes — copy ${name ? name+' ' : ''}squad from #${seasons[0]?.number||'-'}`; };
+  const carrySelEl = document.getElementById('ns-carry');
+  if(nsTeamSel && nsTeamSel.tagName==='SELECT' && carrySelEl){
     nsTeamSel.addEventListener('change', ()=>{
-      const played = prevTeams.some(t=>t && t.id===nsTeamSel.value);
-      const picked = teamById(nsTeamSel.value);
-      relabel(played && picked ? picked.name : (lastTeamObj ? lastTeamObj.name : lastTeam));
+      const opt = Array.from(carrySelEl.options).find(o=>o.value!=='0' && o.dataset.tid===nsTeamSel.value);
+      if(opt) carrySelEl.value = opt.value;
     });
   }
 }
