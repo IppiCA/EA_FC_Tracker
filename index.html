@@ -2159,7 +2159,7 @@ async function mountTitles(container){
   if(!titlesMounting){
     titlesMounting = (async ()=>{
       try{
-        const data = buildTitlesData(await loadLegacyDocs());
+        const data = buildTitlesData((await loadLegacyDocs()).titles); /* the adapter wants the ARRAY of title docs, not the {titles} cache wrapper */
         if(currentTab !== 'titles') return;   /* left the tab while the data was loading — don't overwrite the new screen */
         const live = buildLiveTitle({
           name: 'FC 27', platform: 'PC + console',
@@ -3522,7 +3522,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v124';
+const SCAN_BUILD = 'v125';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
