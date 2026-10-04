@@ -710,6 +710,161 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .dbopt:hover{background:var(--panel-2);color:var(--ink)}
 .dbopt.on{color:var(--ink);font-weight:600;background:var(--panel-2)}
 .dbopt.on::after{content:'✓';margin-left:auto;color:var(--turf);font-size:13px}
+
+/* ============================= WORLD MAP (scoped — everything under .wm-page) ============================= */
+#app.wm-full main{max-width:none}
+.wm-page{position:relative; z-index:1; padding:10px 0 26px;}
+.wm-page [hidden]{display:none !important}
+.wm-page button, .wm-page select{font:inherit}
+.wm-page button{cursor:pointer; -webkit-tap-highlight-color:transparent}
+.wm-page button:disabled{cursor:default}
+.wm-page :focus-visible{outline:2px solid var(--turf); outline-offset:3px}
+.wm-frame{position:relative; width:100%; max-width:1500px; margin:0 auto; aspect-ratio:16/9; overflow:hidden; border-radius:20px;}
+.wm-screen{width:1440px; height:810px; position:absolute; top:0; left:0; transform-origin:0 0; overflow:hidden;}
+.wm-glass{background:var(--panel); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--line); box-shadow:0 20px 60px rgba(0,0,0,.40), inset 0 1px 0 #ffffff03; border-radius:20px;}
+.wm-page .page-head{position:absolute; left:28px; right:28px; top:44px; display:flex; justify-content:space-between; align-items:center; z-index:2}
+.wm-page h1{margin:0 0 6px; font:700 42px/1 'Rajdhani',sans-serif; letter-spacing:.01em}
+.wm-page .subtitle{margin:0; color:var(--ink-dim); font-size:14px}
+.wm-page .controls{display:flex; align-items:center; gap:12px}
+.wm-page .metric-toggle{display:flex; gap:4px; padding:5px; background:rgba(16,26,35,.44); border:1px solid var(--line); border-radius:13px}
+.wm-page .metric{border:0; border-radius:9px; background:transparent; color:var(--ink-dim); padding:10px 18px; font-size:13px; font-weight:500}
+.wm-page .metric[aria-pressed="true"]{color:#0b1717; background:linear-gradient(90deg, var(--turf), var(--violet)); box-shadow:0 3px 16px rgba(60,255,154,.06); font-weight:600}
+.wm-page .season-select{appearance:none; color:var(--ink); background:rgba(16,26,35,.44); border:1px solid var(--line); border-radius:12px; height:46px; padding:0 42px 0 17px; width:154px; font-size:13px; cursor:pointer}
+.wm-page .select-wrap{position:relative}
+.wm-page .select-wrap::after{content:''; pointer-events:none; width:6px; height:6px; border:solid var(--ink-dim); border-width:0 1.5px 1.5px 0; transform:rotate(45deg); position:absolute; right:18px; top:18px}
+.wm-page .map-card{position:absolute; left:28px; right:28px; top:148px; bottom:28px; overflow:hidden}
+.wm-page .map-card::before, .wm-page .detail-card::before{content:''; position:absolute; left:16px; right:16px; top:0; height:3px; background:linear-gradient(90deg, var(--turf), var(--violet)); border-radius:0 0 5px 5px; z-index:4}
+.wm-page .map-card::after{content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 35%, rgba(7,11,16,.25) 100%); border-radius:inherit; z-index:1}
+.wm-page .map-slot{position:absolute; inset:80px 28px 90px}
+.wm-page .world-map{width:100%; height:100%; overflow:visible}
+.wm-page .grid-line{stroke:#b4d4dc; stroke-opacity:.055; stroke-width:.5; fill:none}
+.wm-page .country{--wm-fill:#141b22; cursor:pointer; outline:none}
+.wm-page .country path{fill:var(--wm-fill); stroke:#617784; stroke-opacity:.23; stroke-width:.65; stroke-linejoin:round; transition:fill 150ms ease, opacity 150ms ease, stroke 150ms ease}
+.wm-page .country.hot path{filter:drop-shadow(0 0 2px #3cff9a66)}
+.wm-page .country.hovered path, .wm-page .country:focus-visible path{fill:var(--wm-hover-fill, #23423a); stroke:#ccffeb; stroke-width:2; stroke-opacity:.95; filter:drop-shadow(0 0 3px #3cff9a80)}
+.wm-page .map-card.has-selection .country path{transition:none; fill:#1a2027; opacity:.35; stroke:#77828a; stroke-opacity:.2; filter:none}
+.wm-page .map-card.has-selection .country.selected path{fill:var(--wm-fill); opacity:1; stroke:url(#wm-grad); stroke-opacity:1; stroke-width:2; filter:drop-shadow(0 0 4px #3cff9a9c)}
+.wm-page .breadcrumb{position:absolute; top:27px; left:28px; z-index:5; border:1px solid #3cff9a30; background:rgba(20,39,35,.73); color:var(--ink); padding:8px 12px; border-radius:9px; font-size:12px}
+.wm-page .breadcrumb span{color:var(--ink-dim); padding-left:10px}
+.wm-page .map-footer{position:absolute; left:28px; right:28px; bottom:26px; display:flex; align-items:flex-end; justify-content:space-between; z-index:3}
+.wm-page .legend{width:240px}
+.wm-page .legend-label{margin-bottom:10px; color:var(--ink-dim); font-size:11px}
+.wm-page .legend-ramp{height:6px; border-radius:99px; background:linear-gradient(90deg,#18312c,#248b64,#3cff9a); box-shadow:0 0 12px #3cff9a0b}
+.wm-page .legend-ticks{display:flex; justify-content:space-between; margin-top:6px; font:600 13px/1 'Rajdhani',sans-serif; color:var(--ink-dim)}
+.wm-page .map-summary{font-size:12px; color:var(--ink-dim); padding-bottom:2px; text-align:right}
+.wm-page .unknown-note{margin-top:4px; font-size:10px; opacity:.75}
+.wm-page .tooltip{position:absolute; z-index:7; width:224px; border-radius:12px; padding:15px 17px; background:rgba(21,33,42,.9); pointer-events:none; box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.wm-page .tooltip-title{display:flex; align-items:center; gap:9px; font:700 22px/1 'Rajdhani',sans-serif; letter-spacing:1px; color:var(--ink)}
+.wm-page .tooltip-summary{font-size:12px; color:var(--ink-dim); margin-top:9px}
+.wm-page .progress{height:4px; border-radius:99px; background:#ffffff0d; overflow:hidden; margin-top:12px}
+.wm-page .progress-fill{height:100%; background:linear-gradient(90deg, var(--turf), var(--violet)); border-radius:inherit}
+.wm-page .detail-card{position:absolute; top:27px; right:24px; width:340px; z-index:6; padding:22px 20px 18px; background:rgba(16,25,35,.94); border-radius:20px; max-height:calc(100% - 63px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:#ffffff22 transparent}
+.wm-page .close-detail{position:absolute; right:12px; top:10px; border:0; background:transparent; color:var(--ink-dim); font-size:23px; line-height:24px; width:26px; height:26px; border-radius:7px}
+.wm-page .close-detail:hover{color:var(--ink); background:#ffffff0c}
+.wm-page .detail-header{display:flex; gap:13px; align-items:center; margin-bottom:12px}
+.wm-page .shield{clip-path:polygon(0 0,100% 0,100% 72%,50% 100%,0 72%); width:52px; height:54px; flex-shrink:0; padding-top:5px; text-align:center; background:linear-gradient(140deg,#f0c46425,#f0c46405)}
+.wm-page .shield-number{color:var(--gold); font:700 28px/1 'Rajdhani',sans-serif}
+.wm-page .shield-label{font:600 8px/1 'Rajdhani',sans-serif; letter-spacing:1px; color:var(--gold); margin-top:2px}
+.wm-page .country-heading{display:flex; align-items:center; gap:9px; font:700 30px/1 'Rajdhani',sans-serif; letter-spacing:1px; color:var(--ink)}
+.wm-page .country-caption{font-size:10px; color:var(--ink-dim); margin-top:7px}
+.wm-page .country-sub{font-size:10px; color:var(--turf); margin-top:4px; opacity:.9}
+.wm-page .form{display:flex; gap:6px; margin-bottom:12px}
+.wm-page .form-square{display:grid; place-items:center; width:28px; height:26px; border-radius:6px; font:700 15px 'Rajdhani',sans-serif; border:1px solid}
+.wm-page .form-square.W{color:var(--turf); background:#3cff9a18; border-color:#3cff9a26}
+.wm-page .form-square.D{color:var(--gold); background:#f0c46418; border-color:#f0c46426}
+.wm-page .form-square.L{color:var(--red); background:#ff5c7218; border-color:#ff5c7226}
+.wm-page .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px}
+.wm-page .stat-tile{background:#ffffff03; border:1px solid #ffffff07; border-radius:9px; padding:8px 6px; text-align:center}
+.wm-page .stat-label{display:block; font:600 10px/1.2 'Rajdhani',sans-serif; letter-spacing:.3px; color:var(--ink-dim); white-space:nowrap}
+.wm-page .stat-value{display:block; font:700 27px/1 'Rajdhani',sans-serif; margin-top:5px}
+.wm-page .stat-value.gold{color:var(--gold)} .wm-page .stat-value.coral{color:var(--red)} .wm-page .stat-value.mint{color:var(--turf)}
+.wm-page .split-bar{display:flex; height:5px; border-radius:99px; overflow:hidden; background:#ffffff08; gap:2px}
+.wm-page .split-bar .W{background:var(--turf)} .wm-page .split-bar .D{background:var(--gold)} .wm-page .split-bar .L{background:var(--red)}
+.wm-page .split-label{font-size:10px; color:var(--ink-dim); margin:6px 0 12px}
+.wm-page .detail-section-title{font:700 12px/1 'Rajdhani',sans-serif; letter-spacing:1.3px; margin:0 0 8px; color:var(--ink)}
+.wm-page .detail-section-title:has(.team-more){display:flex; justify-content:space-between; align-items:baseline}
+.wm-page .team-more{font:500 9.5px/1 'IBM Plex Sans',sans-serif; letter-spacing:0; color:var(--ink-dim)}
+.wm-page .teams{display:flex; flex-direction:column; gap:5px; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid #ffffff08}
+.wm-page .team{appearance:none; width:calc(100% + 8px); margin:0 -4px; padding:2px 4px; text-align:left; background:transparent; border:1px solid transparent; border-radius:8px; color:var(--ink); font:inherit; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:9px}
+.wm-page .team:hover{background:#ffffff08}
+.wm-page .team.active{background:#3cff9a12; border-color:#3cff9a2e}
+.wm-page .team-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.wm-page .team-rec, .wm-page .team-goals{color:var(--ink-dim); font-size:9.5px; white-space:nowrap}
+.wm-page .team-goals{min-width:30px; text-align:right}
+.wm-page .team-n{font:700 12px/1 'Rajdhani',sans-serif; min-width:22px; text-align:right; color:var(--ink)}
+.wm-page .wm-crest{display:inline-grid; place-items:center; width:17px; height:17px; border-radius:50%; border:1.5px solid #ffffff20; background:linear-gradient(135deg,#334758,#1b252f); color:#bac8d0; font:600 6.2px 'Rajdhani',sans-serif; letter-spacing:-.2px; flex-shrink:0}
+.wm-page .wm-crest-img{width:17px; height:17px; border-radius:4px; object-fit:contain; flex-shrink:0; background:#ffffff10; padding:1px}
+.wm-page .last-matches{display:flex; flex-direction:column; gap:7px; margin-bottom:14px}
+.wm-page .match-row{display:grid; grid-template-columns:42px 1fr 34px; gap:8px; align-items:center}
+.wm-page .result-pill{font:700 9px/1 'Rajdhani',sans-serif; letter-spacing:.4px; border-radius:4px; padding:5px 3px; text-align:center}
+.wm-page .result-pill.W{color:var(--turf); background:#3cff9a18} .wm-page .result-pill.D{color:var(--gold); background:#f0c46418} .wm-page .result-pill.L{color:var(--red); background:#ff5c7218}
+.wm-page .match-opponent{font-size:10px; color:var(--ink)}
+.wm-page .match-meta{font-size:8px; color:var(--ink-dim); margin-top:2px}
+.wm-page .match-score{text-align:right; font:700 20px/1 'Rajdhani',sans-serif; color:var(--ink)}
+.wm-page .shared-pill{display:inline-flex; align-items:center; gap:3px; margin-left:5px; padding:1px 4px; border-radius:4px; background:#8b6cff24; color:#d6ccff; font-size:7.5px; vertical-align:middle}
+.wm-page .shared-pill .wm-flag{width:10px; height:7px; border-radius:1px; box-shadow:none}
+.wm-page .history-button{width:100%; border:0; border-radius:99px; padding:10px 8px; background:linear-gradient(90deg, var(--turf), var(--violet)); color:#101a1d; font-size:11px; font-weight:600}
+.wm-page .empty-detail{color:var(--ink-dim); font-size:12px; margin:16px 0}
+.wm-page .wm-flag{display:inline-block; flex-shrink:0; width:25px; height:17px; border-radius:3px; object-fit:cover; vertical-align:middle; box-shadow:0 0 0 1px #ffffff1c}
+.wm-page .tiny-chips{position:absolute; left:300px; right:270px; bottom:26px; z-index:3; display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.wm-page .tiny-label{font-size:10px; color:var(--ink-dim)}
+.wm-page .tiny-chip{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; background:#ffffff08; border:1px solid var(--line); border-radius:99px; color:var(--ink); font-size:10px}
+.wm-page .tiny-chip[aria-pressed="true"]{background:#3cff9a18; border-color:#3cff9a66}
+.wm-page .tiny-chip .wm-flag{width:15px; height:10px}
+.wm-page .history-overlay{position:absolute; inset:0; display:grid; place-items:center; z-index:20; background:rgba(7,11,16,.75); backdrop-filter:blur(12px)}
+.wm-page .history-panel{width:960px; max-width:calc(100% - 60px); max-height:calc(100% - 60px); padding:30px; overflow:auto; background:rgba(16,25,35,.96); border-radius:20px; border:1px solid var(--line); position:relative; box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.wm-page .history-panel h2{margin:0 0 22px; font:700 30px 'Rajdhani',sans-serif; color:var(--ink)}
+.wm-page .history-filter{display:flex; align-items:center; gap:10px; margin:-8px 0 16px; font-size:12px; color:var(--ink-dim)}
+.wm-page .history-filter .chip{display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border:1px solid #3cff9a30; background:rgba(20,39,35,.73); border-radius:9px; color:var(--ink)}
+.wm-page .history-table{width:100%; border-collapse:collapse; font-size:12px; color:var(--ink)}
+.wm-page .history-table th{text-align:left; font:600 13px 'Rajdhani',sans-serif; color:var(--ink-dim)}
+.wm-page .history-table th, .wm-page .history-table td{padding:10px 8px; border-bottom:1px solid #ffffff08}
+.wm-page .history-table .result-pill{display:inline-block; min-width:42px}
+.wm-page .history-table td{vertical-align:middle}
+.wm-page .history-table .num{font:700 17px 'Rajdhani',sans-serif; white-space:nowrap}
+.wm-page .history-table .when{color:var(--ink-dim); white-space:nowrap}
+.wm-page .history-table .club{display:inline-flex; align-items:center; gap:8px; white-space:nowrap}
+.wm-page .history-table .wm-crest{width:20px; height:20px; font-size:6.5px}
+.wm-page .history-table .wm-crest-img{width:20px; height:20px}
+.wm-page .opps{display:flex; flex-wrap:wrap; gap:6px}
+.wm-page .opp{display:inline-flex; align-items:center; gap:6px; padding:3px 8px 3px 6px; background:#ffffff08; border:1px solid #ffffff12; border-radius:8px; font-size:11px; white-space:nowrap; color:var(--ink)}
+.wm-page .opp b{font-weight:600}
+.wm-page .wm-plat{display:inline-grid; place-items:center; width:14px; height:14px; color:var(--ink-dim)}
+.wm-page .wm-plat svg{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.wm-page .country-heading.md{font-size:23px; letter-spacing:.7px}
+.wm-page .country-heading.sm{font-size:17px; line-height:1.1; letter-spacing:.5px}
+.wm-page .tooltip-title.md{font-size:18px; letter-spacing:.7px}
+.wm-page .tooltip-title.sm{font-size:14px; line-height:1.1; letter-spacing:.4px}
+.wm-page .wm-loading{position:absolute; inset:0; display:grid; place-items:center}
+.wm-page .wm-loading-inner{color:var(--ink-dim); font-size:13px; display:flex; align-items:center; gap:10px}
+.wm-page .wm-loading-inner::before{content:''; width:14px; height:14px; border-radius:50%; border:2px solid var(--line); border-top-color:var(--turf); animation:wm-spin .8s linear infinite}
+.wm-page .wm-retry{border:1px solid var(--line); background:transparent; color:var(--turf); border-radius:8px; padding:3px 10px; font-size:11px; cursor:pointer}
+@keyframes wm-spin{to{transform:rotate(360deg)}}
+/* ---- light theme: the map design is dark-first, these are its light values ---- */
+:root[data-theme="light"] .wm-page .map-card::after{background:radial-gradient(ellipse at center, transparent 35%, rgba(14,26,23,.07) 100%)}
+:root[data-theme="light"] .wm-page .country{--wm-fill:#c9d6d0}
+:root[data-theme="light"] .wm-page .country path{stroke:#44564e; stroke-opacity:.38}
+:root[data-theme="light"] .wm-page .grid-line{stroke:#0e1a17; stroke-opacity:.08}
+:root[data-theme="light"] .wm-page .map-card.has-selection .country path{fill:#8fa59d; opacity:.40; stroke:#5c6f67; stroke-opacity:.25}
+:root[data-theme="light"] .wm-page .metric-toggle, :root[data-theme="light"] .wm-page .season-select{background:rgba(14,26,23,.05)}
+:root[data-theme="light"] .wm-page .breadcrumb{background:rgba(224,244,234,.92); border-color:rgba(34,201,122,.45)}
+:root[data-theme="light"] .wm-page .tooltip{background:rgba(255,255,255,.94)}
+:root[data-theme="light"] .wm-page .detail-card{background:rgba(255,255,255,.96); scrollbar-color:#0e1a1733 transparent}
+:root[data-theme="light"] .wm-page .stat-tile{background:rgba(14,26,23,.04); border-color:rgba(14,26,23,.08)}
+:root[data-theme="light"] .wm-page .split-bar{background:rgba(14,26,23,.08)}
+:root[data-theme="light"] .wm-page .teams, :root[data-theme="light"] .wm-page .history-table th, :root[data-theme="light"] .wm-page .history-table td{border-color:rgba(14,26,23,.08)}
+:root[data-theme="light"] .wm-page .team:hover{background:rgba(14,26,23,.05)}
+:root[data-theme="light"] .wm-page .shared-pill{background:rgba(139,108,255,.14); color:#5b3ed0}
+:root[data-theme="light"] .wm-page .opp{background:rgba(14,26,23,.05); border-color:rgba(14,26,23,.14)}
+:root[data-theme="light"] .wm-page .tiny-chip{background:rgba(14,26,23,.05)}
+:root[data-theme="light"] .wm-page .history-overlay{background:rgba(238,242,241,.72)}
+:root[data-theme="light"] .wm-page .history-panel{background:rgba(255,255,255,.97)}
+:root[data-theme="light"] .wm-page .history-filter .chip{background:rgba(224,244,234,.92); border-color:rgba(34,201,122,.45)}
+:root[data-theme="light"] .wm-page .wm-flag{box-shadow:0 0 0 1px #00000014}
+:root[data-theme="light"] .wm-page .wm-crest-img{background:#0000000a}
+:root[data-theme="light"] .wm-page .progress{background:#0e1a1714}
+:root[data-theme="light"] .wm-page .close-detail:hover{background:#0e1a1710}
+@media (prefers-reduced-motion:reduce){ .wm-page *{transition:none !important; animation:none !important} }
 </style>
 </head>
 <body>
@@ -748,6 +903,7 @@ table.hs td.seasons{white-space:normal;min-width:74px}
     <button class="navbtn" data-tab="hof"><span class="ic">♛</span> Hall of Fame</button>
     <button class="navbtn" data-tab="highscores"><span class="ic">★</span> Highscores</button>
     <button class="navbtn" data-tab="trophy"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span> Trophy Room</button>
+    <button class="navbtn" data-tab="worldmap"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span> World Map</button>
     <button class="navbtn" data-tab="log" style="margin-top:auto"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> New Season</button>
     <button class="navbtn" data-tab="settings"><span class="ic">⚙</span> Team Sheets</button>
@@ -769,6 +925,7 @@ table.hs td.seasons{white-space:normal;min-width:74px}
     <button data-tab="hof"><span class="ic">♛</span>Hall</button>
     <button data-tab="highscores"><span class="ic">★</span>High</button>
     <button data-tab="trophy"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>Trophy</button>
+    <button data-tab="worldmap"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span>Map</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
     <button data-tab="settings"><span class="ic">⚙</span>Team Sheets</button>
@@ -1389,7 +1546,7 @@ function leaderboard(seasonId){
 
 
 /* ============================= RENDER SHELL ============================= */
-const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy'];
+const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy','worldmap'];
 function setTab(t, fromHash){
   if(currentTab==='log' && t!=='log'){
     /* Leaving Log Match: drop any in-progress / being-edited match so the tab always
@@ -1439,6 +1596,7 @@ function render(){
   else if(currentTab==='hof') main.innerHTML = renderHof();
   else if(currentTab==='highscores') main.innerHTML = renderHighscores();
   else if(currentTab==='trophy') main.innerHTML = renderTrophy();
+  else if(currentTab==='worldmap') main.innerHTML = renderWorldMap();
   /* Full-width season bar (under the rail too) — Match History screen only. */
   const sb = document.getElementById('seasonbar');
   const sbOn = currentTab==='history' && seasons.length>0;
@@ -1446,6 +1604,7 @@ function render(){
   document.getElementById('app').classList.toggle('sb-on', sbOn);
   document.getElementById('app').classList.toggle('hist-full', currentTab==='history');
   document.getElementById('app').classList.toggle('trophy-full', currentTab==='trophy');
+  document.getElementById('app').classList.toggle('wm-full', currentTab==='worldmap');
   wireTabHandlers();
 }
 
@@ -2620,7 +2779,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v109';
+const SCAN_BUILD = 'v110';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -5262,7 +5421,532 @@ function wireTabHandlers(){
   if(currentTab==='squad') wireSquadHandlers();
   if(currentTab==='settings') wireSettingsHandlers();
   if(currentTab==='history') wireHistoryHandlers();
+  if(currentTab==='worldmap') wireWorldMap();
 }
+
+/* ============================= WORLD MAP ============================= */
+/* Read-only page: never writes to the database.
+   - a match with two DIFFERENT opponent countries counts under BOTH countries;
+     the same country twice counts ONCE for that country
+   - the footer total counts each real match once (a mixed match isn't doubled)
+   - club-name variants are merged so the same club doesn't split (aliases point
+     at the names the club BADGES are stored under, so crests keep matching)
+   Map shapes load lazily from assets/world-map.js the first time this screen
+   opens (1.3 MB, public-domain Natural Earth data), then stay in the cache. */
+const WM_NS = 'http://www.w3.org/2000/svg';
+const WM_BASE_WIDTH = 1440;
+
+/* Country table: the app stores ISO alpha-2 codes ("GB"). The map asset is built
+   from Natural Earth "map subunits" whose IDs are NOT ISO alpha-3 (Bosnia =
+   BHF/BIS, Ecuador = ECD, China = CHI, India = INX, Russia = RUA/RUE ...). So
+   every country is a "unit": one alpha-2 code -> one or more map IDs that are
+   drawn & highlighted together. The United Kingdom is ONE unit (ENG+SCT+WLS+NIR)
+   because the picker stores "GB" only. Territories not listed are drawn as
+   inert land. Every id below was cross-checked against the map asset: none
+   missing, none used twice. */
+const WM_UNITS_RAW = `AF|Afghanistan|AFG;AL|Albania|ALB;DZ|Algeria|DZA;AD|Andorra|AND;AO|Angola|AGO;AG|Antigua and Barbuda|ACA,ACB;AR|Argentina|ARG;AM|Armenia|ARM;AU|Australia|AUS,AUA,AUM;AT|Austria|AUT;AZ|Azerbaijan|AZE;BS|Bahamas|BHS;BH|Bahrain|BHR;BD|Bangladesh|BGD;BB|Barbados|BRB;BY|Belarus|BLR;BE|Belgium|BEL;BZ|Belize|BLZ;BJ|Benin|BEN;BT|Bhutan|BTN;BO|Bolivia|BOL;BA|Bosnia and Herzegovina|BHF,BIS;BW|Botswana|BWA;BR|Brazil|BRA;BN|Brunei|BRN;BG|Bulgaria|BGR;BF|Burkina Faso|BFA;BI|Burundi|BDI;CV|Cabo Verde|CPV;KH|Cambodia|KHM;CM|Cameroon|CMR;CA|Canada|CAN;CF|Central African Republic|CAF;TD|Chad|TCD;CL|Chile|CHL,CHP,CHS;CN|China|CHI,CHH;CO|Colombia|COL;KM|Comoros|COM;CG|Congo|COG;CD|DR Congo|COD;CR|Costa Rica|CRI;CI|Côte d'Ivoire|CIV;HR|Croatia|HRV;CU|Cuba|CUB;CY|Cyprus|CYP,CYN;CZ|Czechia|CZE;DK|Denmark|DNK,DNB;DJ|Djibouti|DJI;DM|Dominica|DMA;DO|Dominican Republic|DOM;EC|Ecuador|ECD,ECG;EG|Egypt|EGY;SV|El Salvador|SLV;GQ|Equatorial Guinea|GNK,GNR;ER|Eritrea|ERI;EE|Estonia|EST;SZ|Eswatini|SWZ;ET|Ethiopia|ETH;FJ|Fiji|FJI;FI|Finland|FIN,ALD;FR|France|FRA;GA|Gabon|GAB;GM|Gambia|GMB;GE|Georgia|GEG;DE|Germany|DEU;GH|Ghana|GHA;GR|Greece|GRC;GD|Grenada|GRD;GT|Guatemala|GTM;GN|Guinea|GIN;GW|Guinea-Bissau|GNB;GY|Guyana|GUY;HT|Haiti|HTI;HN|Honduras|HND;HU|Hungary|HUN;IS|Iceland|ISL;IN|India|INX,INA,INL,INN;ID|Indonesia|IDN;IR|Iran|IRN;IQ|Iraq|IRQ;IE|Ireland|IRL;IL|Israel|ISR;IT|Italy|ITA;JM|Jamaica|JAM;JP|Japan|JPN,JPB,JPH,JPI,JPK,JPO,JPS,JPY;JO|Jordan|JOR;KZ|Kazakhstan|KAZ;KE|Kenya|KEN;KI|Kiribati|KIR;KP|North Korea|PRK;KR|South Korea|KOR,KOJ,KOU;KW|Kuwait|KWT;KG|Kyrgyzstan|KGZ;LA|Laos|LAO;LV|Latvia|LVA;LB|Lebanon|LBN;LS|Lesotho|LSO;LR|Liberia|LBR;LY|Libya|LBY;LI|Liechtenstein|LIE;LT|Lithuania|LTU;LU|Luxembourg|LUX;MG|Madagascar|MDG;MW|Malawi|MWI;MY|Malaysia|MYS;MV|Maldives|MDV;ML|Mali|MLI;MT|Malta|MLT;MH|Marshall Islands|MHL;MR|Mauritania|MRT;MU|Mauritius|MUS;MX|Mexico|MEX;FM|Micronesia|FSM;MD|Moldova|MDA;MC|Monaco|MCO;MN|Mongolia|MNG;ME|Montenegro|MNE;MA|Morocco|MAR;MZ|Mozambique|MOZ;MM|Myanmar|MMR;NA|Namibia|NAM;NR|Nauru|NRU;NP|Nepal|NPL;NL|Netherlands|NLD;NZ|New Zealand|NZN,NZS,NZC,NZA;NI|Nicaragua|NIC;NE|Niger|NER;NG|Nigeria|NGA;MK|North Macedonia|MKD;NO|Norway|NOR;OM|Oman|OMN;PK|Pakistan|PAK;PW|Palau|PLW;PS|Palestine|GAZ,WEB;PA|Panama|PAN;PG|Papua New Guinea|PNX,PNB;PY|Paraguay|PRY;PE|Peru|PER;PH|Philippines|PHL;PL|Poland|POL;PT|Portugal|PRT;QA|Qatar|QAT;RO|Romania|ROU;RU|Russia|RUA,RUE,RUK;RW|Rwanda|RWA;KN|Saint Kitts and Nevis|KNA;LC|Saint Lucia|LCA;VC|Saint Vincent and the Grenadines|VCT;WS|Samoa|WSM;SM|San Marino|SMR;ST|São Tomé and Príncipe|STS,STA;SA|Saudi Arabia|SAU;SN|Senegal|SEN;RS|Serbia|SRS,SRV;SC|Seychelles|SYC;SL|Sierra Leone|SLE;SG|Singapore|SGP;SK|Slovakia|SVK;SI|Slovenia|SVN;SB|Solomon Islands|SLB;SO|Somalia|SOM,SOL;ZA|South Africa|ZAX,ZAI;SS|South Sudan|SDS;ES|Spain|ESP;LK|Sri Lanka|LKA;SD|Sudan|SDN;SR|Suriname|SUR;SE|Sweden|SWE;CH|Switzerland|CHE;SY|Syria|SYR;TJ|Tajikistan|TJK;TZ|Tanzania|TZA,TZZ;TH|Thailand|THA;TL|Timor-Leste|TLX,TLP;TG|Togo|TGO;TO|Tonga|TON;TT|Trinidad and Tobago|TTD,TTG;TN|Tunisia|TUN;TR|Türkiye|TUR;TM|Turkmenistan|TKM;TV|Tuvalu|TUV;UG|Uganda|UGA;UA|Ukraine|UKR;AE|United Arab Emirates|ARE;GB|United Kingdom|ENG,SCT,WLS,NIR;US|United States|USA;UY|Uruguay|URY;UZ|Uzbekistan|UZB;VU|Vanuatu|VUT;VA|Vatican City|VAT;VE|Venezuela|VEN;VN|Vietnam|VNM;YE|Yemen|YEM,YES;ZM|Zambia|ZMB;ZW|Zimbabwe|ZWE`;
+const WM_UNITS = {}, WM_ID_TO_COUNTRY = {};
+WM_UNITS_RAW.replace(/\n/g,'').split(';').forEach(r=>{
+  const [code, name, ids] = r.split('|');
+  WM_UNITS[code] = { name, ids: ids.split(',') };
+  ids.split(',').forEach(id=>{ WM_ID_TO_COUNTRY[id] = code; });
+});
+
+/* Club-name variants -> one canonical name (extend when new variants show up). */
+const WM_CLUB_ALIASES = {
+  'barca':'FC Barcelona','fc barcelona':'FC Barcelona','barcelona':'FC Barcelona',
+  'paris sg':'PSG','paris saint germain':'PSG','paris saint-germain':'PSG',
+  'man city':'Manchester City','manchester city fc':'Manchester City',
+  'bayern munchen':'Munchen Bayern FC','bayern munich':'Munchen Bayern FC','munchen bayern':'Munchen Bayern FC',
+  'club brugge':'Club Brugge','club brugge kv':'Club Brugge','brugge':'Club Brugge',
+  'at. madrid':'Atlético Madrid','atl. madrid':'Atlético Madrid','atletico madrid':'Atlético Madrid','atletico de madrid':'Atlético Madrid',
+  'real madrid cf':'Real Madrid','real madrid fc':'Real Madrid'
+};
+function wmClubKey(s){ return String(s||'').trim().toLowerCase().replace(/[._-]+/g,' ').replace(/\s+/g,' '); }
+function wmCanonicalClub(raw){
+  const n = String(raw||'').trim();
+  if(!n) return 'Unknown club';
+  const a = WM_CLUB_ALIASES[wmClubKey(n)];
+  if(a) return a;
+  const t = teamByName(n);
+  return (t && t.logo) ? t.name : n;   // prefer the name the badge is stored under
+}
+const wmUniqueCodes = g => Array.from(new Set((g.opponentCountries||[]).map(c=>String(c||'').trim().toUpperCase()).filter(Boolean)));
+
+/* One record per (match, country). Pure — no DOM, no network. */
+function wmToCountryRecords(gamesArr, seasonsArr){
+  const numById = {}; (seasonsArr||[]).forEach(s=>{ numById[s.id] = s.number; });
+  const records = [], unknown = [];
+  let rid = 0;
+  (gamesArr||[]).slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).forEach(g=>{
+    const codes = wmUniqueCodes(g);
+    const season = numById[g.seasonId];
+    if(!codes.length){ unknown.push({gameId:g.id, season}); return; }
+    codes.forEach(code=>{
+      records.push({
+        id: ++rid, gameId: g.id, countryCode: code,
+        countryName: (WM_UNITS[code]||{}).name || countryName(code),
+        season, game: gamePosition(g.seasonId, g.id) || 0,
+        opponent: wmCanonicalClub(g.opponentTeam),
+        gf: Number(g.scoreFor||0), ga: Number(g.scoreAgainst||0),
+        playedAt: new Date(g.createdAt||0).toISOString(),
+        sharedWith: codes.filter(c=>c!==code),
+        gamertags: g.opponentGamertags||[], platforms: g.opponentPlatforms||[],
+        countries: (g.opponentCountries||[]).map(c=>String(c||'').toUpperCase()),
+        matchDate: g.matchDate||'', matchTime: g.matchTime||''
+      });
+    });
+  });
+  return {records, unknown};
+}
+
+/* Lazy map asset: one <script> tag, cached by the browser after the first load. */
+let wmAssetPromise = null;
+function wmLoadMapAsset(){
+  if(window.EA_WORLD_MAP) return Promise.resolve();
+  if(!wmAssetPromise){
+    wmAssetPromise = new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      s.src = 'assets/world-map.js';
+      s.onload = ()=> window.EA_WORLD_MAP ? resolve() : reject(new Error('map data missing'));
+      s.onerror = ()=>{ wmAssetPromise = null; reject(new Error('map file failed to load')); };
+      document.head.appendChild(s);
+    });
+  }
+  return wmAssetPromise;
+}
+
+/* Flags: the app's existing flagcdn images (flag emoji don't render on Windows). */
+function wmFlag(code){
+  const name = (WM_UNITS[code]||{}).name || countryName(code);
+  return `<img class="wm-flag" src="${countryFlag(code)}" alt="${esc(name)}" loading="lazy" width="25" height="17">`;
+}
+/* Crests: the uploaded badge if one exists, else the club's colours + initials. */
+const WM_CLUB_COLORS = {
+  'fc barcelona':['#A50044','#004D98','FCB'], 'real madrid':['#e9edf2','#FEBE10','RMA'], 'atletico madrid':['#CB3524','#272E61','ATM'],
+  'manchester city':['#6CABDD','#1C2C5B','MCI'], 'psg':['#004170','#DA291C','PSG'], 'munchen bayern fc':['#DC052D','#0066B2','BAY'],
+  'liverpool':['#C8102E','#00B2A9','LIV'], 'arsenal':['#EF0107','#9C824A','ARS'], 'inter':['#0068A8','#010E80','INT'],
+  'juventus':['#1a1a1a','#e5e5e5','JUV'], 'chelsea':['#034694','#DBA111','CHE'], 'club brugge':['#FDB911','#1a1a1a','BRU'],
+  'france':['#0055A4','#EF4135','FRA'], 'spain':['#AA151B','#F1BF00','ESP'], 'japan':['#BC002D','#ffffff','JPN']
+};
+function wmCrest(name){
+  const logo = teamLogo(name);
+  if(logo) return `<img class="wm-crest-img" src="${logo}" alt="" aria-hidden="true">`;
+  const c = WM_CLUB_COLORS[wmClubKey(name)];
+  const txt = c ? c[2] : String(name).slice(0,3).toUpperCase();
+  const style = c ? ` style="background:${c[0]};border-color:${c[1]};color:${c[0]==='#e9edf2' ? '#1b2a49' : '#fff'}"` : '';
+  return `<span class="wm-crest" aria-hidden="true"${style}>${esc(txt)}</span>`;
+}
+/* Platform icons from the app's own set (gamepad = console, monitor = PC). */
+function wmPlat(p){
+  if(p==='pc') return `<span class="wm-plat" title="PC">${ICONS.monitor}</span>`;
+  if(p==='console') return `<span class="wm-plat" title="Console">${ICONS.gamepad}</span>`;
+  return '';
+}
+
+/* ---- numbers & heat scale (same colours and curve as the approved mockup) ---- */
+const wmResult = m => m.gf>m.ga ? 'W' : m.gf<m.ga ? 'L' : 'D';
+const wmResultName = r => ({W:'WIN', D:'DRAW', L:'LOSS'}[r]);
+const wmNameSize = n => n.length>15 ? 'sm' : n.length>10 ? 'md' : '';   // long names shrink instead of wrapping
+function wmAggregate(matches){
+  const wins = matches.filter(m=>wmResult(m)==='W').length;
+  const draws = matches.filter(m=>wmResult(m)==='D').length;
+  return {
+    matches, games:matches.length, wins, draws, losses:matches.length-wins-draws,
+    gf:matches.reduce((n,m)=>n+m.gf,0), ga:matches.reduce((n,m)=>n+m.ga,0),
+    shared:matches.filter(m=>m.sharedWith&&m.sharedWith.length).length,
+    winRate:matches.length?Math.round(100*wins/matches.length):0
+  };
+}
+function wmMix(a,b,t){
+  t = Math.max(0,Math.min(1,t));
+  const pa = a.match(/\w\w/g).map(v=>parseInt(v,16));
+  const pb = b.match(/\w\w/g).map(v=>parseInt(v,16));
+  return '#'+pa.map((v,i)=>Math.round(v+(pb[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+/* 0..1 position on the heat scale. Games and Goals are relative to the busiest
+   country in the current view (so the legend is always honest); win rate is an
+   absolute percentage. */
+const wmHeatT = (value,metric,max)=> metric==='winRate' ? value/100 : (max>0 ? Math.min(1,value/max) : 0);
+const wmHotAt = { games:.77, gf:.95, winRate:.85 };
+function wmHeatColor(value,metric,games,max){
+  if(!games) return '#141b22';
+  const t = wmHeatT(value,metric,max);
+  if(metric==='games'){            // the supplied design curve, now scaled to the data
+    const v = t*26;
+    if(v<=5) return wmMix('18382f','248967',v/5);
+    return wmMix('32ce89','3cff9a',(v-6)/20);
+  }
+  if(t<.6) return wmMix('18382f','248967',t/.6);
+  return wmMix('32ce89','3cff9a',(t-.6)/.4);
+}
+
+/* ---- page shell (render() calls this while the World Map tab is open) ---- */
+function renderWorldMap(){
+  const seasonOpts = seasons.slice().sort((a,b)=>(b.number||0)-(a.number||0))
+    .map(s=>`<option value="${s.number}">Season ${s.number}</option>`).join('');
+  return `
+  <div class="wm-page">
+    <div class="wm-frame">
+      <section class="wm-screen" aria-label="World Map">
+        <header class="page-head">
+          <div><h1>World Map</h1><p class="subtitle">Where our opponents are from</p></div>
+          <div class="controls">
+            <div class="metric-toggle" role="group" aria-label="Heat metric">
+              <button class="metric" data-metric="games" aria-pressed="true">Games</button>
+              <button class="metric" data-metric="winRate" aria-pressed="false">Win rate</button>
+              <button class="metric" data-metric="gf" aria-pressed="false">Goals</button>
+            </div>
+            <div class="select-wrap">
+              <select class="season-select" aria-label="Season filter">
+                <option value="all">All seasons</option>${seasonOpts}
+              </select>
+            </div>
+          </div>
+        </header>
+        <div class="map-card wm-glass">
+          <button class="breadcrumb" hidden></button>
+          <div class="map-slot">
+            <div class="wm-loading"><div class="wm-loading-inner">Drawing the world map…</div></div>
+            <svg class="world-map" viewBox="0 0 1080 423" preserveAspectRatio="xMidYMid meet" aria-label="Countries played" role="group" hidden>
+              <defs><linearGradient id="wm-grad" x1="0" x2="1"><stop offset="0" stop-color="#3cff9a"/><stop offset="1" stop-color="#8b6cff"/></linearGradient></defs>
+              <g class="graticule" aria-hidden="true"></g><g class="countries"></g>
+            </svg>
+          </div>
+          <div class="map-footer">
+            <div class="legend">
+              <div class="legend-label">Fewer games → More games</div>
+              <div class="legend-ramp"></div>
+              <div class="legend-ticks"><span>0</span><span>–</span><span>–</span></div>
+            </div>
+            <div class="map-summary" aria-live="polite"></div>
+          </div>
+          <div class="tiny-chips" hidden></div>
+          <div class="tooltip wm-glass" role="tooltip" hidden></div>
+          <section class="detail-card wm-glass" aria-label="Country details" hidden></section>
+        </div>
+        <div class="history-overlay" hidden>
+          <section class="history-panel" role="dialog" aria-modal="true" aria-label="Match History">
+            <button class="close-history" aria-label="Close Match History">×</button>
+            <h2>Match History</h2>
+            <div class="history-filter"></div>
+            <table class="history-table">
+              <thead><tr><th>Result</th><th>Club</th><th>Score</th><th>Season</th><th>Opponents</th><th>Played</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </section>
+        </div>
+      </section>
+    </div>
+  </div>`;
+}
+
+/* ---- view (port of the approved mockup's WorldMap class, app-adapted) ---- */
+/* Metric / season / open country survive a live re-render (a snapshot from the
+   other tab rebuilds the page — the screen should keep its place). */
+const wmViewState = { metric:'games', season:'all', selected:null };
+let wmView = null;
+class WMView{
+  constructor(frame){
+    this.frame = frame;
+    this.state = { metric:wmViewState.metric, season:wmViewState.season, hovered:null, selected:wmViewState.selected, club:null };
+    const data = wmToCountryRecords(games, seasons);
+    this.allMatches = data.records;
+    this.unknown = data.unknown;
+    this.returnFocus = null;
+    this.destroyController = new AbortController();
+    this.groups = new Map();
+    this.land = new Map();
+    this.names = new Map();
+    this.anchors = new Map();
+    this.screen = frame.querySelector('.wm-screen');
+    this.card = frame.querySelector('.map-card');
+    this.svg = frame.querySelector('.world-map');
+    this.tooltip = frame.querySelector('.tooltip');
+    this.detail = frame.querySelector('.detail-card');
+    const sel = frame.querySelector('.season-select');
+    if(sel){ sel.value = this.state.season; this.state.season = sel.value; }   // stale season -> select falls back to 'all'
+    this.buildMap();
+    const loading = this.card.querySelector('.wm-loading');
+    if(loading) loading.remove();
+    this.svg.hidden = false;
+    /* countries too small to hit with a mouse get a clickable chip in the footer */
+    this.tiny = new Set();
+    for(const [code,group] of this.groups){
+      const b = group.getBBox();
+      if(b.width<7 && b.height<7) this.tiny.add(code);
+    }
+    this.bindEvents();
+    this.resizeObserver = new ResizeObserver(()=>{
+      this.screen.style.transform = `scale(${frame.clientWidth/WM_BASE_WIDTH})`;
+      this.positionTooltip();
+    });
+    this.resizeObserver.observe(frame);
+    this.update();
+    requestAnimationFrame(()=>this.positionTooltip());
+  }
+  buildMap(){
+    const graticule = this.svg.querySelector('.graticule');
+    for(let x=90; x<1080; x+=90){
+      const p = document.createElementNS(WM_NS,'path'); p.setAttribute('d',`M${x} 0V423`); p.setAttribute('class','grid-line'); graticule.append(p);
+    }
+    for(let y=42; y<423; y+=90){
+      const p = document.createElementNS(WM_NS,'path'); p.setAttribute('d',`M0 ${y}H1080`); p.setAttribute('class','grid-line'); graticule.append(p);
+    }
+    const countries = this.svg.querySelector('.countries');
+    const longest = new Map();   // the longest outline of a country decides where its tooltip points
+    for(const feature of window.EA_WORLD_MAP||[]){
+      const code = WM_ID_TO_COUNTRY[feature.id], key = code||feature.id;
+      let group = this.groups.get(key)||this.land.get(key);
+      if(!group){
+        group = document.createElementNS(WM_NS,'g'); group.dataset.country = key;
+        if(code){
+          group.setAttribute('class','country'); group.setAttribute('role','button'); group.setAttribute('tabindex','0');
+          group.setAttribute('aria-label',WM_UNITS[code].name); group.setAttribute('aria-pressed','false');
+          this.groups.set(code,group); this.names.set(code,WM_UNITS[code].name);
+        }else{                    // territories / places the app cannot store: drawn, never interactive
+          group.setAttribute('class','country land'); group.setAttribute('aria-hidden','true'); this.land.set(key,group);
+        }
+        countries.append(group);
+      }
+      if(code && (!longest.has(code)||feature.d.length>longest.get(code))){ longest.set(code,feature.d.length); this.anchors.set(code,{x:feature.x,y:feature.y}); }
+      const path = document.createElementNS(WM_NS,'path'); path.setAttribute('d',feature.d); path.setAttribute('fill-rule','evenodd'); group.append(path);
+    }
+  }
+  bindEvents(){
+    const signal = this.destroyController.signal;
+    const on = (target,event,fn)=> target.addEventListener(event,fn,{signal});
+    for(const [code,group] of this.groups){
+      on(group,'pointerenter',()=>{ this.state.hovered = code; this.updateHover(); });
+      on(group,'pointerleave',()=>{ this.state.hovered = null; this.updateHover(); });
+      on(group,'focus',()=>{ this.state.hovered = code; this.updateHover(); });
+      on(group,'blur',()=>{ this.state.hovered = null; this.updateHover(); });
+      on(group,'click',()=>this.select(code));
+      on(group,'keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); this.select(code); } });
+    }
+    on(this.frame.querySelector('.season-select'),'change',e=>{ this.state.season = e.target.value; this.update(); });
+    on(this.frame.querySelector('.metric-toggle'),'click',e=>{
+      const button = e.target.closest('[data-metric]'); if(!button) return;
+      this.state.metric = button.dataset.metric; this.update();
+    });
+    on(this.frame.querySelector('.breadcrumb'),'click',()=>this.clearSelection());
+    on(this.detail,'click',e=>{
+      if(e.target.closest('.close-detail')) this.clearSelection();
+      if(e.target.closest('.history-button')) this.openHistory(this.state.selected);
+      const team = e.target.closest('[data-club]');
+      if(team){   // click a club to show only those matches under LAST MATCHES; click again to clear
+        const name = team.dataset.club;
+        this.state.club = this.state.club===name ? null : name;
+        this.renderDetail();
+        const again = [...this.detail.querySelectorAll('[data-club]')].find(b=>b.dataset.club===name);
+        if(again) again.focus();
+      }
+    });
+    on(this.frame.querySelector('.tiny-chips'),'click',e=>{ const b = e.target.closest('[data-tiny]'); if(b) this.select(b.dataset.tiny); });
+    on(this.card,'click',e=>{ if(e.target===this.card||e.target===this.svg||e.target.closest('.graticule')) this.clearSelection(); });
+    on(this.screen,'keydown',e=>{
+      if(e.key==='Escape'){
+        if(!this.frame.querySelector('.history-overlay').hidden) this.closeHistory();
+        else this.clearSelection();
+      }
+      if(e.key==='Tab' && !this.frame.querySelector('.history-overlay').hidden){
+        // The dialog holds one focusable control; keep focus within it.
+        e.preventDefault(); this.frame.querySelector('.close-history').focus();
+      }
+    });
+    on(this.frame.querySelector('.close-history'),'click',()=>this.closeHistory());
+    on(this.frame.querySelector('.history-overlay'),'click',e=>{ if(e.target.classList.contains('history-overlay')) this.closeHistory(); });
+  }
+  filteredMatches(){ return this.allMatches.filter(m=> this.state.season==='all'||String(m.season)===this.state.season); }
+  countryStats(code){ return this.stats.get(code)||wmAggregate([]); }
+  update(){
+    wmViewState.metric = this.state.metric;
+    wmViewState.season = this.state.season;
+    this.filtered = this.filteredMatches();
+    this.stats = new Map();
+    for(const [code] of this.groups) this.stats.set(code, wmAggregate(this.filtered.filter(m=>m.countryCode===code)));
+    const peak = key => Math.max(0,...[...this.stats.values()].map(s=>s[key]));
+    const peaks = { games:peak('games'), gf:peak('gf'), winRate:100 };
+    const metric = this.state.metric;
+    for(const [code,group] of this.groups){
+      const stat = this.countryStats(code);
+      const color = wmHeatColor(stat[metric],metric,stat.games,peaks[metric]);
+      group.style.setProperty('--wm-fill',color);
+      group.style.setProperty('--wm-hover-fill',wmMix(color.slice(1),'aaffd5',.25));
+      group.classList.toggle('hot', stat.games>0 && wmHeatT(stat[metric],metric,peaks[metric])>=wmHotAt[metric]);
+      group.classList.toggle('selected', code===this.state.selected);
+      group.setAttribute('aria-pressed',String(code===this.state.selected));
+      group.setAttribute('aria-label',`${this.names.get(code)}, ${stat.games} matches, ${stat.winRate}% win rate`);
+      for(const path of group.children) path.style.stroke = code===this.state.selected ? 'url(#wm-grad)' : '';
+    }
+    this.card.classList.toggle('has-selection',!!this.state.selected);
+    if(this.state.selected) this.svg.querySelector('.countries').append(this.groups.get(this.state.selected));
+    this.frame.querySelectorAll('[data-metric]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.metric===metric)));
+    /* Footer: a mixed-country match counts under BOTH countries above, but only
+       ONCE in the match total. */
+    const countries = [...this.stats.values()].filter(s=>s.games).length;
+    const matches = new Set(this.filtered.map(m=>m.gameId)).size;
+    const unknown = this.unknown.filter(u=> this.state.season==='all'||String(u.season)===this.state.season).length;
+    const summary = this.frame.querySelector('.map-summary');
+    summary.textContent = `${countries} countries · ${matches} matches`;
+    if(unknown){ const note = document.createElement('div'); note.className = 'unknown-note'; note.textContent = `${unknown} older ${unknown===1?'match has':'matches have'} no country yet`; summary.append(note); }
+    const pk = peaks[metric];
+    const legends = {
+      games:['Fewer games → More games','0',String(Math.round(pk/2)),String(pk)],
+      winRate:['Lower win rate → Higher win rate','0%','50%','100%'],
+      gf:['Fewer goals → More goals','0',String(Math.round(pk/2)),String(pk)]
+    };
+    const [label,...ticks] = legends[metric];
+    this.frame.querySelector('.legend-label').textContent = label;
+    this.frame.querySelectorAll('.legend-ticks span').forEach((el,i)=>el.textContent=ticks[i]);
+    const chips = this.frame.querySelector('.tiny-chips');
+    const small = [...this.tiny].filter(c=>this.countryStats(c).games>0);
+    chips.hidden = !small.length;
+    chips.innerHTML = small.length
+      ? '<span class="tiny-label">Too small to click on the map:</span>' + small.map(c=>`<button class="tiny-chip" data-tiny="${c}" aria-pressed="${c===this.state.selected}">${wmFlag(c)}${esc(this.names.get(c))} ×${this.countryStats(c).games}</button>`).join('')
+      : '';
+    const breadcrumb = this.frame.querySelector('.breadcrumb');
+    breadcrumb.hidden = !this.state.selected;
+    if(this.state.selected) breadcrumb.innerHTML = `${esc(this.names.get(this.state.selected))} ✕<span>· &nbsp; Clear selection</span>`;
+    this.renderDetail();
+    this.updateHover();
+  }
+  select(code){
+    if(this.state.selected!==code) this.state.club = null;
+    this.state.selected = code;
+    this.state.hovered = null;
+    wmViewState.selected = code;
+    this.update();
+    this.returnFocus = this.groups.get(code);
+    const closeBtn = this.detail.querySelector('.close-detail');
+    if(closeBtn) closeBtn.focus();
+  }
+  clearSelection(){
+    const focus = this.state.selected && this.groups.get(this.state.selected);
+    this.state.selected = null;
+    this.state.hovered = null;
+    this.state.club = null;
+    wmViewState.selected = null;
+    this.update();
+    if(focus){ focus.focus(); this.state.hovered = null; this.updateHover(); }
+  }
+  updateHover(){
+    const code = !this.state.selected && this.state.hovered;
+    for(const [id,group] of this.groups) group.classList.toggle('hovered',id===code);
+    this.tooltip.hidden = !code;
+    if(!code) return;
+    const s = this.countryStats(code);
+    this.tooltip.innerHTML = `<div class="tooltip-title ${wmNameSize(this.names.get(code))}">${wmFlag(code)}${esc(this.names.get(code).toUpperCase())}</div><div class="tooltip-summary">${s.games} matches · ${s.wins}W ${s.draws}D ${s.losses}L</div><div class="progress" role="progressbar" aria-label="Win rate" aria-valuenow="${s.winRate}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${s.winRate}%"></div></div>`;
+    this.positionTooltip();
+  }
+  positionTooltip(){
+    if(this.tooltip.hidden||!this.state.hovered) return;
+    const a = this.anchors.get(this.state.hovered); if(!a) return;
+    const matrix = this.svg.getScreenCTM(); if(!matrix) return;
+    const point = this.svg.createSVGPoint(); point.x = a.x; point.y = a.y;
+    const pos = point.matrixTransform(matrix);
+    const card = this.card.getBoundingClientRect();
+    const scale = this.frame.clientWidth/WM_BASE_WIDTH;
+    const x = (pos.x-card.left)/scale;
+    const y = (pos.y-card.top)/scale;
+    const left = Math.max(12,Math.min(this.card.clientWidth-240,x+20));
+    const top = Math.max(12,Math.min(this.card.clientHeight-112,y+10));
+    this.tooltip.style.left = `${left}px`;
+    this.tooltip.style.top = `${top}px`;
+  }
+  renderDetail(){
+    const code = this.state.selected;
+    this.detail.hidden = !code;
+    if(!code) return;
+    const s = this.countryStats(code);
+    const matches = [...s.matches].sort((a,b)=> a.playedAt.localeCompare(b.playedAt)||a.id-b.id);
+    /* Clubs the opponents from this country picked (variants like "CLUB Brugge"
+       were merged by wmCanonicalClub, so the crest keeps matching). */
+    const clubs = new Map();
+    for(const m of matches){
+      const c = clubs.get(m.opponent)||{name:m.opponent,n:0,w:0,d:0,l:0,gf:0,ga:0};
+      c.n++; c[wmResult(m).toLowerCase()]++; c.gf += m.gf; c.ga += m.ga;
+      clubs.set(m.opponent,c);
+    }
+    const clubRows = [...clubs.values()].sort((a,b)=> b.n-a.n||a.name.localeCompare(b.name));
+    if(this.state.club && !clubs.has(this.state.club)) this.state.club = null;
+    const club = this.state.club;
+    const pool = club ? matches.filter(m=>m.opponent===club) : matches;
+    const name = this.names.get(code), flag = wmFlag(code);
+    const sharedLine = s.shared ? `<div class="country-sub">${s.shared} of these shared with another country</div>` : '';
+    const teamRows = clubRows.slice(0,3).map(c=>`<button class="team${club===c.name?' active':''}" data-club="${esc(c.name)}" aria-pressed="${club===c.name}" aria-label="${esc(c.name)}, ${c.n} matches. Show only these matches">${wmCrest(c.name)}<span class="team-name">${esc(c.name)}</span><span class="team-rec">${c.w}W ${c.d}D ${c.l}L</span><span class="team-goals">${c.gf}–${c.ga}</span><span class="team-n">×${c.n}</span></button>`).join('');
+    const more = clubRows.length>3 ? `<span class="team-more">+${clubRows.length-3} more ${clubRows.length-3===1?'club':'clubs'}</span>` : '';
+    const lastRows = pool.slice(-3).reverse().map(m=>{
+      const sw = (m.sharedWith||[]).map(c=>`<span class="shared-pill">shared with ${wmFlag(c)}${esc((WM_UNITS[c]||{}).name||c)}</span>`).join('');
+      return `<div class="match-row"><span class="result-pill ${wmResult(m)}">${wmResultName(wmResult(m))}</span><div><div class="match-opponent">vs ${esc(m.opponent)}</div><div class="match-meta">Season ${m.season} · Game ${m.game}${sw}</div></div><div class="match-score">${m.gf}–${m.ga}</div></div>`;
+    }).join('');
+    this.detail.innerHTML = `<button class="close-detail" aria-label="Close country details">×</button>
+      <div class="detail-header"><div class="shield"><div class="shield-number">${s.games}</div><div class="shield-label">MATCHES</div></div><div><div class="country-heading ${wmNameSize(name)}">${flag}${esc(name.toUpperCase())}</div><div class="country-caption">Opponent players from this country</div>${sharedLine}</div></div>
+      <div class="form" aria-label="Recent form">${matches.slice(-6).map(m=>`<div class="form-square ${wmResult(m)}" aria-label="${wmResultName(wmResult(m))}">${wmResult(m)}</div>`).join('')}</div>
+      <div class="stats"><div class="stat-tile"><span class="stat-label">GOALS FOR</span><span class="stat-value gold">${s.gf}</span></div><div class="stat-tile"><span class="stat-label">GOALS AGAINST</span><span class="stat-value coral">${s.ga}</span></div><div class="stat-tile"><span class="stat-label">WIN RATE</span><span class="stat-value mint">${s.winRate}%</span></div></div>
+      <div class="split-bar" aria-label="${s.wins} wins, ${s.draws} draws, ${s.losses} losses">${[['W',s.wins],['D',s.draws],['L',s.losses]].filter(([,n])=>n>0).map(([r,n])=>`<span class="${r}" style="flex:${n}"></span>`).join('')}</div><div class="split-label">${s.wins}W ${s.draws}D ${s.losses}L</div>
+      ${s.games ? `<h2 class="detail-section-title">TEAMS FACED${more}</h2><div class="teams">${teamRows}</div>
+      <h2 class="detail-section-title">LAST MATCHES${club?` · ${esc(club.toUpperCase())}`:''}</h2><div class="last-matches">${lastRows}</div>` : '<p class="empty-detail">No matches against opponents from here yet.</p>'}
+      <button class="history-button" ${s.games?'':'disabled'}>View in Match History</button>`;
+  }
+  openHistory(code = null){
+    const overlay = this.frame.querySelector('.history-overlay');
+    this.returnFocus = document.activeElement;
+    let rows = this.filteredMatches();
+    if(code) rows = rows.filter(m=>m.countryCode===code);
+    else { const seen = new Set(); rows = rows.filter(m=> !seen.has(m.gameId)&&seen.add(m.gameId)); }   // each real match once
+    rows.sort((a,b)=> b.playedAt.localeCompare(a.playedAt)||b.id-a.id);
+    const when = m=>{
+      if(!m.matchDate) return '';
+      const d = new Date(m.matchDate+'T00:00:00Z');
+      return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'})+(m.matchTime?' · '+esc(m.matchTime):'');
+    };
+    const opp = (m,i)=> m.gamertags[i] ? `<span class="opp">${wmPlat(m.platforms[i])}<b>${esc(m.gamertags[i])}</b>${m.countries[i]?wmFlag(m.countries[i]):''}</span>` : '';
+    const season = this.state.season==='all' ? 'All seasons' : `Season ${esc(this.state.season)}`;
+    overlay.querySelector('.history-filter').innerHTML = `<span class="chip">${code?`Opponents from ${wmFlag(code)} ${esc(this.names.get(code))}`:'All matches'}</span><span>${season} · ${rows.length} ${rows.length===1?'match':'matches'}</span>`;
+    overlay.querySelector('tbody').innerHTML = rows.map(m=>`<tr><td><span class="result-pill ${wmResult(m)}">${wmResultName(wmResult(m))}</span></td><td><span class="club">${wmCrest(m.opponent)}${esc(m.opponent)}</span></td><td class="num">${m.gf}–${m.ga}</td><td>Season ${m.season} · Game ${m.game}</td><td><span class="opps">${opp(m,0)}${opp(m,1)}</span></td><td class="when">${when(m)}</td></tr>`).join('');
+    overlay.hidden = false;
+    /* Keep focus inside the dialog without touching anything outside it. */
+    this.screen.querySelector('.page-head').inert = true;
+    this.card.inert = true;
+    overlay.querySelector('.close-history').focus();
+  }
+  closeHistory(){
+    const overlay = this.frame.querySelector('.history-overlay');
+    if(overlay.hidden) return;
+    overlay.hidden = true;
+    this.screen.querySelector('.page-head').inert = false;
+    this.card.inert = false;
+    if(this.returnFocus && this.returnFocus.isConnected) this.returnFocus.focus();
+  }
+  destroy(){
+    this.destroyController.abort();
+    this.resizeObserver.disconnect();
+  }
+}
+
+/* Build the view: the app re-renders #main on every data snapshot, so the view is
+   (re)created here each time this tab is current. The map asset is loaded lazily
+   once; until then the shell shows the "Drawing the world map…" state. */
+function wireWorldMap(){
+  if(wmView){ wmView.destroy(); wmView = null; }
+  const frame = document.querySelector('.wm-page .wm-frame');
+  if(!frame) return;
+  const finish = ()=>{
+    if(currentTab!=='worldmap') return;                    // user switched away while loading
+    if(!frame.isConnected || wmView) return;               // the page was rebuilt while the file was loading
+    wmView = new WMView(frame);
+  };
+  if(window.EA_WORLD_MAP){ finish(); return; }
+  wmLoadMapAsset().then(finish).catch(()=>{
+    if(currentTab!=='worldmap' || !frame.isConnected) return;
+    const slot = frame.querySelector('.map-slot');
+    if(slot) slot.innerHTML = `<div class="wm-loading"><div class="wm-loading-inner">Couldn't load the map file — <button class="wm-retry" type="button">Try again</button></div></div>`;
+  });
+}
+document.addEventListener('click', e=>{
+  if(e.target.closest('.wm-retry')) wireWorldMap();
+});
 
 /* ============================= AUTH ============================= */
 /* No email list here on purpose — real enforcement lives in your private
