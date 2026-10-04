@@ -1596,7 +1596,11 @@ function render(){
   else if(currentTab==='hof') main.innerHTML = renderHof();
   else if(currentTab==='highscores') main.innerHTML = renderHighscores();
   else if(currentTab==='trophy') main.innerHTML = renderTrophy();
-  else if(currentTab==='worldmap') main.innerHTML = renderWorldMap();
+  else if(currentTab==='worldmap'){
+    /* Map already open? Keep the live view — wireWorldMap() (below) refreshes it
+       in place. Rebuild the shell only when there is no live view. */
+    if(!(wmView && wmView.frame.isConnected)) main.innerHTML = renderWorldMap();
+  }
   /* Full-width season bar (under the rail too) — Match History screen only. */
   const sb = document.getElementById('seasonbar');
   const sbOn = currentTab==='history' && seasons.length>0;
@@ -2779,7 +2783,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v110';
+const SCAN_BUILD = 'v111';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -5608,7 +5612,7 @@ function renderWorldMap(){
           <button class="breadcrumb" hidden></button>
           <div class="map-slot">
             <div class="wm-loading"><div class="wm-loading-inner">Drawing the world map…</div></div>
-            <svg class="world-map" viewBox="0 0 1080 423" preserveAspectRatio="xMidYMid meet" aria-label="Countries played" role="group" hidden>
+            <svg class="world-map" viewBox="0 0 1080 423" preserveAspectRatio="xMidYMid meet" aria-label="Countries played" role="group">
               <defs><linearGradient id="wm-grad" x1="0" x2="1"><stop offset="0" stop-color="#3cff9a"/><stop offset="1" stop-color="#8b6cff"/></linearGradient></defs>
               <g class="graticule" aria-hidden="true"></g><g class="countries"></g>
             </svg>
@@ -5669,16 +5673,15 @@ class WMView{
     this.buildMap();
     const loading = this.card.querySelector('.wm-loading');
     if(loading) loading.remove();
-    this.svg.hidden = false;
-    /* countries too small to hit with a mouse get a clickable chip in the footer */
+    /* countries too small to hit with a mouse get a clickable chip in the footer —
+       measured once the map has a real size (see measureTiny) */
     this.tiny = new Set();
-    for(const [code,group] of this.groups){
-      const b = group.getBBox();
-      if(b.width<7 && b.height<7) this.tiny.add(code);
-    }
+    this.tinyMeasured = false;
+    this.measureTiny();
     this.bindEvents();
     this.resizeObserver = new ResizeObserver(()=>{
       this.screen.style.transform = `scale(${frame.clientWidth/WM_BASE_WIDTH})`;
+      if(!this.tinyMeasured){ this.measureTiny(); if(this.tinyMeasured) this.update(); }  // first real size → decide the chips
       this.positionTooltip();
     });
     this.resizeObserver.observe(frame);
@@ -5711,6 +5714,19 @@ class WMView{
       }
       if(code && (!longest.has(code)||feature.d.length>longest.get(code))){ longest.set(code,feature.d.length); this.anchors.set(code,{x:feature.x,y:feature.y}); }
       const path = document.createElementNS(WM_NS,'path'); path.setAttribute('d',feature.d); path.setAttribute('fill-rule','evenodd'); group.append(path);
+    }
+  }
+  /* "Too small to click" measurement: (a) only once the map has a real size,
+     (b) ignore 0×0 shapes (unmeasurable, not tiny), (c) the ResizeObserver in the
+     constructor retries on the first resize after the map got its size. */
+  measureTiny(){
+    if(this.tinyMeasured) return;
+    if(this.svg.getBoundingClientRect().width<=0) return;
+    this.tinyMeasured = true;
+    for(const [code,group] of this.groups){
+      const b = group.getBBox();
+      if(b.width<=0 && b.height<=0) continue;
+      if(b.width<7 && b.height<7) this.tiny.add(code);
     }
   }
   bindEvents(){
@@ -5758,6 +5774,21 @@ class WMView{
     on(this.frame.querySelector('.history-overlay'),'click',e=>{ if(e.target.classList.contains('history-overlay')) this.closeHistory(); });
   }
   filteredMatches(){ return this.allMatches.filter(m=> this.state.season==='all'||String(m.season)===this.state.season); }
+  /* A Firestore snapshot while the map is open: keep the view, the selection,
+     the season and the metric — only the data underneath changes. */
+  refresh(){
+    const data = wmToCountryRecords(games, seasons);
+    this.allMatches = data.records;
+    this.unknown = data.unknown;
+    const sel = this.frame.querySelector('.season-select');
+    if(sel){
+      sel.innerHTML = '<option value="all">All seasons</option>' + seasons.slice().sort((a,b)=>(b.number||0)-(a.number||0))
+        .map(s=>`<option value="${s.number}">Season ${s.number}</option>`).join('');
+      if(![...sel.options].some(o=>o.value===this.state.season)) this.state.season = 'all';   // season gone → fall back
+      sel.value = this.state.season;
+    }
+    this.update();
+  }
   countryStats(code){ return this.stats.get(code)||wmAggregate([]); }
   update(){
     wmViewState.metric = this.state.metric;
@@ -5925,22 +5956,27 @@ class WMView{
   }
 }
 
-/* Build the view: the app re-renders #main on every data snapshot, so the view is
-   (re)created here each time this tab is current. The map asset is loaded lazily
+/* Build the view once per tab visit: a data snapshot while the map is open just
+   refreshes the live view in place (refresh()). The map asset is loaded lazily
    once; until then the shell shows the "Drawing the world map…" state. */
 function wireWorldMap(){
-  if(wmView){ wmView.destroy(); wmView = null; }
   const frame = document.querySelector('.wm-page .wm-frame');
   if(!frame) return;
+  if(wmView){
+    if(wmView.frame.isConnected){ wmView.refresh(); return; }   // live view → snapshot refresh, no rebuild
+    wmView.destroy(); wmView = null;                            // stale view from an old shell
+  }
   const finish = ()=>{
-    if(currentTab!=='worldmap') return;                    // user switched away while loading
-    if(!frame.isConnected || wmView) return;               // the page was rebuilt while the file was loading
-    wmView = new WMView(frame);
+    if(currentTab!=='worldmap') return;                          // user switched away while loading
+    const live = document.querySelector('.wm-page .wm-frame');   // re-query: the shell may have been rebuilt
+    if(!live || !live.isConnected || wmView) return;
+    wmView = new WMView(live);
   };
   if(window.EA_WORLD_MAP){ finish(); return; }
   wmLoadMapAsset().then(finish).catch(()=>{
-    if(currentTab!=='worldmap' || !frame.isConnected) return;
-    const slot = frame.querySelector('.map-slot');
+    const live = document.querySelector('.wm-page .wm-frame');
+    if(currentTab!=='worldmap' || !live || !live.isConnected) return;
+    const slot = live.querySelector('.map-slot');
     if(slot) slot.innerHTML = `<div class="wm-loading"><div class="wm-loading-inner">Couldn't load the map file — <button class="wm-retry" type="button">Try again</button></div></div>`;
   });
 }
