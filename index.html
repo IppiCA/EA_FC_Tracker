@@ -342,6 +342,12 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .tgstrip .rq{color:var(--turf); font-weight:600}
 .tgstrip .ttl{font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:.03em; color:var(--gold)}
 .ti-loading{padding:80px 0; text-align:center; color:var(--ink-dim); font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:600; letter-spacing:.02em}
+.ti-error{max-width:600px; margin:70px auto 0; padding:26px 28px 24px; border:1px solid var(--line); border-radius:14px; background:var(--panel-2); text-align:center}
+.ti-error-t{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:22px; letter-spacing:.02em; color:var(--ink)}
+.ti-error-h{font-size:13px; color:var(--ink-dim); line-height:1.55; margin-top:8px}
+.ti-error-box{font-family:ui-monospace,Consolas,monospace; font-size:11.5px; color:var(--red); background:rgba(255,92,114,.07); border:1px solid rgba(255,92,114,.30); border-radius:8px; padding:9px 12px; margin-top:14px; text-align:left; word-break:break-word}
+.ti-error-btn{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px; letter-spacing:.06em; text-transform:uppercase; color:var(--turf); background:rgba(60,255,154,.10); border:1px solid rgba(60,255,154,.40); border-radius:9px; padding:8px 22px; margin-top:16px; cursor:pointer}
+.ti-error-btn:hover{background:rgba(60,255,154,.18)}
 .ssrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 2px; border-bottom:1px solid var(--line)}
 .ssrow:last-child{border-bottom:none}
 .ssrow .l{color:var(--ink-dim); font-size:12.5px}
@@ -2147,7 +2153,7 @@ function loadLegacyDocs(){
   }
   return legacyPromise;
 }
-let titlesPage = null, titlesMounting = null;
+let titlesPage = null, titlesMounting = null, titlesError = null;
 async function mountTitles(container){
   if(titlesPage) return;
   if(!titlesMounting){
@@ -2163,10 +2169,34 @@ async function mountTitles(container){
           gameNumber: g => gamePosition(g.seasonId, g.id)
         });
         titlesPage = TitlesPage.mount(container, { data, live, onLiveClick: ()=>setTab('history') });
+      } catch(err){
+        /* Surface the failure instead of an eternal "Loading…" placeholder, with a Retry. */
+        titlesError = err;
+        console.error('FIFA History load failed:', err);
+        if(currentTab === 'titles') paintTitlesError(container);
       } finally { titlesMounting = null; }
     })();
   }
   return titlesMounting;
+}
+function paintTitlesError(container){
+  const raw = (titlesError && titlesError.message) || String(titlesError || 'unknown error');
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const isPerm = /permission|not authorized|access denied|insufficient/i.test(raw);
+  container.innerHTML =
+      '<div class="ti-error">'
+    + '<div class="ti-error-t">FIFA History couldn\'t load</div>'
+    + '<div class="ti-error-h">' + (isPerm
+        ? 'Firebase refused the read: this account isn\'t allowed to open the FIFA History collections. Re-publish the security rules (the full version from the chat), then press retry.'
+        : 'Something went wrong while loading. Press retry, or send me the message in the box below.') + '</div>'
+    + '<div class="ti-error-box">' + esc(raw) + '</div>'
+    + '<button class="ti-error-btn" type="button">Retry</button>'
+    + '</div>';
+  container.querySelector('.ti-error-btn').addEventListener('click', ()=>{
+    titlesError = null;
+    container.innerHTML = '<div class="ti-loading">Loading FIFA history…</div>';
+    mountTitles(container);
+  });
 }
 
 /* ============================= RENDER SHELL ============================= */
@@ -2181,8 +2211,10 @@ function setTab(t, fromHash){
   }
   if(currentTab==='titles' && t!=='titles'){
     /* Leaving FIFA History: destroy the mounted page — the next visit mounts a
-       fresh instance (cheap render, and it picks up any games logged meanwhile). */
+       fresh instance (cheap render, and it picks up any games logged meanwhile).
+       Clear any load error too, so the next visit auto-retries. */
     if(titlesPage){ titlesPage.destroy(); titlesPage = null; }
+    titlesError = null;
   }
   currentTab = t; render();
   /* Give each screen its own URL (#screen) so the mouse/browser BACK button moves
@@ -2232,10 +2264,14 @@ function render(){
   }
   else if(currentTab==='titles'){
     /* Mount ONCE (async archive load); never re-mount on Firestore snapshots (World Map
-       bug family). setTab() destroys the instance when the tab is left. */
+       bug family). setTab() destroys the instance when the tab is left.
+       If the last load failed, show the error card (with Retry) instead of the placeholder. */
     if(!titlesPage){
-      if(!main.querySelector('.ti-root')) main.innerHTML = '<div class="ti-loading">Loading FIFA history…</div>';
-      mountTitles(main);
+      if(titlesError) paintTitlesError(main);
+      else{
+        if(!main.querySelector('.ti-root')) main.innerHTML = '<div class="ti-loading">Loading FIFA history…</div>';
+        mountTitles(main);
+      }
     }
   }
   /* Full-width season bar (under the rail too) — Match History screen only. */
@@ -3486,7 +3522,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v123';
+const SCAN_BUILD = 'v124';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
