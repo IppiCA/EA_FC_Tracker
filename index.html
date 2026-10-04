@@ -340,6 +340,8 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .tgstrip .m{color:var(--ink-dim)} .tgstrip .m b{color:var(--ink)}
 .tgstrip .motm{color:var(--gold); font-weight:600}
 .tgstrip .rq{color:var(--turf); font-weight:600}
+.tgstrip .ttl{font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:.03em; color:var(--gold)}
+.ti-loading{padding:80px 0; text-align:center; color:var(--ink-dim); font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:600; letter-spacing:.02em}
 .ssrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 2px; border-bottom:1px solid var(--line)}
 .ssrow:last-child{border-bottom:none}
 .ssrow .l{color:var(--ink-dim); font-size:12.5px}
@@ -923,6 +925,177 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 :root[data-theme="light"] .wm-page .progress{background:#0e1a1714}
 :root[data-theme="light"] .wm-page .close-detail:hover{background:#0e1a1710}
 @media (prefers-reduced-motion:reduce){ .wm-page *{transition:none !important; animation:none !important} }
+
+/* ===== Titles page ===== */
+/* EA FC Tracker — Titles page. (base resets use :where() so they never out-rank the component rules) Self-contained: every class is prefixed ti-, every colour is a --ti-* token on .ti-root.
+   Needs only the IBM Plex Sans + Rajdhani fonts the app already loads. Mount it inside the main content area, NOT inside a .glass / transformed / filtered ancestor (it uses position:fixed for the drawer). */
+.ti-root{color-scheme:dark;--ti-surface:rgba(14,23,32,.58);--ti-mint:#3cff9a;--ti-violet:#8b6cff;--ti-gold:#f0c464;--ti-coral:#ff5c72;--ti-text:#f2f6f4;--ti-muted:#a6b4b9;--ti-border:rgba(255,255,255,.09);--ti-gradient:linear-gradient(100deg,var(--ti-mint),var(--ti-violet));--ti-headline:'Rajdhani','Arial Narrow',sans-serif;--ti-body:'IBM Plex Sans',system-ui,sans-serif;min-width:0;padding-bottom:40px;font-family:var(--ti-body);font-size:14px;line-height:1.4;color:var(--ti-text)}
+:where(.ti-root) *{box-sizing:border-box}
+:where(.ti-root) button,:where(.ti-root) input{font:inherit;color:inherit}:where(.ti-root) button{cursor:pointer}
+:where(.ti-root) button:focus-visible,:where(.ti-root) input:focus-visible{outline:2px solid var(--ti-mint);outline-offset:3px}
+.ti-root [hidden]{display:none!important}
+.ti-glass{background:var(--ti-surface);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--ti-border);box-shadow:0 20px 60px #0006,inset 0 1px 0 #ffffff03;border-radius:20px}
+.ti-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin:16px 0 22px}
+.ti-h1{margin:0 0 6px;font:700 42px/1 var(--ti-headline);letter-spacing:.4px}
+.ti-sub{margin:0;color:var(--ti-muted);font-size:14px}
+.ti-crumb{display:inline-flex;align-items:center;gap:8px;border:1px solid #3cff9a30;background:#142723bb;padding:8px 12px;border-radius:9px;font-size:12px;margin-bottom:12px}
+.ti-crumb button{border:0;background:none;color:var(--ti-mint);padding:0;font-weight:600}
+.ti-lookup{position:relative;width:min(100%,380px)}
+.ti-lookup input{width:100%;height:46px;border-radius:12px;border:1px solid var(--ti-border);background:#101a2370;padding:0 16px 0 44px;font-size:13px}
+.ti-lookup input::placeholder{color:#7f8e94}
+.ti-lookup svg{position:absolute;left:15px;top:13px;width:19px;height:19px;stroke:var(--ti-muted);fill:none;stroke-width:1.7;stroke-linecap:round}
+.ti-suggest{position:absolute;z-index:30;top:52px;left:0;right:0;padding:8px;background:#101923f5;max-height:340px;overflow:auto}
+.ti-suggest button{display:flex;width:100%;justify-content:space-between;gap:10px;align-items:center;border:0;background:none;text-align:left;padding:10px 12px;border-radius:10px;font-size:13px}
+.ti-suggest button:hover,.ti-suggest button:focus-visible{background:#ffffff0a}
+.ti-suggest small{color:var(--ti-muted);font-size:11px;white-space:nowrap}
+.ti-suggest .ti-none{padding:12px;color:var(--ti-muted);font-size:12px}
+.ti-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
+.ti-kpi{padding:16px 18px;position:relative;overflow:hidden}
+.ti-kpi b{display:block;font:700 34px/1 var(--ti-headline);letter-spacing:.3px}
+.ti-kpi span{display:block;margin-top:6px;color:var(--ti-muted);font-size:12px}
+.ti-kpi.ti-mint b{color:var(--ti-mint)}
+.ti-kpi.ti-gold b{color:var(--ti-gold)}
+.ti-section-title{display:flex;align-items:baseline;justify-content:space-between;margin:26px 2px 12px}
+.ti-section-title h2{margin:0;font:700 24px/1 var(--ti-headline);letter-spacing:.3px}
+.ti-section-title span{color:var(--ti-muted);font-size:12px}
+.ti-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+.ti-tcard{position:relative;text-align:left;padding:20px 20px 16px;border-radius:20px;display:flex;flex-direction:column;gap:14px;overflow:hidden;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.ti-tcard::before{content:'';position:absolute;left:16px;right:16px;top:0;height:3px;background:var(--ti-gradient);border-radius:0 0 5px 5px;opacity:.55;transition:opacity .18s}
+.ti-tcard:hover{transform:translateY(-3px);border-color:#3cff9a40;box-shadow:0 24px 60px #0008,0 0 0 1px #3cff9a1a}
+.ti-tcard:hover::before{opacity:1}
+.ti-tcard.ti-live{border-color:#8b6cff55;background:linear-gradient(180deg,#8b6cff14,var(--ti-surface))}
+.ti-tc-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ti-tc-name{font:700 28px/1 var(--ti-headline);letter-spacing:.3px}
+.ti-tc-sub{color:var(--ti-muted);font-size:12px;margin-top:-8px;white-space:nowrap}
+.ti-plat{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ti-border);background:#ffffff08;border-radius:99px;padding:5px 10px;font-size:11px;color:var(--ti-muted);white-space:nowrap}
+.ti-plat svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ti-tag{display:inline-block;font:700 10px/1 var(--ti-headline);letter-spacing:.9px;padding:4px 7px;border-radius:5px;margin-left:6px;vertical-align:3px}
+.ti-tag.ti-live{background:var(--ti-gradient);color:#0b1717}
+.ti-tag.ti-sample{background:#f0c46422;color:var(--ti-gold);border:1px solid #f0c46444}
+.ti-tc-main{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.ti-tc-win{font:700 52px/.9 var(--ti-headline);color:var(--ti-mint);letter-spacing:.3px}
+.ti-tc-win small{font-size:22px;margin-left:2px;color:#9affc9}
+.ti-tc-win-label{color:var(--ti-muted);font-size:11px;margin-top:6px;letter-spacing:.3px}
+.ti-tc-record{text-align:right;font:600 15px/1.3 var(--ti-headline);color:var(--ti-muted)}
+.ti-tc-record b{color:var(--ti-text)}
+.ti-wdl{display:flex;height:8px;border-radius:99px;overflow:hidden;background:#ffffff0c;gap:2px}
+.ti-wdl i{display:block;height:100%}
+.ti-wdl .ti-w{background:var(--ti-mint)}
+.ti-wdl .ti-d{background:var(--ti-gold)}
+.ti-wdl .ti-l{background:var(--ti-coral)}
+.ti-tc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ti-tc-grid div{background:#ffffff06;border:1px solid #ffffff08;border-radius:10px;padding:9px 8px;text-align:center}
+.ti-tc-grid b{display:block;font:700 19px/1 var(--ti-headline)}
+.ti-tc-grid span{display:block;color:var(--ti-muted);font-size:10px;line-height:1.2;margin-top:5px}
+.ti-ticker{display:flex;gap:4px}
+.ti-fs{display:grid;place-items:center;width:24px;height:22px;border-radius:5px;font:700 13px var(--ti-headline);border:1px solid}
+.ti-fs.ti-W{color:var(--ti-mint);background:#3cff9a18;border-color:#3cff9a26}
+.ti-fs.ti-D{color:var(--ti-gold);background:#f0c46418;border-color:#f0c46426}
+.ti-fs.ti-L{color:var(--ti-coral);background:#ff5c7218;border-color:#ff5c7226}
+.ti-tc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--ti-muted);border-top:1px solid #ffffff0a;padding-top:12px}
+.ti-tc-foot .ti-g{display:inline-flex;align-items:center;gap:6px;color:var(--ti-gold);font-weight:500}
+.ti-tc-foot .ti-m{display:inline-flex;align-items:center;gap:6px;color:var(--ti-mint)}
+.ti-tc-foot svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ti-tc-open{font-size:11px;color:var(--ti-mint);font-weight:600}
+.ti-tablewrap{padding:6px 8px 10px;overflow-x:auto}
+table.ti-cmp{border-collapse:separate;border-spacing:0;width:100%;min-width:980px;font-size:13px}
+.ti-cmp th,.ti-cmp td{padding:11px 12px;text-align:left;border-bottom:1px solid #ffffff08;white-space:nowrap}
+.ti-cmp thead th{font:700 16px var(--ti-headline);letter-spacing:.3px;color:var(--ti-text);position:sticky;top:0}
+.ti-cmp thead th small{display:block;font:500 10px var(--ti-body);color:var(--ti-muted);letter-spacing:0}
+.ti-cmp tbody th{font-weight:500;color:var(--ti-muted);position:sticky;left:0;background:#0e1720f0;z-index:2;min-width:150px}
+.ti-cmp td .ti-v{display:flex;align-items:center;gap:8px;font:700 17px/1 var(--ti-headline)}
+.ti-cmp td .ti-bar{display:block;height:4px;border-radius:9px;background:#ffffff0c;margin-top:7px;width:100%;max-width:110px;overflow:hidden}
+.ti-cmp td .ti-bar i{display:block;height:100%;background:var(--ti-gradient);border-radius:9px}
+.ti-cmp td.ti-best .ti-v{color:var(--ti-gold)}
+.ti-cmp td.ti-best .ti-v::after{content:'';width:7px;height:7px;border-radius:50%;background:var(--ti-gold);box-shadow:0 0 8px #f0c46488}
+.ti-cmp td.ti-sample .ti-v{color:#c3b8ff}
+.ti-cmp td small{display:block;color:var(--ti-muted);font-size:10px;margin-top:3px}
+.ti-cmp tr:hover td,.ti-cmp tr:hover th{background:#ffffff04}
+.ti-legend{display:flex;gap:16px;flex-wrap:wrap;padding:12px 14px 6px;color:var(--ti-muted);font-size:11px}
+.ti-legend span::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--ti-gold);box-shadow:0 0 8px #f0c46488;vertical-align:1px}
+.ti-legend span+span::before{background:var(--ti-violet);box-shadow:none}
+.ti-hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.ti-shield{width:66px;height:76px;display:grid;place-items:center;clip-path:polygon(50% 0,100% 12%,100% 62%,50% 100%,0 62%,0 12%);background:var(--ti-gradient);color:#0b1717;font:700 25px var(--ti-headline)}
+.ti-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.ti-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ti-border);background:#ffffff08;border-radius:99px;padding:4px 10px;font-size:11px;color:var(--ti-muted)}
+.ti-split{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(280px,1fr);gap:16px;align-items:start}
+.ti-panel{padding:20px 20px 14px;position:relative}
+.ti-panel::before{content:'';position:absolute;left:16px;right:16px;top:0;height:3px;background:var(--ti-gradient);border-radius:0 0 5px 5px}
+.ti-panel h3{margin:0 0 14px;font:700 22px/1 var(--ti-headline);letter-spacing:.3px;display:flex;justify-content:space-between;align-items:baseline}
+.ti-panel h3 small{font:400 11px var(--ti-body);color:var(--ti-muted)}
+table.ti-seasons{width:100%;border-collapse:collapse;font-size:12.5px}
+.ti-seasons th{text-align:left;font:600 13px var(--ti-headline);color:var(--ti-muted);padding:8px 8px;letter-spacing:.3px}
+.ti-seasons td{padding:9px 8px;border-top:1px solid #ffffff08;white-space:nowrap}
+.ti-seasons tr.ti-row{cursor:pointer}
+.ti-seasons tr.ti-row:hover td{background:#ffffff05}
+.ti-seasons tr.ti-row td:first-child{font:700 17px var(--ti-headline)}
+.ti-seasons .ti-num{font:700 15px var(--ti-headline)}
+.ti-caret{display:inline-block;width:7px;height:7px;border:solid var(--ti-muted);border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);margin-right:9px;transition:transform .15s}
+tr.ti-open .ti-caret{transform:rotate(45deg)}
+.ti-outcome{display:inline-flex;align-items:center;gap:5px;font:700 11px/1 var(--ti-headline);letter-spacing:.7px;border-radius:5px;padding:5px 7px}
+.ti-outcome.ti-champ{color:var(--ti-gold);background:#f0c46418;border:1px solid #f0c46433}
+.ti-outcome.ti-perfect{color:var(--ti-mint);background:#3cff9a14;border:1px solid #3cff9a33}
+.ti-outcome.ti-stay{color:var(--ti-muted);background:#ffffff08}
+.ti-outcome.ti-rel{color:var(--ti-coral);background:#ff5c7218;border:1px solid #ff5c7233}
+.ti-sub-row td{padding:0!important;background:#0a1118aa;border-top:0!important}
+.ti-sub-row .ti-inner{padding:6px 14px 14px 30px}
+.ti-rp{display:inline-block;min-width:34px;text-align:center;font:700 10px/1 var(--ti-headline);letter-spacing:.5px;border-radius:4px;padding:5px 3px}
+.ti-rp.ti-W{color:var(--ti-mint);background:#3cff9a18}
+.ti-rp.ti-D{color:var(--ti-gold);background:#f0c46418}
+.ti-rp.ti-L{color:var(--ti-coral);background:#ff5c7218}
+table.ti-games{width:100%;border-collapse:collapse;font-size:12px}
+.ti-games td{padding:8px 6px;border-top:1px solid #ffffff08;vertical-align:middle}
+.ti-games td.ti-sc{font:700 15px var(--ti-headline);white-space:nowrap}
+.ti-games td.ti-club{font-weight:500}
+.ti-games .ti-meta{color:var(--ti-muted);font-size:11px;white-space:nowrap}
+.ti-tags{display:flex;gap:6px;flex-wrap:wrap}
+.ti-gt{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ti-border);background:#ffffff08;border-radius:99px;padding:3px 10px;font-size:11.5px;color:var(--ti-text)}
+button.ti-gt:hover{border-color:#3cff9a55;background:#3cff9a10}
+.ti-gt.ti-rival{border-color:#f0c46455;background:#f0c46414;color:var(--ti-gold);font-weight:500}
+.ti-gt svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ti-pill{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;border-radius:99px;padding:3px 8px;white-space:nowrap}
+.ti-pill.ti-top{background:#8b6cff22;color:#c3b8ff;border:1px solid #8b6cff44}
+.ti-pill.ti-rq{background:#ff5c7214;color:#ff9aa8;border:1px solid #ff5c7230}
+.ti-pill.ti-dc{background:#f0c46414;color:var(--ti-gold);border:1px solid #f0c46430}
+.ti-pill.ti-no{background:#ffffff0a;color:var(--ti-muted);border:1px dashed #ffffff30}
+.ti-pill.ti-note{background:#ffffff08;color:var(--ti-muted);border:1px solid var(--ti-border);max-width:200px;overflow:hidden;text-overflow:ellipsis}
+tr.ti-excluded td{opacity:.62}
+tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffffff55}
+.ti-scorer{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid #ffffff08}
+.ti-scorer:first-of-type{border-top:0}
+.ti-scorer .ti-rk{font:700 15px var(--ti-headline);color:var(--ti-muted)}
+.ti-scorer b{font-weight:500;font-size:13px}
+.ti-scorer .ti-meta{color:var(--ti-muted);font-size:11px}
+.ti-scorer .ti-bar{grid-column:2/4;height:4px;border-radius:9px;background:#ffffff0c;overflow:hidden}
+.ti-scorer .ti-bar i{display:block;height:100%;background:var(--ti-gradient)}
+.ti-scorer .ti-gl{font:700 20px var(--ti-headline);color:var(--ti-mint)}
+.ti-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.ti-filters input[type=search]{height:38px;flex:1 1 220px;min-width:180px;border-radius:10px;border:1px solid var(--ti-border);background:#101a2370;padding:0 12px;font-size:12.5px}
+.ti-seg{display:flex;gap:4px;padding:4px;background:#101a2370;border:1px solid var(--ti-border);border-radius:11px}
+.ti-seg button{border:0;border-radius:8px;background:none;color:var(--ti-muted);padding:7px 12px;font-size:12px;font-weight:500}
+.ti-seg button[aria-pressed="true"]{color:#0b1717;background:var(--ti-gradient);font-weight:600}
+.ti-more{display:block;margin:12px auto 4px;border:1px solid var(--ti-border);background:#ffffff08;border-radius:99px;padding:9px 22px;font-size:12px;color:var(--ti-muted)}
+.ti-more:hover{color:var(--ti-text);border-color:#3cff9a44}
+.ti-empty{padding:26px;text-align:center;color:var(--ti-muted)}
+.ti-scrim{position:fixed;inset:0;z-index:40;background:#070b1099;backdrop-filter:blur(6px)}
+.ti-drawer{position:fixed;z-index:41;top:24px;bottom:24px;right:24px;width:min(520px,calc(100% - 32px));padding:26px 24px;overflow:auto;background:#101923f5}
+.ti-drawer::before{content:'';position:absolute;left:16px;right:16px;top:0;height:3px;background:var(--ti-gradient);border-radius:0 0 5px 5px}
+.ti-drawer h2{margin:0 0 4px;font:700 30px/1.05 var(--ti-headline);word-break:break-all;padding-right:34px}
+.ti-x{position:absolute;right:18px;top:18px;width:34px;height:34px;border-radius:10px;border:1px solid var(--ti-border);background:#ffffff08;display:grid;place-items:center}
+.ti-x:hover{border-color:#3cff9a55}
+.ti-x svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round}
+.ti-dstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.ti-dstats div{border:1px solid #ffffff0a;background:#ffffff06;border-radius:12px;padding:12px;text-align:center}
+.ti-dstats b{display:block;font:700 26px/1 var(--ti-headline)}
+.ti-dstats span{display:block;font-size:10.5px;color:var(--ti-muted);margin-top:5px}
+.ti-timeline{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.ti-tl{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid #ffffff0a;background:#ffffff05;border-radius:14px}
+.ti-tl .ti-t{font:700 15px var(--ti-headline);letter-spacing:.3px}
+.ti-tl .ti-m{color:var(--ti-muted);font-size:11.5px}
+.ti-tl .ti-s{font:700 22px var(--ti-headline);text-align:right}
+.ti-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:60;background:#101923f5;border:1px solid #8b6cff55;border-radius:12px;padding:12px 18px;font-size:13px;box-shadow:0 14px 40px #000a}
+@media (max-width:1100px){.ti-split{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:900px){.ti-h1{font-size:34px}.ti-drawer{top:10px;bottom:10px;right:10px;left:10px;width:auto}.ti-tc-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -962,6 +1135,7 @@ table.hs td.seasons{white-space:normal;min-width:74px}
     <button class="navbtn" data-tab="highscores"><span class="ic">★</span> Highscores</button>
     <button class="navbtn" data-tab="trophy"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span> Trophy Room</button>
     <button class="navbtn" data-tab="worldmap"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span> World Map</button>
+    <button class="navbtn" data-tab="titles"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span> FIFA History</button>
     <button class="navbtn" data-tab="log" style="margin-top:auto"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> New Season</button>
     <button class="navbtn" data-tab="settings"><span class="ic">⚙</span> Team Sheets</button>
@@ -984,6 +1158,7 @@ table.hs td.seasons{white-space:normal;min-width:74px}
     <button data-tab="highscores"><span class="ic">★</span>High</button>
     <button data-tab="trophy"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>Trophy</button>
     <button data-tab="worldmap"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span>Map</button>
+    <button data-tab="titles"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span>FIFA</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
     <button data-tab="settings"><span class="ic">⚙</span>Team Sheets</button>
@@ -1021,6 +1196,351 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
+/* ===== Titles page: component ===== */
+/* EA FC Tracker — Titles page component. window.TitlesPage.mount(container, { data, live?, onLiveClick? }) -> { showCompare, showTitle, openRival, destroy }
+   data = { titles, games, seasons, scorers, og } (see titles-data-adapter.js); live = { stats, games? } optional (the current title). Pure DOM, no dependencies. */
+(function () {
+'use strict';
+window.TitlesPage = { mount(container, opts) {
+
+  if (container.__tiInstance) container.__tiInstance.destroy();      // mounting again replaces the previous instance (no duplicate listeners)
+  container.classList.add('ti-root');
+  container.innerHTML = `<header class="ti-head"><div id="ti-titleblock"></div>
+    <div class="ti-lookup" id="ti-lookup"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="ti-q" type="search" autocomplete="off" spellcheck="false" placeholder="Find an opponent by gamertag, any title…" aria-label="Find an opponent by gamertag across all titles">
+      <div class="ti-suggest ti-glass" id="ti-suggest" hidden></div></div></header>
+    <div id="ti-view"></div><div id="ti-layer"></div>`;
+  const root = container;
+  const $ = id => root.querySelector('#ti-' + id);
+
+const DATA = opts.data, LIVE_IN = opts.live || null;
+  const T = DATA.titles.concat(LIVE_IN ? [{ key: 'live', name: LIVE_IN.stats.name, platform: LIVE_IN.stats.platform, live: true }] : []);
+  const G = DATA.games.concat(LIVE_IN && LIVE_IN.games ? LIVE_IN.games : []), S = DATA.seasons, SC = DATA.scorers;
+const pad = {
+  pad: '<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4M16 11.5h.01M18.5 13.5h.01"/>',
+  pc: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z"/>',
+  swords: '<path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 6.5L21 18v3h-3L6.5 9.5"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>'
+};
+const ic = (k, extra = '') => `<svg viewBox="0 0 24 24" aria-hidden="true" ${extra}>${pad[k]}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const res = g => g.f > g.a ? 'W' : g.f === g.a ? 'D' : 'L';
+const pct = (n, d) => d ? n / d * 100 : 0;
+const f1 = x => x.toFixed(1), f2 = x => x.toFixed(2);
+
+/* ---------- derived data ---------- */
+const order = (a, b) => a.t - b.t || a.s - b.s || a.n - b.n;
+const variants = new Map();          // normalised tag -> Set of spellings
+const tagIndex = new Map();          // normalised tag -> [game]
+const rawName = new Map();           // normalised tag -> first spelling
+for (const g of G) for (const raw of g.g) { if (!raw) continue; const k = norm(raw); if (!tagIndex.has(k)) { tagIndex.set(k, []); rawName.set(k, raw); variants.set(k, new Set()); } tagIndex.get(k).push(g); variants.get(k).add(raw); }
+const LIVE = LIVE_IN ? Object.assign({ live: true }, LIVE_IN.stats) : null;
+
+function titleStats(ti) {
+  const gs = G.filter(g => g.t === ti && g.ok), all = G.filter(g => g.t === ti), ss = S.filter(s => s.t === ti);
+  const w = gs.filter(g => g.f > g.a).length, d = gs.filter(g => g.f === g.a).length, l = gs.length - w - d;
+  const gf = gs.reduce((a, g) => a + g.f, 0), ga = gs.reduce((a, g) => a + g.a, 0);
+  const tags = new Set(); all.forEach(g => g.g.forEach(x => x && tags.add(norm(x))));
+  // per-season record (counted games only) for the "best season" line
+  const per = new Map(); for (const g of gs) { const p = per.get(g.s) || { s: g.s, g: 0, pts: 0, gd: 0 }; p.g++; p.pts += g.f > g.a ? 3 : g.f === g.a ? 1 : 0; p.gd += g.f - g.a; per.set(g.s, p); }
+  const best = [...per.values()].filter(p => p.g >= 8).sort((a, b) => b.pts - a.pts || b.gd - a.gd || a.s - b.s)[0];
+  const nums = ss.map(s => s.s);
+  const sorted = gs.slice().sort(order);
+  return { ti, name: T[ti].name, platform: T[ti].platform, pc: T[ti].pc, games: gs.length, imported: all.length, w, d, l, gf, ga, away: gs.filter(g => g.aw).length, rq: gs.filter(g => g.rq).length, dc: gs.filter(g => g.dc).length,
+    champ: ss.filter(s => s.champ).length, perfect: ss.filter(s => s.perfect).length, seasons: ss.length, seasonsCounted: ss.filter(s => s.counted).length, opp: tags.size,
+    seasonsTxt: `Seasons ${Math.min(...nums)}–${Math.max(...nums)}`, form: sorted.slice(-8).map(res), bestTxt: best ? `#${best.s} · ${best.pts} pts` : '—' };
+}
+const STATS = DATA.titles.map((_, i) => titleStats(i));
+const ALL = LIVE ? [...STATS, LIVE] : STATS;
+
+/* ---------- state ---------- */
+const st = { view: 'compare', ti: null, open: new Set(), q: '', res: 'all', flag: 'all', limit: 40, rival: null };
+
+/* ---------- shared bits ---------- */
+const platBadge = s => `<span class="ti-plat">${ic(s.pc && !String(s.platform).includes('console') ? 'pc' : 'pad')}${esc(s.platform)}</span>`;
+const ticker = f => `<div class="ti-ticker" aria-label="Last ${f.length} games">${f.map(r => `<span class="ti-fs ti-${r}">${r}</span>`).join('')}</div>`;
+const wdlBar = s => { const n = s.w + s.d + s.l || 1; return `<div class="ti-wdl" role="img" aria-label="${s.w} wins, ${s.d} draws, ${s.l} losses"><i class="ti-w" style="flex:${s.w}"></i><i class="ti-d" style="flex:${s.d}"></i><i class="ti-l" style="flex:${s.l}"></i></div>`; };
+const outcome = s => s.perfect ? `<span class="ti-outcome ti-perfect">${ic('star')}PERFECT</span>` : s.champ ? `<span class="ti-outcome ti-champ">${ic('trophy')}CHAMPIONS</span>` : s.releg ? '<span class="ti-outcome ti-rel">RELEGATION</span>' : s.banner ? '<span class="ti-outcome ti-stay">STAYED IN DIVISION</span>' : '<span class="ti-outcome ti-stay">—</span>';
+function playedBefore(g) { const seen = new Set(); for (const raw of g.g) { if (!raw) continue; for (const o of tagIndex.get(norm(raw))) if (o !== g) seen.add(o); } return seen.size; }
+const gtChips = g => `<div class="ti-tags">${g.g.map(raw => {
+  if (!raw) return '<span class="ti-pill ti-no">no gamertag</span>';
+  const others = tagIndex.get(norm(raw)).length - 1;
+  return others ? `<button class="ti-gt ti-rival" data-rival="${esc(norm(raw))}" title="Played before: ${others} other game${others > 1 ? 's' : ''}">${ic('swords')}${esc(raw)} ×${others + 1}</button>` : `<span class="ti-gt">${esc(raw)}</span>`;
+}).join('')}</div>`;
+const gameFlags = g => [
+  g.top ? `<span class="ti-pill ti-top" title="${g.top.rec ? 'Opponent record ' + g.top.rec.join('-') : ''}">${esc(g.top.l)}${g.top.r ? ' · #' + g.top.r : ''}</span>` : '',
+  g.rq ? '<span class="ti-pill ti-rq">they rage quit</span>' : '', g.dc ? '<span class="ti-pill ti-dc">we disconnected</span>' : '',
+  !g.ok ? '<span class="ti-pill ti-no">doesn’t count</span>' : '', g.note ? `<span class="ti-pill ti-note" title="${esc(g.note)}">${esc(g.note)}</span>` : ''].join('');
+const gameRow = (g, showSeason) => `<tr class="${g.ok ? '' : 'ti-excluded'}"><td><span class="ti-rp ti-${res(g)}">${res(g)}</span></td>
+  <td class="ti-sc">${g.f}–${g.a}</td><td class="ti-club">${esc(g.c || '—')}<div class="ti-meta">${g.aw ? 'Away' : 'Home'}${showSeason ? ` · S${g.s} · G${g.n}` : ` · G${g.n}`}</div></td>
+  <td>${gtChips(g)}</td><td><div class="ti-tags">${gameFlags(g)}</div></td></tr>`;
+
+/* ---------- views ---------- */
+function setHead(h1, sub, crumb) {
+  $('titleblock').innerHTML = `${crumb ? `<div class="ti-crumb"><button data-back aria-label="Back to all titles">‹ All titles</button><span>·</span><span>${esc(crumb)}</span></div>` : ''}<h1 class="ti-h1">${esc(h1)}</h1><p class="ti-sub">${esc(sub)}</p>`;
+}
+function compare() {
+  st.view = 'compare'; st.ti = null;
+  const real = STATS, gm = real.reduce((a, s) => a + s.games, 0), w = real.reduce((a, s) => a + s.w, 0), gf = real.reduce((a, s) => a + s.gf, 0);
+  const champ = real.reduce((a, s) => a + s.champ, 0), seasons = real.reduce((a, s) => a + s.seasons, 0);
+  setHead('Titles', 'Every FIFA and EA FC title we’ve played, side by side');
+  const card = s => `<button class="ti-tcard ti-glass ${s.live ? 'ti-live' : ''}" ${s.live ? 'data-live' : `data-title="${s.ti}"`} aria-label="${esc(s.name)}: ${s.games} games, ${f1(pct(s.w, s.games))} percent wins. ${s.live ? 'Live season history' : 'Open details'}">
+    <div class="ti-tc-top"><div class="ti-tc-name">${esc(s.name)}</div>${platBadge(s)}</div>
+    <div class="ti-tc-sub">${esc(s.seasonsTxt)}${s.live ? '<span class="ti-tag ti-live">LIVE</span>' + (s.sample ? '<span class="ti-tag ti-sample">SAMPLE NUMBERS</span>' : '') : ` · ${s.seasons} seasons played`}</div>
+    <div class="ti-tc-main"><div><div class="ti-tc-win">${f1(pct(s.w, s.games))}<small>%</small></div><div class="ti-tc-win-label">WIN RATE</div></div><div class="ti-tc-record"><b>${s.w}</b>W · <b>${s.d}</b>D · <b>${s.l}</b>L<br>${s.games} games</div></div>
+    ${wdlBar(s)}
+    <div class="ti-tc-grid"><div><b>${f2(s.gf / s.games)}</b><span>goals / game</span></div><div><b>${f2(s.ga / s.games)}</b><span>conceded / game</span></div><div><b>${f1(pct(s.rq, s.games))}%</b><span>rage quits</span></div></div>
+    ${ticker(s.form)}
+    <div class="ti-tc-foot"><span class="ti-g">${ic('trophy')}${s.champ} champion seasons</span><span class="ti-m">${ic('star')}${s.perfect} perfect</span></div>
+  </button>`;
+  const M = [
+    ['Games', s => s.games, s => String(s.games), null, 'max'], ['Win rate', s => pct(s.w, s.games), s => f1(pct(s.w, s.games)) + '%', 'hi'],
+    ['Goals / game', s => s.gf / s.games, s => f2(s.gf / s.games), 'hi'], ['Conceded / game', s => s.ga / s.games, s => f2(s.ga / s.games), 'lo'],
+    ['Goal difference / game', s => (s.gf - s.ga) / s.games, s => ((s.gf - s.ga) / s.games >= 0 ? '+' : '') + f2((s.gf - s.ga) / s.games), 'hi'],
+    ['Opponent rage quits', s => pct(s.rq, s.games), s => f1(pct(s.rq, s.games)) + '%', null, 'max'], ['We disconnected', s => s.dc, s => String(s.dc), null, 'max'],
+    ['Played away', s => pct(s.away, s.games), s => f1(pct(s.away, s.games)) + '%', null, 'max'],
+    ['Seasons played', s => s.seasons, s => String(s.seasons), null, 'max'], ['Champion seasons', s => s.champ, s => String(s.champ), 'hi', 'max', s => `${f1(pct(s.champ, s.seasons || 1))}% of seasons`],
+    ['Perfect seasons', s => s.perfect, s => String(s.perfect), 'hi', 'max'], ['Different opponents', s => s.opp, s => String(s.opp), null, 'max']];
+  const body = M.map(([label, val, fmt, best, bar, sub]) => {
+    const vals = real.map(val); const mx = Math.max(...vals, ...(LIVE ? [val(LIVE)] : [])) || 1;
+    const b = best === 'hi' ? Math.max(...vals) : best === 'lo' ? Math.min(...vals) : null;
+    return `<tr><th scope="row">${label}</th>${ALL.map((s, i) => { const v = val(s); const isBest = b !== null && !s.live && v === b; return `<td class="${isBest ? 'ti-best' : ''} ${s.live ? 'ti-sample' : ''}"><div class="ti-v">${fmt(s)}</div>${bar ? `<span class="ti-bar"><i style="width:${Math.max(3, Math.abs(v) / mx * 100)}%"></i></span>` : ''}${sub ? `<small>${sub(s)}</small>` : ''}</td>`; }).join('')}</tr>`;
+  }).join('');
+  $('view').innerHTML = `
+  <div class="ti-kpis">
+    <div class="ti-kpi ti-glass"><b>${gm.toLocaleString('en')}</b><span>games across ${real.length} titles</span></div>
+    <div class="ti-kpi ti-glass ti-mint"><b>${f1(pct(w, gm))}%</b><span>win rate, all archived titles</span></div>
+    <div class="ti-kpi ti-glass"><b>${gf.toLocaleString('en')}</b><span>goals scored</span></div>
+    <div class="ti-kpi ti-glass"><b>${seasons}</b><span>seasons played</span></div>
+    <div class="ti-kpi ti-glass ti-gold"><b>${champ}</b><span>champion seasons</span></div>
+  </div>
+  <div class="ti-section-title"><h2>By title</h2><span>Select a title for seasons, scorers and every match</span></div>
+  <div class="ti-cards">${ALL.map(card).join('')}</div>
+  <div class="ti-section-title"><h2>Side by side</h2><span>Gold dot = best of the archived titles</span></div>
+  <div class="ti-glass ti-tablewrap"><table class="ti-cmp"><thead><tr><th></th>${ALL.map(s => `<th>${esc(s.name)}${s.live ? ' <span class="ti-tag ti-live">LIVE</span>' : ''}<small>${esc(s.platform)}</small></th>`).join('')}</tr></thead><tbody>${body}</tbody></table>
+  <div class="ti-legend"><span>Best of the archived titles</span>${LIVE && LIVE.sample ? '<span>FC 27 column shows sample numbers; in the app it reads your live games</span>' : ''}</div></div>`;
+}
+function title(ti) {
+  st.view = 'title'; st.ti = ti; st.open = new Set(); st.q = ''; st.res = 'all'; st.flag = 'all'; st.limit = 40;
+  const s = STATS[ti], ss = S.filter(x => x.t === ti).sort((a, b) => b.s - a.s), clubs = [...new Set(ss.map(x => x.team))];
+  setHead(s.name, `${s.platform} · ${s.seasonsTxt.toLowerCase()} · ${s.games} games`, s.name);
+  const sc = SC[ti], mx = sc[0] ? sc[0].g : 1;
+  const kp = [[s.games, 'games counted', ''], [f1(pct(s.w, s.games)) + '%', 'win rate', 'mint'], [f2(s.gf / s.games), 'goals / game', ''], [f2(s.ga / s.games), 'conceded / game', ''], [f1(pct(s.rq, s.games)) + '%', 'opponent rage quits', ''], [s.champ, 'champion seasons', 'gold']];
+  $('view').innerHTML = `
+  <div class="ti-hero ti-glass" style="padding:20px 22px;margin-bottom:16px"><div class="ti-shield" aria-hidden="true">${esc(s.name.replace(/\D+/g, '') || 'FC')}</div>
+    <div style="flex:1;min-width:240px"><div class="ti-tc-name" style="font-size:30px">${esc(s.name)} ${platBadge(s)}</div>
+    <div class="ti-chips"><span class="ti-chip">Best season ${esc(s.bestTxt)}</span><span class="ti-chip">${s.opp} different opponents</span><span class="ti-chip">${s.perfect} perfect seasons</span>${s.imported > s.games ? `<span class="ti-chip" title="Kept in the history, skipped in every statistic">${s.imported - s.games} game doesn’t count</span>` : ''}</div>
+    <div class="ti-chips">${clubs.map(c => `<span class="ti-chip">${esc(c)}</span>`).join('')}</div></div>${ticker(s.form)}</div>
+  <div class="ti-kpis">${kp.map(([v, l, c]) => `<div class="ti-kpi ti-glass ${c ? 'ti-' + c : ''}"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+  <div class="ti-split">
+    <section class="ti-panel ti-glass"><h3>Seasons <small>Select a season to see its games</small></h3>
+      <div style="overflow-x:auto"><table class="ti-seasons"><thead><tr><th>Season</th><th>Club</th><th>G</th><th>W-D-L</th><th>Pts</th><th>Goals</th><th>Outcome</th></tr></thead><tbody id="ti-seasonRows"></tbody></table></div></section>
+    <section class="ti-panel ti-glass"><h3>Top scorers <small>goals · assists · MOTM</small></h3>
+      ${sc.map((p, i) => `<div class="ti-scorer"><span class="ti-rk">${i + 1}</span><div><b>${esc(p.name)}</b><div class="ti-meta">${p.a} assist${p.a === 1 ? '' : 's'} · ${p.m} MOTM</div></div><span class="ti-gl">${p.g}</span><div class="ti-bar"><i style="width:${p.g / mx * 100}%"></i></div></div>`).join('')}<p class="ti-sub" style="font-size:11px;margin:12px 0 4px">Not counted above: ${DATA.og[ti]} goals from opponent own goals and rage-quit awards.</p></section>
+  </div>
+  <section class="ti-panel ti-glass" style="margin-top:16px"><h3 id="ti-mh">Match history <small id="ti-mcount"></small></h3>
+    <div class="ti-filters"><input type="search" id="ti-mq" placeholder="Search gamertag or club…" aria-label="Search matches">
+      <div class="ti-seg" role="group" aria-label="Result">${['all', 'W', 'D', 'L'].map(r => `<button data-res="${r}" aria-pressed="${r === 'all'}">${r === 'all' ? 'All' : r}</button>`).join('')}</div>
+      <div class="ti-seg" role="group" aria-label="Filter">${[['all', 'Everything'], ['rival', 'Played before'], ['rq', 'Rage quits'], ['top', 'Top 100']].map(([k, n]) => `<button data-flag="${k}" aria-pressed="${k === 'all'}">${n}</button>`).join('')}</div></div>
+    <div style="overflow-x:auto"><table class="ti-games"><tbody id="ti-matchRows"></tbody></table></div><div id="ti-moreSlot"></div></section>`;
+  paintSeasons(); paintMatches();
+}
+function paintSeasons() {
+  const ss = S.filter(x => x.t === st.ti).sort((a, b) => b.s - a.s); let h = '';
+  for (const s of ss) {
+    const gs = G.filter(g => g.t === st.ti && g.s === s.s), c = gs.filter(g => g.ok), w = c.filter(g => g.f > g.a).length, d = c.filter(g => g.f === g.a).length, l = c.length - w - d;
+    const open = st.open.has(s.s);
+    h += `<tr class="ti-row ${open ? 'ti-open' : ''}" data-season="${s.s}" tabindex="0" role="button" aria-expanded="${open}"><td><span class="ti-caret"></span>${s.s}</td><td>${esc(s.team)}</td><td class="ti-num">${c.length}</td><td class="ti-num">${w}-${d}-${l}</td><td class="ti-num">${3 * w + d}</td><td class="ti-num">${c.reduce((a, g) => a + g.f, 0)}–${c.reduce((a, g) => a + g.a, 0)}</td><td>${outcome(s)}</td></tr>`;
+    if (open) h += `<tr class="ti-sub-row"><td colspan="7"><div class="ti-inner"><table class="ti-games"><tbody>${gs.sort((a, b) => a.n - b.n).map(g => gameRow(g, false)).join('')}</tbody></table></div></td></tr>`;
+  }
+  $('seasonRows').innerHTML = h;
+}
+function filtered() {
+  const q = norm(st.q), qr = st.q.trim().toLowerCase();
+  return G.filter(g => g.t === st.ti).sort((a, b) => b.s - a.s || b.n - a.n).filter(g => {
+    if (st.res !== 'all' && res(g) !== st.res) return false;
+    if (st.flag === 'rq' && !g.rq) return false; if (st.flag === 'top' && !g.top) return false; if (st.flag === 'rival' && !playedBefore(g)) return false;
+    if (qr && !(g.g.some(x => norm(x).includes(q)) || (g.c || '').toLowerCase().includes(qr))) return false;
+    return true;
+  });
+}
+function paintMatches() {
+  const list = filtered(), shown = list.slice(0, st.limit);
+  $('mcount').textContent = `${list.length} game${list.length === 1 ? '' : 's'}`;
+  $('matchRows').innerHTML = shown.length ? shown.map(g => gameRow(g, true)).join('') : '<tr><td class="ti-empty">No game matches these filters.</td></tr>';
+  $('moreSlot').innerHTML = list.length > shown.length ? `<button class="ti-more" data-more>Show ${Math.min(40, list.length - shown.length)} more of ${list.length - shown.length}</button>` : '';
+}
+/* ---------- rival drawer ---------- */
+function rival(key) {
+  const games = (tagIndex.get(key) || []).slice().sort(order); if (!games.length) return;
+  const name = rawName.get(key), w = games.filter(g => g.ok && g.f > g.a).length, d = games.filter(g => g.ok && g.f === g.a).length, l = games.filter(g => g.ok && g.f < g.a).length;
+  const titles = [...new Set(games.map(g => T[g.t].name))], f = games[0], z = games[games.length - 1];
+  st.rival = key;
+  $('layer').innerHTML = `<div class="ti-scrim" data-close></div><aside class="ti-drawer ti-glass" role="dialog" aria-modal="true" aria-label="Games against ${esc(name)}">
+    <button class="ti-x" data-close aria-label="Close">${ic('x')}</button>
+    <div class="ti-chips" style="margin:0 0 10px"><span class="ti-gt ti-rival">${ic('swords')}Played before</span></div>
+    <h2>${esc(name)}</h2>${variants.get(key).size > 1 ? `<p class="ti-sub" style="margin-bottom:4px">Also typed as: ${[...variants.get(key)].filter(v => v !== name).map(esc).join(', ')} (same gamertag)</p>` : ''}<p class="ti-sub">${games.length === 1 ? 'Only one game against this gamertag' : `${games.length} games across ${titles.length} title${titles.length > 1 ? 's' : ''}: ${esc(titles.join(', '))}`}</p>
+    <div class="ti-dstats"><div><b>${w}-${d}-${l}</b><span>our record</span></div><div><b>${esc(T[f.t].name)}</b><span>first met · S${f.s}</span></div><div><b>${esc(T[z.t].name)}</b><span>last met · S${z.s}</span></div></div>
+    <div class="ti-timeline">${games.map(g => `<div class="ti-tl ${g.ok ? '' : 'ti-excluded'}"><span class="ti-rp ti-${res(g)}">${res(g)}</span>
+      <div><div class="ti-t">${esc(T[g.t].name)} · Season ${g.s} · Game ${g.n}</div><div class="ti-m">${esc(g.c || '—')} · ${g.aw ? 'away' : 'home'}${g.rq ? ' · they rage quit' : ''}${g.dc ? ' · we disconnected' : ''}${g.ok ? '' : ' · doesn’t count'}</div>
+      <div class="ti-tags" style="margin-top:7px">${g.g.filter(Boolean).map(x => norm(x) === key ? `<span class="ti-gt ti-rival">${esc(x)}</span>` : `<button class="ti-gt" data-rival="${esc(norm(x))}">${esc(x)}</button>`).join('')}</div></div><div class="ti-s">${g.f}–${g.a}</div></div>`).join('')}</div></aside>`;
+  requestAnimationFrame(() => { const x = root.querySelector('.ti-drawer .ti-x'); if (x) x.focus(); });
+}
+const closeDrawer = () => { const l = $('layer'); if (l) l.innerHTML = ''; st.rival = null; };
+/* ---------- lookup ---------- */
+const qEl = $('q'), sg = $('suggest');
+function suggest() {
+  const v = norm(qEl.value); if (v.length < 2) { sg.hidden = true; return; }
+  const hits = []; for (const [k, gs] of tagIndex) if (k.includes(v)) hits.push([k, gs]);
+  hits.sort((a, b) => b[1].length - a[1].length || (a[0].startsWith(v) ? 0 : 1) - (b[0].startsWith(v) ? 0 : 1) || a[0].localeCompare(b[0]));
+  sg.innerHTML = hits.length ? hits.slice(0, 8).map(([k, gs]) => `<button data-rival="${esc(k)}"><span>${esc(rawName.get(k))}</span><small>${gs.length} game${gs.length > 1 ? 's' : ''} · ${[...new Set(gs.map(g => T[g.t].name))].join(', ')}</small></button>`).join('') + (hits.length > 8 ? `<div class="ti-none">+ ${hits.length - 8} more — keep typing</div>` : '') : '<div class="ti-none">No opponent with that gamertag in FIFA 20 – EA FC 26.</div>';
+  sg.hidden = false;
+}
+qEl.addEventListener('input', suggest);
+qEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const b = sg.querySelector('[data-rival]'); if (b) b.click(); } if (e.key === 'Escape') { sg.hidden = true; } });
+/* ---------- events ---------- */
+let toastT; const toast = msg => { const t = document.createElement('div'); t.className = 'ti-toast'; t.setAttribute('role', 'status'); t.textContent = msg; root.append(t); clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 3200); };
+const onClick = e => {
+  const r = e.target.closest('[data-rival]'); if (r) { sg.hidden = true; qEl.value = ''; rival(r.dataset.rival); return; }
+  if (e.target.closest('[data-close]')) { closeDrawer(); return; }
+  if (!e.target.closest('#ti-lookup')) sg.hidden = true;
+  const c = e.target.closest('[data-title]'); if (c) { title(+c.dataset.title); window.scrollTo({ top: 0 }); return; }
+  if (e.target.closest('[data-live]')) { if (opts.onLiveClick) opts.onLiveClick(); else toast('In the app this opens the live season history.'); return; }
+  if (e.target.closest('[data-back]')) { compare(); window.scrollTo({ top: 0 }); return; }
+  const sr = e.target.closest('[data-season]'); if (sr) { const n = +sr.dataset.season; st.open.has(n) ? st.open.delete(n) : st.open.add(n); paintSeasons(); return; }
+  const rs = e.target.closest('[data-res]'); if (rs) { st.res = rs.dataset.res; st.limit = 40; root.querySelectorAll('[data-res]').forEach(b => b.setAttribute('aria-pressed', b === rs)); paintMatches(); return; }
+  const fl = e.target.closest('[data-flag]'); if (fl) { st.flag = fl.dataset.flag; st.limit = 40; root.querySelectorAll('[data-flag]').forEach(b => b.setAttribute('aria-pressed', b === fl)); paintMatches(); return; }
+  if (e.target.closest('[data-more]')) { st.limit += 40; paintMatches(); }
+};
+root.addEventListener('click', onClick);
+const onInput = e => { if (e.target.id === 'ti-mq') { st.q = e.target.value; st.limit = 40; paintMatches(); } };
+root.addEventListener('input', onInput);
+const onKey = e => {
+  if (!root.isConnected) return;
+  if (e.key === 'Escape') { if (st.rival) closeDrawer(); else if (st.view === 'title') compare(); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-season]')) { e.preventDefault(); e.target.click(); }
+};
+document.addEventListener('keydown', onKey);
+compare();
+const api = { showCompare: compare, showTitle: title, openRival: rival, destroy() { if (root.__tiInstance !== api) return; document.removeEventListener('keydown', onKey); root.removeEventListener('click', onClick); root.removeEventListener('input', onInput); clearTimeout(toastT); root.innerHTML = ''; root.classList.remove('ti-root'); if (root.__tiInstance === api) delete root.__tiInstance; }, _debug: { STATS, LIVE, tagIndex, state: st } };
+  root.__tiInstance = api;
+  return api;
+
+} };
+})();
+
+/* ===== Titles page: data adapter ===== */
+/* EA FC Tracker — Titles page data adapter.
+   buildTitlesData(titleDocs) -> the `data` object TitlesPage.mount() needs: { titles, games, seasons, scorers, og }.
+
+   titleDocs = one entry per archived title, in release order (FIFA 20 first):
+     { titleKey, title, ourPlatform: 'playstation' | 'xbox' | 'pc',
+       seasons: [ { season, team, banner, champions, perfectSeason, relegated, counted,
+                    games: [ { gameNumber, played, opponentTeam, goalsFor, goalsAgainst, awayGame, rageQuit, disconnect,
+                               opponentGamertags[2], playerStats[{slot,name,goals,assists,motm}], countsInStats,
+                               top100?{list,rank,record{w,d,l}}, notes?[{row,cells[]}] } ] } ] }
+   This is exactly the shape of fifa20.json … eafc26.json (one object per title). If you store one Firestore document per season,
+   read the season documents of a title and put them in `seasons`.
+   Pure function: no DOM, no Firestore. Works in the browser (window.buildTitlesData) and in Node (module.exports). */
+(function (root) {
+  'use strict';
+  const PLATFORM = { playstation: 'PlayStation', xbox: 'Xbox', pc: 'PC' };
+  const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);          // code-point order, independent of the browser locale
+
+  function buildTitlesData(titleDocs) {
+    const titles = [], games = [], seasons = [], scorers = {}, og = {};
+    titleDocs.forEach((doc, ti) => {
+      titles.push({ key: doc.titleKey, name: doc.title, platform: PLATFORM[doc.ourPlatform] || doc.ourPlatform || '', pc: doc.ourPlatform === 'pc' });
+      const sc = new Map(); let ownGoals = 0;
+      for (const s of doc.seasons) {
+        const played = s.games.filter(g => g.played);
+        if (!played.length) continue;                              // empty season tabs are not listed
+        seasons.push({ t: ti, s: s.season, team: s.team, banner: String(s.banner || '').replace(/\n/g, ' '), champ: !!s.champions, perfect: !!s.perfectSeason, releg: !!s.relegated, counted: !!s.counted });
+        for (const g of played) {
+          const tp = g.top100; const top = tp ? { l: tp.list, r: tp.rank, rec: tp.record ? [tp.record.w ?? null, tp.record.d ?? null, tp.record.l ?? null] : null } : null;
+          const note = g.notes && g.notes.length && !tp ? g.notes.flatMap(n => n.cells).map(String).join(' · ') : null;
+          const motm = (g.playerStats.find(p => p.motm) || {}).name || '';
+          const row = { t: ti, s: s.season, n: g.gameNumber, c: g.opponentTeam, u: s.team, f: g.goalsFor, a: g.goalsAgainst, aw: g.awayGame ? 1 : 0, rq: g.rageQuit ? 1 : 0, dc: g.disconnect ? 1 : 0,
+                        g: g.opponentGamertags, m: motm, ok: g.countsInStats ? 1 : 0 };
+          if (top) row.top = top; if (note) row.note = note;
+          games.push(row);
+          if (g.countsInStats) for (const p of g.playerStats) {
+            if (!p.name) continue;
+            if (p.slot === 21 || p.name.startsWith('Own Goal')) { ownGoals += p.goals; continue; }   // own goals / rage-quit awards are not a player
+            const a = sc.get(p.name) || [0, 0, 0]; a[0] += p.goals; a[1] += p.assists; a[2] += p.motm; sc.set(p.name, a);
+          }
+        }
+      }
+      scorers[ti] = [...sc.entries()].sort((x, y) => y[1][0] - x[1][0] || y[1][1] - x[1][1] || cmp(x[0], y[0])).slice(0, 8).map(([name, v]) => ({ name, g: v[0], a: v[1], m: v[2] }));
+      og[ti] = ownGoals;
+    });
+    return { titles, games, seasons, scorers, og };
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { buildTitlesData };
+  root.buildTitlesData = buildTitlesData;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* ===== Titles page: live adapter ===== */
+/* EA FC Tracker — Titles page: live title adapter.
+   buildLiveTitle(options) -> the `live` option for TitlesPage.mount():  { stats, games }
+
+   options = {
+     name:        'FC 27',                       // card title
+     platform:    'PC + console',                // text of the platform pill
+     titleIndex:  7,                             // = number of archived titles (data.titles.length); live games use this as their title index
+     games:       [ ...the app's live `games` documents... ],
+     seasons:     [ ...the app's live `seasons` documents... ],
+     playerName:  id => 'Kylian Mbappé',         // optional: resolves motmPlayerId to a name ('' if unknown)
+     gameNumber:  g => gamePosition(g),          // optional: the app's own gapless game number (default: position inside the season by createdAt)
+     sample:      false                          // true only for design mockups
+   }
+   Live field names are the ones in the app (seasonId, scoreFor, scoreAgainst, homeAway, rageQuit 'none'|'us'|'them', disconnect,
+   opponentGamertags[2], opponentTeam, motmPlayerId, createdAt; seasons: id, number, team, champion, perfectSeason, relegated).
+   Pure function: no DOM, no Firestore. Browser: window.buildLiveTitle. Node: module.exports. */
+(function (root) {
+  'use strict';
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  function buildLiveTitle(o) {
+    const seasonById = new Map(o.seasons.map(s => [s.id, s]));
+    const list = o.games.filter(g => seasonById.has(g.seasonId))
+      .sort((a, b) => seasonById.get(a.seasonId).number - seasonById.get(b.seasonId).number || (a.createdAt || 0) - (b.createdAt || 0));
+    const res = g => (g.scoreFor > g.scoreAgainst ? 'W' : g.scoreFor === g.scoreAgainst ? 'D' : 'L');
+    const perSeason = new Map();                       // season id -> { n, pts, gd, games }
+    const position = new Map();                        // default gapless numbering inside a season
+    for (const g of list) {
+      const p = perSeason.get(g.seasonId) || { n: 0, pts: 0, gd: 0 }; p.n++; p.pts += g.scoreFor > g.scoreAgainst ? 3 : g.scoreFor === g.scoreAgainst ? 1 : 0; p.gd += g.scoreFor - g.scoreAgainst; perSeason.set(g.seasonId, p);
+      position.set(g, p.n);
+    }
+    const played = [...perSeason.keys()].map(id => seasonById.get(id));
+    const tags = new Set(); list.forEach(g => (g.opponentGamertags || []).forEach(t => t && tags.add(norm(t))));
+    const best = [...perSeason.entries()].filter(([, p]) => p.n >= 8).sort((a, b) => b[1].pts - a[1].pts || b[1].gd - a[1].gd || seasonById.get(a[0]).number - seasonById.get(b[0]).number)[0];
+    const nums = played.map(s => s.number);
+    const w = list.filter(g => res(g) === 'W').length, d = list.filter(g => res(g) === 'D').length;
+    const stats = {
+      name: o.name, platform: o.platform, sample: !!o.sample,
+      games: list.length, w, d, l: list.length - w - d,
+      gf: list.reduce((a, g) => a + g.scoreFor, 0), ga: list.reduce((a, g) => a + g.scoreAgainst, 0),
+      away: list.filter(g => g.homeAway === 'away').length, rq: list.filter(g => g.rageQuit === 'them').length, dc: list.filter(g => g.disconnect === true).length,
+      champ: played.filter(s => s.champion).length, perfect: played.filter(s => s.perfectSeason).length, seasons: played.length, opp: tags.size,
+      seasonsTxt: nums.length ? `Seasons ${Math.min(...nums)}–${Math.max(...nums)}` : 'No seasons yet',
+      form: list.slice(-8).map(res), bestTxt: best ? `#${seasonById.get(best[0]).number} · ${best[1].pts} pts` : '—'
+    };
+    const games = list.map(g => {
+      const s = seasonById.get(g.seasonId);
+      return { t: o.titleIndex, s: s.number, n: o.gameNumber ? o.gameNumber(g) : position.get(g), c: g.opponentTeam || '', u: s.team || '', f: g.scoreFor, a: g.scoreAgainst,
+               aw: g.homeAway === 'away' ? 1 : 0, rq: g.rageQuit === 'them' ? 1 : 0, dc: g.disconnect === true ? 1 : 0, g: (g.opponentGamertags || ['', '']).slice(0, 2),
+               m: o.playerName && g.motmPlayerId ? o.playerName(g.motmPlayerId) || '' : '', ok: 1 };
+    });
+    return { stats, games };
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { buildLiveTitle };
+  root.buildLiveTitle = buildLiveTitle;
+})(typeof window !== 'undefined' ? window : globalThis);
+
 /* ======================================================================
    PASTE YOUR FIREBASE CONFIG HERE — from Firebase Console → Project
    settings → Your apps → the </> web app → the firebaseConfig object.
@@ -1603,8 +2123,54 @@ function leaderboard(seasonId){
 }
 
 
+/* ============================= FIFA HISTORY (TITLES PAGE) =============================
+   The spliced-in "Titles page" module (marked block at the top of this script) renders
+   the imported legacy archive (FIFA 20 → EA FC 26) plus a LIVE FC 27 card. Read-only:
+   it never writes to Firestore. The archive loads once per session (cached); the page is
+   mounted once per tab visit and destroyed in setTab() when the tab is left. */
+let legacyCache = null, legacyPromise = null;
+const ARCHIVE = ['fifa20','fifa21','fifa22','fifa23','eafc24','eafc25','eafc26']; /* release order */
+function loadLegacyDocs(){
+  if(legacyCache) return Promise.resolve(legacyCache);
+  if(!legacyPromise){
+    legacyPromise = (async ()=>{
+      const titles = [];
+      for(const key of ARCHIVE){
+        const reg = (await db.collection('legacy_titles').doc(key).get()).data() || {};
+        const snap = await db.collection('legacy_'+key).get();
+        titles.push({ titleKey:key, title: reg.title || key, ourPlatform: reg.ourPlatform || '',
+                      seasons: snap.docs.map(d=>d.data()).sort((a,b)=>(a.season||0)-(b.season||0)) });
+      }
+      legacyCache = { titles };
+      return legacyCache;
+    })().catch(e=>{ legacyPromise = null; throw e; });
+  }
+  return legacyPromise;
+}
+let titlesPage = null, titlesMounting = null;
+async function mountTitles(container){
+  if(titlesPage) return;
+  if(!titlesMounting){
+    titlesMounting = (async ()=>{
+      try{
+        const data = buildTitlesData(await loadLegacyDocs());
+        if(currentTab !== 'titles') return;   /* left the tab while the data was loading — don't overwrite the new screen */
+        const live = buildLiveTitle({
+          name: 'FC 27', platform: 'PC + console',
+          titleIndex: data.titles.length,
+          games, seasons,
+          playerName: id => playerName(id),
+          gameNumber: g => gamePosition(g.seasonId, g.id)
+        });
+        titlesPage = TitlesPage.mount(container, { data, live, onLiveClick: ()=>setTab('history') });
+      } finally { titlesMounting = null; }
+    })();
+  }
+  return titlesMounting;
+}
+
 /* ============================= RENDER SHELL ============================= */
-const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy','worldmap'];
+const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy','worldmap','titles'];
 function setTab(t, fromHash){
   if(currentTab==='log' && t!=='log'){
     /* Leaving Log Match: drop any in-progress / being-edited match so the tab always
@@ -1612,6 +2178,11 @@ function setTab(t, fromHash){
     if(autosaveTimer){ clearTimeout(autosaveTimer); autosaveTimer = null; }
     editingGameId = null;
     logDraft = null;
+  }
+  if(currentTab==='titles' && t!=='titles'){
+    /* Leaving FIFA History: destroy the mounted page — the next visit mounts a
+       fresh instance (cheap render, and it picks up any games logged meanwhile). */
+    if(titlesPage){ titlesPage.destroy(); titlesPage = null; }
   }
   currentTab = t; render();
   /* Give each screen its own URL (#screen) so the mouse/browser BACK button moves
@@ -1658,6 +2229,14 @@ function render(){
     /* Map already open? Keep the live view — wireWorldMap() (below) refreshes it
        in place. Rebuild the shell only when there is no live view. */
     if(!(wmView && wmView.frame.isConnected)) main.innerHTML = renderWorldMap();
+  }
+  else if(currentTab==='titles'){
+    /* Mount ONCE (async archive load); never re-mount on Firestore snapshots (World Map
+       bug family). setTab() destroys the instance when the tab is left. */
+    if(!titlesPage){
+      if(!main.querySelector('.ti-root')) main.innerHTML = '<div class="ti-loading">Loading FIFA history…</div>';
+      mountTitles(main);
+    }
   }
   /* Full-width season bar (under the rail too) — Match History screen only. */
   const sb = document.getElementById('seasonbar');
@@ -2590,7 +3169,25 @@ function rivalGames(tag){
     const tags = (g.opponentGamertags||[]).map(rivalKey).filter(Boolean);
     if(tags.includes(k)) out.push(g);
   }
-  return out.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); /* newest first */
+  out.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); /* live: newest first */
+  if(legacyCache) for(const g of legacyTagGames(k)) out.push(g); /* then the archive, newest → oldest */
+  return out;
+}
+/* Archived (legacy) games against a tag, newest → oldest: EA FC 26 → FIFA 20 (title
+   order), and within a title season desc, then game number desc (the archive has no
+   dates). Legacy rows carry `legacy:true` so the strip renderer can branch on it. */
+function legacyTagGames(k){
+  const out = [];
+  if(legacyCache) legacyCache.titles.forEach((t, ti)=>{
+    for(const s of (t.seasons||[])) for(const g of (s.games||[])){
+      if(g.played === false) continue;
+      const tags = (g.opponentGamertags||[]).map(rivalKey).filter(Boolean);
+      if(!tags.includes(k)) continue;
+      out.push(Object.assign({}, g, {legacy:true, ti}));
+    }
+  });
+  out.sort((a,b)=> (b.ti-a.ti) || ((b.season||0)-(a.season||0)) || ((b.gameNumber||0)-(a.gameNumber||0)));
+  return out;
 }
 /* The "other" games against a tag = the list minus the game in front of us (the match
    being hovered in History, or the one being logged/edited in Log Match). Gold state
@@ -2626,6 +3223,52 @@ function rivalStripHtml(g){
   }
   return `<span class="tgstrip">${parts.join('')}</span>`;
 }
+/* The one-line strip for an ARCHIVED (legacy) game — same layout as the live strip, but:
+   MOTM is the name only (the legacy data has no ratings), RQ is shown bare (no minutes),
+   and the title (e.g. "FIFA 20") sits at the end of the row. */
+function rivalLegacyStripHtml(g){
+  const f = Number(g.goalsFor)||0, a = Number(g.goalsAgainst)||0;
+  const o = f > a ? 'win' : f === a ? 'draw' : 'loss';
+  const parts = [
+    `<span class="res ${o}">${o==='win'?'W':o==='draw'?'D':'L'}</span>`,
+    `<span class="sc">${f}:${a}</span>`,
+    `<span class="m">vs <b>${esc(g.opponentTeam||'\u2014')}</b></span>`,
+    `<span class="dot"></span>`,
+    `<span class="m"><b>Season #${g.season}</b></span><span class="dot"></span>`,
+    `<span class="m">${g.awayGame?'Away':'Home'} \u00b7 Game ${g.gameNumber}</span>`,
+  ];
+  const motm = (g.playerStats||[]).find(p=>p.motm);
+  if(motm && motm.name) parts.push(`<span class="dot"></span><span class="m">\u2b50 <span class="motm">${esc(motm.name)}</span></span>`);
+  if(g.rageQuit) parts.push(`<span class="dot"></span><span class="rq">RQ</span>`);
+  parts.push(`<span class="dot"></span><span class="ttl">${esc(g.title||'')}</span>`);
+  return `<span class="tgstrip">${parts.join('')}</span>`;
+}
+const tgStripHtml = g => g.legacy ? rivalLegacyStripHtml(g) : rivalStripHtml(g);
+/* Kick the one-time legacy archive load off lazily (first Log-tab paint / first hover),
+   then refresh the gold states + any open hover strip so legacy games count too. */
+function legacyKickoff(){
+  if(legacyCache){ refreshGoldStates(); return; }
+  loadLegacyDocs().then(refreshGoldStates).catch(e=>console.warn('legacy archive failed to load', e));
+}
+function refreshGoldStates(){
+  ['f-tag1','f-tag2'].forEach(id=>{ const el=document.getElementById(id); if(el) paintKnownTag(el); });
+  document.querySelectorAll('.tgwrap[data-gid]').forEach(w=>{
+    const chip = w.querySelector('.opp-tag');
+    if(chip) chip.classList.toggle('tg-known', rivalOthers(w.dataset.tag||'', w.dataset.gid).length > 0);
+  });
+  if(tgPopWrap) tgRefreshPop();
+}
+function tgRefreshPop(){
+  const w = tgPopWrap; if(!w) return;
+  let list = [];
+  if(w.dataset && w.dataset.gid) list = rivalOthers(w.dataset.tag || '', w.dataset.gid);
+  else if(w.dataset && w.dataset.taginput){
+    const el = document.getElementById(w.dataset.taginput);
+    if(el) list = rivalOthers(el.value, editingGameId);
+  }
+  if(!list.length){ tgPopHide(); return; }
+  tgPop.innerHTML = list.map(tgStripHtml).join('');
+}
 /* Light up a Log Match tag box (gold) when this would be a REPEAT game — the tag is
    already on record at least once (or, while editing, once outside the game being
    edited). Called on every keystroke + on render, so the state is right after an OCR
@@ -2645,6 +3288,7 @@ function tgPopHide(){
   tgPop.classList.remove('on');
 }
 document.addEventListener('mouseover', (e)=>{
+  legacyKickoff(); /* first hover starts the one-time legacy load (cached afterwards) */
   const w = e.target.closest ? e.target.closest('.tgwrap') : null;
   if(!w || w===tgPopWrap) return;
   tgPopHide();
@@ -2661,7 +3305,7 @@ document.addEventListener('mouseover', (e)=>{
   }
   if(!list.length) return; /* no other game against this tag → no strip */
   tgPopWrap = w;
-  tgPop.innerHTML = list.map(rivalStripHtml).join('');
+  tgPop.innerHTML = list.map(tgStripHtml).join('');
   const r = w.getBoundingClientRect();
   const pw = tgPop.offsetWidth, ph = tgPop.offsetHeight;
   tgPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8)) + 'px';
@@ -2680,6 +3324,7 @@ window.addEventListener('scroll', tgPopHide, true); /* capture: also fires for t
 window.addEventListener('resize', tgPopHide);
 
 function wireLogHandlers(){
+  legacyKickoff(); /* Log Match is the main place repeat rivals are typed — start the legacy load here too */
   /* The US/THEM header above the stats mirrors the two gamertag fields as you type —
      fixing an OCR-misread letter below updates the header immediately (no save needed).
      Direct DOM update only, so focus is never lost (a render() would rebuild the page). */
@@ -2841,7 +3486,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v122';
+const SCAN_BUILD = 'v123';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',

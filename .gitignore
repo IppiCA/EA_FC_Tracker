@@ -1,2 +1,21 @@
 HANDOFF.md
 mockups-*.html
+
+# --- legacy data and tools: they contain other people's gamertags (public repo!) ---
+/ea-fc-legacy-bundle/
+/legacy-import/
+/legacy-reference-extraction/
+/titles-page-module/demo.html
+/titles-page-module/reference/
+legacy_expected_totals.json
+team_name_map.json
+fifa20.json
+fifa21.json
+fifa22.json
+fifa23.json
+eafc24.json
+eafc25.json
+eafc26.json
+import-legacy.html
+*.xlsx
+*.zip
