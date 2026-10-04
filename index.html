@@ -774,9 +774,10 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .close-detail{position:absolute; right:12px; top:10px; border:0; background:transparent; color:var(--ink-dim); font-size:23px; line-height:24px; width:26px; height:26px; border-radius:7px}
 .wm-page .close-detail:hover{color:var(--ink); background:#ffffff0c}
 .wm-page .detail-header{display:flex; gap:13px; align-items:center; margin-bottom:12px}
-.wm-page .shield{clip-path:polygon(0 0,100% 0,100% 72%,50% 100%,0 72%); width:52px; height:54px; flex-shrink:0; padding-top:5px; text-align:center; background:linear-gradient(140deg,#f0c46425,#f0c46405)}
-.wm-page .shield-number{color:var(--gold); font:700 28px/1 'Rajdhani',sans-serif}
-.wm-page .shield-label{font:600 8px/1 'Rajdhani',sans-serif; letter-spacing:1px; color:var(--gold); margin-top:2px}
+/* Number on one row, small "matches" underneath — stacked so both fit the shield. */
+.wm-page .shield{clip-path:polygon(0 0,100% 0,100% 78%,50% 100%,0 78%); width:52px; height:54px; flex-shrink:0; padding-top:5px; text-align:center; background:linear-gradient(140deg,#f0c46425,#f0c46405); flex-direction:column; gap:3px}
+.wm-page .shield-number{color:var(--gold); font:700 26px/1 'Rajdhani',sans-serif; white-space:nowrap}
+.wm-page .shield-label{font:600 8px/1 'Rajdhani',sans-serif; letter-spacing:1px; color:var(--gold); margin-top:0; white-space:nowrap}
 .wm-page .country-heading{display:flex; align-items:center; gap:9px; font:700 30px/1 'Rajdhani',sans-serif; letter-spacing:1px; color:var(--ink)}
 .wm-page .country-caption{font-size:10px; color:var(--ink-dim); margin-top:7px}
 .wm-page .country-sub{font-size:10px; color:var(--turf); margin-top:4px; opacity:.9}
@@ -789,10 +790,11 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .form-square.L{color:#2b0006; background:var(--red)}
 .wm-page .fwrap{position:relative; display:inline-flex}
 .wm-page .fwrap:hover .form-square{transform:scale(1.18); box-shadow:0 0 0 2px rgba(255,255,255,.28)}
-/* The popup lives inside the SCROLLABLE country panel (which clips, unlike the
-   dashboard's cards), so JS keeps it in bounds and aims the arrow at the chip. */
-.wm-page .fpop{left:8px; right:auto}
-.wm-page .fpop::after{left:var(--farrow,16px); right:auto}
+/* The W/D/L chip popup lives OUTSIDE the scrollable country panel (which would clip
+   it and add a scrollbar): one body-level floating card, JS-positioned above the
+   hovered chip, so the full tile is always visible. */
+.wm-chip-pop{position:fixed; top:0; left:0; z-index:400; opacity:1; visibility:visible; transform:none; transition:none; pointer-events:none}
+.wm-chip-pop::after{display:none}
 .wm-page .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px}
 .wm-page .stat-tile{background:#ffffff03; border:1px solid #ffffff07; border-radius:9px; padding:8px 6px; text-align:center}
 .wm-page .stat-label{display:block; font:600 10px/1.2 'Rajdhani',sans-serif; letter-spacing:.3px; color:var(--ink-dim); white-space:nowrap}
@@ -815,7 +817,11 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .wm-crest{display:inline-grid; place-items:center; width:17px; height:17px; border-radius:50%; border:1.5px solid #ffffff20; background:linear-gradient(135deg,#334758,#1b252f); color:#bac8d0; font:600 6.2px 'Rajdhani',sans-serif; letter-spacing:-.2px; flex-shrink:0}
 .wm-page .wm-crest-img{width:17px; height:17px; border-radius:4px; object-fit:contain; flex-shrink:0; background:#ffffff10; padding:1px}
 .wm-page .last-matches{display:flex; flex-direction:column; gap:7px; margin-bottom:14px}
-.wm-page .match-row{display:grid; grid-template-columns:42px 1fr 34px; gap:8px; align-items:center}
+/* Each row is a jump to that match in Match History (global data-goto-game). */
+.wm-page .match-row{display:grid; grid-template-columns:42px 1fr 34px; gap:8px; align-items:center; padding:4px 6px; margin:0 -6px; border-radius:8px; cursor:pointer}
+.wm-page .match-row:hover{background:#ffffff0a}
+.wm-page .match-our-logo{width:14px; height:14px; border-radius:3px; object-fit:contain; margin-right:5px; vertical-align:-2px; background:#ffffff10; padding:1px; box-shadow:0 0 0 1px #ffffff1c}
+.wm-page .match-our-name{font-size:8px; color:var(--ink-dim); margin-right:4px; text-transform:uppercase; letter-spacing:.4px}
 .wm-page .result-pill{font:700 9px/1 'Rajdhani',sans-serif; letter-spacing:.4px; border-radius:4px; padding:5px 3px; text-align:center}
 .wm-page .result-pill.W{color:var(--turf); background:#3cff9a18} .wm-page .result-pill.D{color:var(--gold); background:#f0c46418} .wm-page .result-pill.L{color:var(--red); background:#ff5c7218}
 .wm-page .match-opponent{font-size:10px; color:var(--ink)}
@@ -846,6 +852,20 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .history-table .club{display:inline-flex; align-items:center; gap:8px; white-space:nowrap}
 .wm-page .history-table .wm-crest{width:20px; height:20px; font-size:6.5px}
 .wm-page .history-table .wm-crest-img{width:20px; height:20px}
+.wm-page .history-table .club .vs{color:var(--ink-faint); font-size:10px}
+/* Ping column: one signal bar each for Stebo and Ippi —
+   green = high, gold = mid, red = low, all-dim when not recorded. */
+.wm-page .conn-cell{display:flex; flex-direction:column; gap:3px; white-space:nowrap}
+.wm-page .conn{display:inline-flex; align-items:center; gap:5px}
+.wm-page .conn b{font:600 9.5px/1 'Rajdhani',sans-serif; letter-spacing:.4px; color:var(--ink-dim); width:25px}
+.wm-page .conn .bars{display:inline-flex; align-items:flex-end; gap:2px}
+.wm-page .conn .bars i{width:4px; border-radius:1px; background:var(--line)}
+.wm-page .conn .bars i:nth-child(1){height:5px}
+.wm-page .conn .bars i:nth-child(2){height:8px}
+.wm-page .conn .bars i:nth-child(3){height:11px}
+.wm-page .conn.high .bars i.lit{background:var(--turf)}
+.wm-page .conn.mid .bars i.lit{background:var(--gold)}
+.wm-page .conn.low .bars i.lit{background:var(--red)}
 .wm-page .opps{display:flex; flex-wrap:wrap; gap:6px}
 .wm-page .opp{display:inline-flex; align-items:center; gap:6px; padding:3px 8px 3px 6px; background:#ffffff08; border:1px solid #ffffff12; border-radius:8px; font-size:11px; white-space:nowrap; color:var(--ink)}
 .wm-page .opp b{font-weight:600}
@@ -2803,7 +2823,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v112';
+const SCAN_BUILD = 'v113';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -5650,12 +5670,11 @@ function renderWorldMap(){
           <section class="detail-card wm-glass" aria-label="Country details" hidden></section>
         </div>
         <div class="history-overlay" hidden>
-          <section class="history-panel" role="dialog" aria-modal="true" aria-label="Match History">
-            <button class="close-history" aria-label="Close Match History">×</button>
+          <section class="history-panel" tabindex="-1" role="dialog" aria-modal="true" aria-label="Match History">
             <h2>Match History</h2>
             <div class="history-filter"></div>
             <table class="history-table">
-              <thead><tr><th>Result</th><th>Club</th><th>Score</th><th>Season</th><th>Opponents</th><th>Played</th></tr></thead>
+              <thead><tr><th>Result</th><th>Matchup</th><th>Score</th><th>Season</th><th>Opponents</th><th>Played</th><th>Ping Stebo / Ippi</th></tr></thead>
               <tbody></tbody>
             </table>
           </section>
@@ -5768,6 +5787,7 @@ class WMView{
     on(this.frame.querySelector('.breadcrumb'),'click',()=>this.clearSelection());
     on(this.detail,'click',e=>{
       if(e.target.closest('.close-detail')) this.clearSelection();
+      this.hideChipPop();
       if(e.target.closest('.history-button')) this.openHistory(this.state.selected);
       const team = e.target.closest('[data-club]');
       if(team){   // click a club to show only those matches under LAST MATCHES; click again to clear
@@ -5779,8 +5799,11 @@ class WMView{
       }
     });
     on(this.detail,'pointerover',e=>{
-      const chip = e.target.closest('.fwrap');
-      if(chip) this.positionChipPopup(chip);   // keep the match-stats popup inside the scrollable panel
+      const chip = e.target.closest('.form-square');
+      if(chip && chip.dataset.gotoGame) this.showChipPop(chip);   // floating card above the chip, outside the scroll panel
+    });
+    on(this.detail,'pointerout',e=>{
+      if(e.target.closest('.form-square')) this.hideChipPop();
     });
     on(this.frame.querySelector('.tiny-chips'),'click',e=>{ const b = e.target.closest('[data-tiny]'); if(b) this.select(b.dataset.tiny); });
     on(this.card,'click',e=>{ if(e.target===this.card||e.target===this.svg||e.target.closest('.graticule')) this.clearSelection(); });
@@ -5789,12 +5812,8 @@ class WMView{
         if(!this.frame.querySelector('.history-overlay').hidden) this.closeHistory();
         else this.clearSelection();
       }
-      if(e.key==='Tab' && !this.frame.querySelector('.history-overlay').hidden){
-        // The dialog holds one focusable control; keep focus within it.
-        e.preventDefault(); this.frame.querySelector('.close-history').focus();
-      }
     });
-    on(this.frame.querySelector('.close-history'),'click',()=>this.closeHistory());
+    /* No close button — clicking the backdrop (or pressing Escape) dismisses it. */
     on(this.frame.querySelector('.history-overlay'),'click',e=>{ if(e.target.classList.contains('history-overlay')) this.closeHistory(); });
   }
   filteredMatches(){ return this.allMatches.filter(m=> this.state.season==='all'||String(m.season)===this.state.season); }
@@ -5882,6 +5901,7 @@ class WMView{
     this.state.hovered = null;
     this.state.club = null;
     wmViewState.selected = null;
+    this.hideChipPop();
     this.update();
     if(focus){ focus.focus(); this.state.hovered = null; this.updateHover(); }
   }
@@ -5909,19 +5929,33 @@ class WMView{
     this.tooltip.style.left = `${left}px`;
     this.tooltip.style.top = `${top}px`;
   }
-  /* The hovered W/D/L chip's popup must stay inside the country panel (it clips,
-     unlike the dashboard's cards): centre it on the chip, clamp to the panel,
-     and point the little arrow at the chip. Layout offsets (unscaled) all the way. */
-  positionChipPopup(chip){
-    const pop = chip.querySelector('.fpop');
-    if(!pop || !this.detail.isConnected) return;
-    const cardW = this.detail.clientWidth;
-    const popW = pop.offsetWidth || 252;
-    const cx = chip.offsetLeft + chip.offsetWidth/2;
-    const x = Math.max(8, Math.min(cx - popW/2, cardW - popW - 8));
-    pop.style.left = x + 'px';
-    pop.style.setProperty('--farrow', Math.max(8, Math.min(cx - x - 4.5, popW - 12)) + 'px');
+  /* The hovered W/D/L chip's popup floats ABOVE the chip, OUTSIDE the country panel
+     (the panel scrolls and would clip it / add a scrollbar). It's a body-level
+     element, so the panel's scale transform can't skew it; viewport coords. */
+  chipPopEl(){
+    if(this.chipPop && this.chipPop.isConnected) return this.chipPop;
+    const el = document.createElement('div');
+    el.className = 'fpop wm-chip-pop';
+    el.setAttribute('aria-hidden','true');
+    document.body.appendChild(el);
+    this.chipPop = el;
+    return el;
   }
+  showChipPop(chip){
+    const g = games.find(x=>x.id===chip.dataset.gotoGame);
+    if(!g) return;
+    const pop = this.chipPopEl();
+    pop.innerHTML = historyTile(g, true);
+    pop.hidden = false;
+    const r = chip.getBoundingClientRect();
+    const pw = pop.offsetWidth || 280, ph = pop.offsetHeight || 200;
+    const x = Math.max(8, Math.min(r.left + r.width/2 - pw/2, window.innerWidth - pw - 8));
+    let y = r.top - ph - 12;                                   // above the chip
+    if(y < 8) y = Math.max(8, Math.min(r.bottom + 12, window.innerHeight - ph - 8));
+    pop.style.left = x + 'px';
+    pop.style.top = y + 'px';
+  }
+  hideChipPop(){ if(this.chipPop) this.chipPop.hidden = true; }
   renderDetail(){
     const code = this.state.selected;
     this.detail.hidden = !code;
@@ -5946,23 +5980,31 @@ class WMView{
     const more = clubRows.length>3 ? `<span class="team-more">+${clubRows.length-3} more ${clubRows.length-3===1?'club':'clubs'}</span>` : '';
     const lastRows = pool.slice(-3).reverse().map(m=>{
       const sw = (m.sharedWith||[]).map(c=>`<span class="shared-pill">shared with ${wmFlag(c)}${esc((WM_UNITS[c]||{}).name||c)}</span>`).join('');
-      return `<div class="match-row"><span class="result-pill ${wmResult(m)}">${wmResultName(wmResult(m))}</span><div><div class="match-opponent">vs ${esc(m.opponent)}</div><div class="match-meta">Season ${m.season} · Game ${m.game}${sw}</div></div><div class="match-score">${m.gf}–${m.ga}</div></div>`;
+      /* Our crest first, so the row shows WHICH team we played with.
+         Clicking the row jumps to that match in Match History (global data-goto-game). */
+      const g = games.find(x=>x.id===m.gameId);
+      const usLogo = g ? ourLogo(g) : '';
+      const usName = g && !usLogo ? (teamById(g.teamId) ? teamById(g.teamId).name : '') : '';
+      const usBit = usLogo ? `<img class="match-our-logo" src="${usLogo}" alt="" aria-hidden="true">` : (usName ? `<span class="match-our-name">${esc(usName)}</span>` : '');
+      return `<div class="match-row" data-goto-game="${m.gameId}" title="Open this match in Match History"><span class="result-pill ${wmResult(m)}">${wmResultName(wmResult(m))}</span><div><div class="match-opponent">${usBit} vs ${esc(m.opponent)}</div><div class="match-meta">Season ${m.season} · Game ${m.game}${sw}</div></div><div class="match-score">${m.gf}–${m.ga}</div></div>`;
     }).join('');
     this.detail.innerHTML = `<button class="close-detail" aria-label="Close country details">×</button>
       <div class="detail-header"><div class="shield"><div class="shield-number">${s.games}</div><div class="shield-label">MATCHES</div></div><div><div class="country-heading ${wmNameSize(name)}">${flag}${esc(name.toUpperCase())}</div><div class="country-caption">Opponent players from this country</div>${sharedLine}</div></div>
       <div class="form" aria-label="Recent form">${matches.slice(-6).map(m=>{
         const r = wmResult(m);
-        const g = games.find(x=>x.id===m.gameId);
-        /* Same as the dashboard's form ticker: hover = that match's stats, click = open it in Match History. */
-        return `<span class="fwrap"><span class="form-square ${r}" data-goto-game="${m.gameId}" aria-label="${wmResultName(r)}">${r}</span><span class="fpop">${g?historyTile(g, true):''}</span></span>`;
+        /* Hover = that match's stats (floating card above the chip, outside the scroll
+           panel — see .wm-chip-pop); click = open it in Match History. */
+        return `<span class="fwrap"><span class="form-square ${r}" data-goto-game="${m.gameId}" aria-label="${wmResultName(r)}">${r}</span></span>`;
       }).join('')}</div>
       <div class="stats"><div class="stat-tile"><span class="stat-label">GOALS FOR</span><span class="stat-value gold">${s.gf}</span></div><div class="stat-tile"><span class="stat-label">GOALS AGAINST</span><span class="stat-value coral">${s.ga}</span></div><div class="stat-tile"><span class="stat-label">WIN RATE</span><span class="stat-value mint">${s.winRate}%</span></div></div>
       <div class="split-bar" aria-label="${s.wins} wins, ${s.draws} draws, ${s.losses} losses">${[['W',s.wins],['D',s.draws],['L',s.losses]].filter(([,n])=>n>0).map(([r,n])=>`<span class="${r}" style="flex:${n}"></span>`).join('')}</div><div class="split-label">${s.wins}W ${s.draws}D ${s.losses}L</div>
       ${s.games ? `<h2 class="detail-section-title">TEAMS FACED${more}</h2><div class="teams">${teamRows}</div>
       <h2 class="detail-section-title">LAST MATCHES${club?` · ${esc(club.toUpperCase())}`:''}</h2><div class="last-matches">${lastRows}</div>` : '<p class="empty-detail">No matches against opponents from here yet.</p>'}
       <button class="history-button" ${s.games?'':'disabled'}>View in Match History</button>`;
+    this.hideChipPop();   // the chips were just re-rendered — any open popup is stale
   }
   openHistory(code = null){
+    this.hideChipPop();
     const overlay = this.frame.querySelector('.history-overlay');
     this.returnFocus = document.activeElement;
     let rows = this.filteredMatches();
@@ -5975,14 +6017,30 @@ class WMView{
       return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'})+(m.matchTime?' · '+esc(m.matchTime):'');
     };
     const opp = (m,i)=> m.gamertags[i] ? `<span class="opp">${wmPlat(m.platforms[i])}<b>${esc(m.gamertags[i])}</b>${m.countries[i]?wmFlag(m.countries[i]):''}</span>` : '';
+    /* Matchup = the club WE played with (its crest first) vs the club they picked. */
+    const us = m=>{
+      const g = games.find(x=>x.id===m.gameId); if(!g) return '';
+      const logo = ourLogo(g);
+      if(logo) return `<img class="wm-crest-img" src="${logo}" alt="" aria-hidden="true">`;
+      const t = teamById(g.teamId);
+      return (t && t.name) ? `<span class="wm-crest" title="${esc(t.name)}" aria-hidden="true">${esc(t.name.slice(0,3).toUpperCase())}</span>` : '';
+    };
+    /* One signal bar per player: green = high, gold = mid, red = low, dim = not recorded. */
+    const conn = (v,lbl)=>{
+      const lit = v==='high'?3 : v==='mid'?2 : v==='low'?1 : 0;
+      return `<span class="conn ${v||'off'}"><b>${lbl}</b><span class="bars"><i class="${lit>=1?'lit':''}"></i><i class="${lit>=2?'lit':''}"></i><i class="${lit>=3?'lit':''}"></i></span></span>`;
+    };
     const season = this.state.season==='all' ? 'All seasons' : `Season ${esc(this.state.season)}`;
     overlay.querySelector('.history-filter').innerHTML = `<span class="chip">${code?`Opponents from ${wmFlag(code)} ${esc(this.names.get(code))}`:'All matches'}</span><span>${season} · ${rows.length} ${rows.length===1?'match':'matches'}</span>`;
-    overlay.querySelector('tbody').innerHTML = rows.map(m=>`<tr><td><span class="result-pill ${wmResult(m)}">${wmResultName(wmResult(m))}</span></td><td><span class="club">${wmCrest(m.opponent)}${esc(m.opponent)}</span></td><td class="num">${m.gf}–${m.ga}</td><td>Season ${m.season} · Game ${m.game}</td><td><span class="opps">${opp(m,0)}${opp(m,1)}</span></td><td class="when">${when(m)}</td></tr>`).join('');
+    overlay.querySelector('tbody').innerHTML = rows.map(m=>{
+      const g = games.find(x=>x.id===m.gameId);
+      return `<tr><td><span class="result-pill ${wmResult(m)}">${wmResultName(wmResult(m))}</span></td><td><span class="club">${us(m)}<span class="vs">vs</span>${wmCrest(m.opponent)}${esc(m.opponent)}</span></td><td class="num">${m.gf}–${m.ga}</td><td>Season ${m.season} · Game ${m.game}</td><td><span class="opps">${opp(m,0)}${opp(m,1)}</span></td><td class="when">${when(m)}</td><td><div class="conn-cell">${conn(g?g.pingStebo:'','Stebo')}${conn(g?g.pingIppi:'','Ippi')}</div></td></tr>`;
+    }).join('');
     overlay.hidden = false;
     /* Keep focus inside the dialog without touching anything outside it. */
     this.screen.querySelector('.page-head').inert = true;
     this.card.inert = true;
-    overlay.querySelector('.close-history').focus();
+    overlay.querySelector('.history-panel').focus({preventScroll:true});
   }
   closeHistory(){
     const overlay = this.frame.querySelector('.history-overlay');
@@ -5993,6 +6051,8 @@ class WMView{
     if(this.returnFocus && this.returnFocus.isConnected) this.returnFocus.focus();
   }
   destroy(){
+    this.hideChipPop();
+    if(this.chipPop){ this.chipPop.remove(); this.chipPop = null; }
     this.destroyController.abort();
     this.resizeObserver.disconnect();
   }
