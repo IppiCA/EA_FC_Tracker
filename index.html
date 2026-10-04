@@ -774,17 +774,20 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .close-detail{position:absolute; right:12px; top:10px; border:0; background:transparent; color:var(--ink-dim); font-size:23px; line-height:24px; width:26px; height:26px; border-radius:7px}
 .wm-page .close-detail:hover{color:var(--ink); background:#ffffff0c}
 .wm-page .detail-header{display:flex; gap:13px; align-items:center; margin-bottom:12px}
-/* Number on one row, small "matches" underneath — stacked so both fit the shield. */
-.wm-page .shield{clip-path:polygon(0 0,100% 0,100% 78%,50% 100%,0 78%); width:52px; height:54px; flex-shrink:0; padding-top:5px; text-align:center; background:linear-gradient(140deg,#f0c46425,#f0c46405); flex-direction:column; gap:3px}
+/* Taller shield with a later taper + top-anchored content: number sits up high
+   and "MATCHES" stays in the full-width zone (nothing clipped). */
+.wm-page .shield{clip-path:polygon(0 0,100% 0,100% 85%,50% 100%,0 85%); width:52px; height:64px; flex-shrink:0; padding-top:6px; text-align:center; background:linear-gradient(140deg,#f0c46425,#f0c46405); flex-direction:column; justify-content:flex-start; gap:3px}
 .wm-page .shield-number{color:var(--gold); font:700 26px/1 'Rajdhani',sans-serif; white-space:nowrap}
 .wm-page .shield-label{font:600 8px/1 'Rajdhani',sans-serif; letter-spacing:1px; color:var(--gold); margin-top:0; white-space:nowrap}
 .wm-page .country-heading{display:flex; align-items:center; gap:9px; font:700 30px/1 'Rajdhani',sans-serif; letter-spacing:1px; color:var(--ink)}
 .wm-page .country-caption{font-size:10px; color:var(--ink-dim); margin-top:7px}
 .wm-page .country-sub{font-size:10px; color:var(--turf); margin-top:4px; opacity:.9}
-.wm-page .form{display:flex; gap:6px; margin-bottom:12px}
+/* Chips use the dashboard's exact measurements (20×20, 5px radius, 10px font, 4px
+   gap) so 10 fit one row; the row centers when full. */
+.wm-page .form{display:flex; gap:4px; margin-bottom:12px; justify-content:center}
 /* W/D/L chips: the app's form-ticker look — solid turf/gold/red with dark letters —
    plus the same hover as the dashboard (chip scales up, match-stats popup appears). */
-.wm-page .form-square{display:grid; place-items:center; width:28px; height:26px; border-radius:6px; font:700 15px 'Rajdhani',sans-serif; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease}
+.wm-page .form-square{display:grid; place-items:center; width:20px; height:20px; border-radius:5px; font:700 10px 'Rajdhani',sans-serif; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease}
 .wm-page .form-square.W{color:#081008; background:var(--turf)}
 .wm-page .form-square.D{color:#081008; background:var(--gold)}
 .wm-page .form-square.L{color:#2b0006; background:var(--red)}
@@ -2826,7 +2829,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v116';
+const SCAN_BUILD = 'v117';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
