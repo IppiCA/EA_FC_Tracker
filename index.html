@@ -745,8 +745,8 @@ table.hs td.seasons{white-space:normal;min-width:74px}
    the card's corner radius (same clip-path trick as .card::before). */
 .wm-page .map-card::before{content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; clip-path:inset(0 0 calc(100% - 6px) 0); pointer-events:none; z-index:4}
 .wm-page .map-card::after{content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 35%, rgba(7,11,16,.25) 100%); border-radius:inherit; z-index:1}
-.wm-page .map-slot{position:absolute; inset:80px 28px 90px}
-.wm-page .world-map{width:100%; height:100%; overflow:visible}
+.wm-page .map-slot{position:absolute; inset:80px 28px 90px; user-select:none}
+.wm-page .world-map{width:100%; height:100%; overflow:visible; touch-action:none}
 .wm-page .grid-line{stroke:#b4d4dc; stroke-opacity:.055; stroke-width:.5; fill:none; vector-effect:non-scaling-stroke}
 .wm-page .country{--wm-fill:#141b22; cursor:pointer; outline:none}
 .wm-page .country path{fill:var(--wm-fill); stroke:#617784; stroke-opacity:.23; stroke-width:.65; stroke-linejoin:round; vector-effect:non-scaling-stroke; transition:fill 150ms ease, opacity 150ms ease, stroke 150ms ease}
@@ -758,6 +758,9 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 /* Wheel-zoom reset: top-right of the map, only visible once zoomed in (updateZoomUI). */
 .wm-page .zoom-reset{position:absolute; top:27px; right:28px; z-index:5; border:1px solid var(--line); background:rgba(16,26,35,.73); color:var(--ink-dim); padding:8px 12px; border-radius:9px; font-size:12px; cursor:pointer; transition:color 150ms ease, border-color 150ms ease}
 .wm-page .zoom-reset:hover{color:var(--ink); border-color:#3cff9a55}
+/* Pan affordance: grab while zoomed, grabbing while actually dragging. */
+.wm-page .map-card.zoomed .map-slot{cursor:grab}
+.wm-page .map-card.dragging .map-slot{cursor:grabbing}
 .wm-page .breadcrumb span{color:var(--ink-dim); padding-left:10px}
 .wm-page .map-footer{position:absolute; left:28px; right:28px; bottom:26px; display:flex; align-items:flex-end; justify-content:space-between; z-index:3}
 .wm-page .legend{width:240px}
@@ -2832,7 +2835,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v119';
+const SCAN_BUILD = 'v120';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -5726,6 +5729,7 @@ class WMView{
     if(sel){ sel.value = this.state.season; this.state.season = sel.value; }   // stale season -> select falls back to 'all'
     this.buildMap();
     this.view = { x:0, y:0, w:WM_VB_W, h:WM_VB_H };   // current viewBox; base = fully zoomed out
+    this.drag = null; this.wasDrag = false;           // left-button pan state (see bindEvents)
     this.updateZoomUI();
     const loading = this.card.querySelector('.wm-loading');
     if(loading) loading.remove();
@@ -5808,7 +5812,21 @@ class WMView{
     const btn = this.frame.querySelector('.zoom-reset'); if(!btn) return;
     const zoomed = this.view.w < WM_VB_W - .5;
     btn.hidden = !zoomed;
+    this.card.classList.toggle('zoomed',zoomed);      // grab cursor while zoomed (CSS)
     if(zoomed) btn.textContent = `Reset zoom · ${(WM_VB_W/this.view.w).toFixed(1)}×`;
+  }
+  /* ---- Left-button pan: hold and drag to move the map while zoomed ----
+     At full zoom-out there is nothing to move (the clamp is a no-op). A press
+     that moves more than 4px is a pan, and the click that would have selected
+     a country is swallowed (see the click guards in bindEvents). */
+  endDrag(){
+    const d = this.drag; if(!d) return;
+    this.drag = null;
+    this.card.classList.remove('dragging');
+    if(d.moved){
+      this.wasDrag = true;                              // swallow the follow-up click
+      this.state.hovered = null; this.updateHover();    // hide the hover card
+    }
   }
   /* "Too small to click" measurement: (a) only once the map has a real size,
      (b) ignore 0×0 shapes (unmeasurable, not tiny), (c) the ResizeObserver in the
@@ -5827,11 +5845,11 @@ class WMView{
     const signal = this.destroyController.signal;
     const on = (target,event,fn)=> target.addEventListener(event,fn,{signal});
     for(const [code,group] of this.groups){
-      on(group,'pointerenter',()=>{ this.state.hovered = code; this.updateHover(); });
-      on(group,'pointerleave',()=>{ this.state.hovered = null; this.updateHover(); });
-      on(group,'focus',()=>{ this.state.hovered = code; this.updateHover(); });
+      on(group,'pointerenter',()=>{ if(this.drag) return; this.state.hovered = code; this.updateHover(); });
+      on(group,'pointerleave',()=>{ if(this.drag) return; this.state.hovered = null; this.updateHover(); });
+      on(group,'focus',()=>{ if(this.drag) return; this.state.hovered = code; this.updateHover(); });
       on(group,'blur',()=>{ this.state.hovered = null; this.updateHover(); });
-      on(group,'click',()=>this.select(code));
+      on(group,'click',()=>{ if(this.wasDrag){ this.wasDrag=false; return; } this.select(code); });   // a pan is not a click
       on(group,'keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); this.select(code); } });
     }
     on(this.frame.querySelector('.season-select'),'change',e=>{ this.state.season = e.target.value; this.update(); });
@@ -5861,12 +5879,37 @@ class WMView{
       if(e.target.closest('.form-square')) this.hideChipPop();
     });
     on(this.frame.querySelector('.tiny-chips'),'click',e=>{ const b = e.target.closest('[data-tiny]'); if(b) this.select(b.dataset.tiny); });
-    on(this.card,'click',e=>{ if(e.target===this.card||e.target===this.svg||e.target.closest('.graticule')) this.clearSelection(); });
+    on(this.card,'click',e=>{ if(this.wasDrag){ this.wasDrag=false; return; } if(e.target===this.card||e.target===this.svg||e.target.closest('.graticule')) this.clearSelection(); });
     /* Wheel zoom over the MAP AREA only — the footer, chips and detail panel keep
        their normal scrolling. passive:false so we can stop the page scrolling /
        pinch-zooming; the zoom is clamped, so fast trackpad flicks stay safe. */
     this.frame.querySelector('.map-slot').addEventListener('wheel', e=>{ e.preventDefault(); this.zoomAt(e); }, {signal, passive:false});
     on(this.frame.querySelector('.zoom-reset'),'click',()=>this.resetZoom());
+    /* Left-button pan: hold and drag the map anywhere. No pointer capture on
+       purpose — capture would retarget the click event and break country
+       selection; window-level move/up tracking gives full-drag coverage. */
+    on(this.svg,'pointerdown',e=>{
+      if(e.button!==0) return;
+      const m = this.svg.getScreenCTM(); if(!m) return;
+      this.wasDrag = false;
+      this.drag = { x:e.clientX, y:e.clientY, vx:this.view.x, vy:this.view.y, moved:false, px:m.a||1 };
+    });
+    on(window,'pointermove',e=>{
+      const d = this.drag; if(!d) return;
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if(!d.moved){
+        if(Math.hypot(dx,dy) < 4) return;               // sub-pixel jitter → still a click
+        d.moved = true;
+        this.card.classList.add('dragging');
+        this.state.hovered = null; this.updateHover();  // hide the hover card while panning
+      }
+      const v = this.view;
+      v.x = Math.max(0, Math.min(WM_VB_W - v.w, d.vx - dx / d.px));   // stay inside the world
+      v.y = Math.max(0, Math.min(WM_VB_H - v.h, d.vy - dy / d.px));
+      this.svg.setAttribute('viewBox',`${v.x} ${v.y} ${v.w} ${v.h}`);
+    });
+    on(window,'pointerup',()=>this.endDrag());
+    on(window,'pointercancel',()=>this.endDrag());
     on(this.screen,'keydown',e=>{
       if(e.key==='Escape'){
         if(!this.frame.querySelector('.history-overlay').hidden) this.closeHistory();
