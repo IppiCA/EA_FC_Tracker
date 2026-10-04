@@ -747,14 +747,17 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .map-card::after{content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 35%, rgba(7,11,16,.25) 100%); border-radius:inherit; z-index:1}
 .wm-page .map-slot{position:absolute; inset:80px 28px 90px}
 .wm-page .world-map{width:100%; height:100%; overflow:visible}
-.wm-page .grid-line{stroke:#b4d4dc; stroke-opacity:.055; stroke-width:.5; fill:none}
+.wm-page .grid-line{stroke:#b4d4dc; stroke-opacity:.055; stroke-width:.5; fill:none; vector-effect:non-scaling-stroke}
 .wm-page .country{--wm-fill:#141b22; cursor:pointer; outline:none}
-.wm-page .country path{fill:var(--wm-fill); stroke:#617784; stroke-opacity:.23; stroke-width:.65; stroke-linejoin:round; transition:fill 150ms ease, opacity 150ms ease, stroke 150ms ease}
+.wm-page .country path{fill:var(--wm-fill); stroke:#617784; stroke-opacity:.23; stroke-width:.65; stroke-linejoin:round; vector-effect:non-scaling-stroke; transition:fill 150ms ease, opacity 150ms ease, stroke 150ms ease}
 .wm-page .country.hot path{filter:drop-shadow(0 0 2px #3cff9a66)}
 .wm-page .country.hovered path, .wm-page .country:focus-visible path{fill:var(--wm-hover-fill, #23423a); stroke:#ccffeb; stroke-width:2; stroke-opacity:.95; filter:drop-shadow(0 0 3px #3cff9a80)}
 .wm-page .map-card.has-selection .country path{transition:none; fill:#1a2027; opacity:.35; stroke:#77828a; stroke-opacity:.2; filter:none}
 .wm-page .map-card.has-selection .country.selected path{fill:var(--wm-fill); opacity:1; stroke:url(#wm-grad); stroke-opacity:1; stroke-width:2; filter:drop-shadow(0 0 4px #3cff9a9c)}
 .wm-page .breadcrumb{position:absolute; top:27px; left:28px; z-index:5; border:1px solid #3cff9a30; background:rgba(20,39,35,.73); color:var(--ink); padding:8px 12px; border-radius:9px; font-size:12px}
+/* Wheel-zoom reset: top-right of the map, only visible once zoomed in (updateZoomUI). */
+.wm-page .zoom-reset{position:absolute; top:27px; right:28px; z-index:5; border:1px solid var(--line); background:rgba(16,26,35,.73); color:var(--ink-dim); padding:8px 12px; border-radius:9px; font-size:12px; cursor:pointer; transition:color 150ms ease, border-color 150ms ease}
+.wm-page .zoom-reset:hover{color:var(--ink); border-color:#3cff9a55}
 .wm-page .breadcrumb span{color:var(--ink-dim); padding-left:10px}
 .wm-page .map-footer{position:absolute; left:28px; right:28px; bottom:26px; display:flex; align-items:flex-end; justify-content:space-between; z-index:3}
 .wm-page .legend{width:240px}
@@ -2829,7 +2832,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v118';
+const SCAN_BUILD = 'v119';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -5485,6 +5488,11 @@ function wireTabHandlers(){
    opens (1.3 MB, public-domain Natural Earth data), then stay in the cache. */
 const WM_NS = 'http://www.w3.org/2000/svg';
 const WM_BASE_WIDTH = 1440;
+/* Wheel zoom: the base viewBox (the whole world) is the most zoomed-out state;
+   WM_ZOOM_MAX is how far in the cursor may zoom. The viewBox is always clamped
+   inside the base extent, so the map can never zoom out past the world or pan off it. */
+const WM_VB_W = 1080, WM_VB_H = 423;
+const WM_ZOOM_MAX = 8;
 
 /* Country table: the app stores ISO alpha-2 codes ("GB"). The map asset is built
    from Natural Earth "map subunits" whose IDs are NOT ISO alpha-3 (Bosnia =
@@ -5656,6 +5664,7 @@ function renderWorldMap(){
         </header>
         <div class="map-card wm-glass">
           <button class="breadcrumb" hidden></button>
+          <button class="zoom-reset" hidden></button>
           <div class="map-slot">
             <div class="wm-loading"><div class="wm-loading-inner">Drawing the world map…</div></div>
             <svg class="world-map" viewBox="0 0 1080 423" preserveAspectRatio="xMidYMid meet" aria-label="Countries played" role="group">
@@ -5716,6 +5725,8 @@ class WMView{
     const sel = frame.querySelector('.season-select');
     if(sel){ sel.value = this.state.season; this.state.season = sel.value; }   // stale season -> select falls back to 'all'
     this.buildMap();
+    this.view = { x:0, y:0, w:WM_VB_W, h:WM_VB_H };   // current viewBox; base = fully zoomed out
+    this.updateZoomUI();
     const loading = this.card.querySelector('.wm-loading');
     if(loading) loading.remove();
     /* countries too small to hit with a mouse get a clickable chip in the footer —
@@ -5760,6 +5771,44 @@ class WMView{
       if(code && (!longest.has(code)||feature.d.length>longest.get(code))){ longest.set(code,feature.d.length); this.anchors.set(code,{x:feature.x,y:feature.y}); }
       const path = document.createElementNS(WM_NS,'path'); path.setAttribute('d',feature.d); path.setAttribute('fill-rule','evenodd'); group.append(path);
     }
+  }
+  /* ---- Wheel zoom: scroll up = zoom in AT THE CURSOR, scroll down = out ----
+     getScreenCTM() already folds in the frame's scale transform, so the cursor
+     point lands in the CURRENT viewBox space and the zoom keeps it fixed. */
+  svgPoint(evt){
+    const m = this.svg.getScreenCTM(); if(!m) return null;
+    const p = this.svg.createSVGPoint(); p.x = evt.clientX; p.y = evt.clientY;
+    return p.matrixTransform(m.inverse());
+  }
+  zoomAt(evt){
+    const pt = this.svgPoint(evt); if(!pt) return;
+    let dy = evt.deltaY;
+    if(evt.deltaMode === 1) dy *= 33; else if(evt.deltaMode === 2) dy *= 300;   // lines/pages → ~pixels
+    const factor = Math.min(2, Math.max(.5, Math.exp(-dy * .002)));             // ≈1.2× per wheel notch
+    const v = this.view;
+    const newW = Math.min(WM_VB_W, Math.max(WM_VB_W/WM_ZOOM_MAX, v.w / factor));
+    const r = newW / v.w;
+    v.x = pt.x - (pt.x - v.x) * r;
+    v.y = pt.y - (pt.y - v.y) * r;
+    v.w = newW;
+    v.h = newW * (WM_VB_H / WM_VB_W);
+    v.x = Math.max(0, Math.min(WM_VB_W - v.w, v.x));                            // stay inside the world
+    v.y = Math.max(0, Math.min(WM_VB_H - v.h, v.y));
+    this.svg.setAttribute('viewBox',`${v.x} ${v.y} ${v.w} ${v.h}`);
+    this.updateZoomUI();
+    this.positionTooltip();                                                     // hover card follows the anchor
+  }
+  resetZoom(){
+    this.view = { x:0, y:0, w:WM_VB_W, h:WM_VB_H };
+    this.svg.setAttribute('viewBox',`0 0 ${WM_VB_W} ${WM_VB_H}`);
+    this.updateZoomUI();
+    this.positionTooltip();
+  }
+  updateZoomUI(){
+    const btn = this.frame.querySelector('.zoom-reset'); if(!btn) return;
+    const zoomed = this.view.w < WM_VB_W - .5;
+    btn.hidden = !zoomed;
+    if(zoomed) btn.textContent = `Reset zoom · ${(WM_VB_W/this.view.w).toFixed(1)}×`;
   }
   /* "Too small to click" measurement: (a) only once the map has a real size,
      (b) ignore 0×0 shapes (unmeasurable, not tiny), (c) the ResizeObserver in the
@@ -5813,6 +5862,11 @@ class WMView{
     });
     on(this.frame.querySelector('.tiny-chips'),'click',e=>{ const b = e.target.closest('[data-tiny]'); if(b) this.select(b.dataset.tiny); });
     on(this.card,'click',e=>{ if(e.target===this.card||e.target===this.svg||e.target.closest('.graticule')) this.clearSelection(); });
+    /* Wheel zoom over the MAP AREA only — the footer, chips and detail panel keep
+       their normal scrolling. passive:false so we can stop the page scrolling /
+       pinch-zooming; the zoom is clamped, so fast trackpad flicks stay safe. */
+    this.frame.querySelector('.map-slot').addEventListener('wheel', e=>{ e.preventDefault(); this.zoomAt(e); }, {signal, passive:false});
+    on(this.frame.querySelector('.zoom-reset'),'click',()=>this.resetZoom());
     on(this.screen,'keydown',e=>{
       if(e.key==='Escape'){
         if(!this.frame.querySelector('.history-overlay').hidden) this.closeHistory();
