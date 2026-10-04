@@ -719,9 +719,17 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page button{cursor:pointer; -webkit-tap-highlight-color:transparent}
 .wm-page button:disabled{cursor:default}
 .wm-page :focus-visible{outline:2px solid var(--turf); outline-offset:3px}
-.wm-frame{position:relative; width:100%; max-width:1500px; margin:0 auto; aspect-ratio:16/9; overflow:hidden; border-radius:20px;}
+.wm-frame{position:relative; width:100%; margin:0 auto; aspect-ratio:16/9; overflow:hidden; border-radius:20px;}
+/* Window-dependent size — the Trophy Room's trick: HEIGHT decides, width follows
+   the 16:9 ratio (1.7778), so the map grows with the screen instead of a fixed cap. */
+#app.wm-full .wm-frame{
+  width:min(100%, calc((100vh - 230px) * 1.7778));
+  width:min(100%, calc((100dvh - 230px) * 1.7778));
+  margin-inline:auto
+}
 .wm-screen{width:1440px; height:810px; position:absolute; top:0; left:0; transform-origin:0 0; overflow:hidden;}
-.wm-glass{background:var(--panel); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--line); box-shadow:0 20px 60px rgba(0,0,0,.40), inset 0 1px 0 #ffffff03; border-radius:20px;}
+/* Same box recipe as the app's .card, so the map's boxes match the rest of the app. */
+.wm-glass{background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid var(--line); box-shadow:0 12px 30px rgba(0,0,0,.25); border-radius:var(--radius);}
 .wm-page .page-head{position:absolute; left:28px; right:28px; top:44px; display:flex; justify-content:space-between; align-items:center; z-index:2}
 .wm-page h1{margin:0 0 6px; font:700 42px/1 'Rajdhani',sans-serif; letter-spacing:.01em}
 .wm-page .subtitle{margin:0; color:var(--ink-dim); font-size:14px}
@@ -733,7 +741,9 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .select-wrap{position:relative}
 .wm-page .select-wrap::after{content:''; pointer-events:none; width:6px; height:6px; border:solid var(--ink-dim); border-width:0 1.5px 1.5px 0; transform:rotate(45deg); position:absolute; right:18px; top:18px}
 .wm-page .map-card{position:absolute; left:28px; right:28px; top:148px; bottom:28px; overflow:hidden}
-.wm-page .map-card::before, .wm-page .detail-card::before{content:''; position:absolute; left:16px; right:16px; top:0; height:3px; background:linear-gradient(90deg, var(--turf), var(--violet)); border-radius:0 0 5px 5px; z-index:4}
+/* The app's standard card accent: full-width 6px green→purple bar whose ends follow
+   the card's corner radius (same clip-path trick as .card::before). */
+.wm-page .map-card::before{content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(90deg,var(--turf),var(--violet)); opacity:.9; clip-path:inset(0 0 calc(100% - 6px) 0); pointer-events:none; z-index:4}
 .wm-page .map-card::after{content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 35%, rgba(7,11,16,.25) 100%); border-radius:inherit; z-index:1}
 .wm-page .map-slot{position:absolute; inset:80px 28px 90px}
 .wm-page .world-map{width:100%; height:100%; overflow:visible}
@@ -758,7 +768,9 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .tooltip-summary{font-size:12px; color:var(--ink-dim); margin-top:9px}
 .wm-page .progress{height:4px; border-radius:99px; background:#ffffff0d; overflow:hidden; margin-top:12px}
 .wm-page .progress-fill{height:100%; background:linear-gradient(90deg, var(--turf), var(--violet)); border-radius:inherit}
-.wm-page .detail-card{position:absolute; top:27px; right:24px; width:340px; z-index:6; padding:22px 20px 18px; background:rgba(16,25,35,.94); border-radius:20px; max-height:calc(100% - 63px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:#ffffff22 transparent}
+/* Same 6px accent as the map box. Drawn as a BACKGROUND (not ::before) because this
+   panel scrolls — a pseudo-element would scroll away with the content. */
+.wm-page .detail-card{position:absolute; top:27px; right:24px; width:340px; z-index:6; padding:22px 20px 18px; background:linear-gradient(90deg, rgba(60,255,154,.9), rgba(139,108,255,.9)) 0 0/100% 6px no-repeat, rgba(16,25,35,.94); border-radius:var(--radius); max-height:calc(100% - 63px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:#ffffff22 transparent}
 .wm-page .close-detail{position:absolute; right:12px; top:10px; border:0; background:transparent; color:var(--ink-dim); font-size:23px; line-height:24px; width:26px; height:26px; border-radius:7px}
 .wm-page .close-detail:hover{color:var(--ink); background:#ffffff0c}
 .wm-page .detail-header{display:flex; gap:13px; align-items:center; margin-bottom:12px}
@@ -769,10 +781,18 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .country-caption{font-size:10px; color:var(--ink-dim); margin-top:7px}
 .wm-page .country-sub{font-size:10px; color:var(--turf); margin-top:4px; opacity:.9}
 .wm-page .form{display:flex; gap:6px; margin-bottom:12px}
-.wm-page .form-square{display:grid; place-items:center; width:28px; height:26px; border-radius:6px; font:700 15px 'Rajdhani',sans-serif; border:1px solid}
-.wm-page .form-square.W{color:var(--turf); background:#3cff9a18; border-color:#3cff9a26}
-.wm-page .form-square.D{color:var(--gold); background:#f0c46418; border-color:#f0c46426}
-.wm-page .form-square.L{color:var(--red); background:#ff5c7218; border-color:#ff5c7226}
+/* W/D/L chips: the app's form-ticker look — solid turf/gold/red with dark letters —
+   plus the same hover as the dashboard (chip scales up, match-stats popup appears). */
+.wm-page .form-square{display:grid; place-items:center; width:28px; height:26px; border-radius:6px; font:700 15px 'Rajdhani',sans-serif; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease}
+.wm-page .form-square.W{color:#081008; background:var(--turf)}
+.wm-page .form-square.D{color:#081008; background:var(--gold)}
+.wm-page .form-square.L{color:#2b0006; background:var(--red)}
+.wm-page .fwrap{position:relative; display:inline-flex}
+.wm-page .fwrap:hover .form-square{transform:scale(1.18); box-shadow:0 0 0 2px rgba(255,255,255,.28)}
+/* The popup lives inside the SCROLLABLE country panel (which clips, unlike the
+   dashboard's cards), so JS keeps it in bounds and aims the arrow at the chip. */
+.wm-page .fpop{left:8px; right:auto}
+.wm-page .fpop::after{left:var(--farrow,16px); right:auto}
 .wm-page .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px}
 .wm-page .stat-tile{background:#ffffff03; border:1px solid #ffffff07; border-radius:9px; padding:8px 6px; text-align:center}
 .wm-page .stat-label{display:block; font:600 10px/1.2 'Rajdhani',sans-serif; letter-spacing:.3px; color:var(--ink-dim); white-space:nowrap}
@@ -2783,7 +2803,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v111';
+const SCAN_BUILD = 'v112';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -5758,6 +5778,10 @@ class WMView{
         if(again) again.focus();
       }
     });
+    on(this.detail,'pointerover',e=>{
+      const chip = e.target.closest('.fwrap');
+      if(chip) this.positionChipPopup(chip);   // keep the match-stats popup inside the scrollable panel
+    });
     on(this.frame.querySelector('.tiny-chips'),'click',e=>{ const b = e.target.closest('[data-tiny]'); if(b) this.select(b.dataset.tiny); });
     on(this.card,'click',e=>{ if(e.target===this.card||e.target===this.svg||e.target.closest('.graticule')) this.clearSelection(); });
     on(this.screen,'keydown',e=>{
@@ -5885,6 +5909,19 @@ class WMView{
     this.tooltip.style.left = `${left}px`;
     this.tooltip.style.top = `${top}px`;
   }
+  /* The hovered W/D/L chip's popup must stay inside the country panel (it clips,
+     unlike the dashboard's cards): centre it on the chip, clamp to the panel,
+     and point the little arrow at the chip. Layout offsets (unscaled) all the way. */
+  positionChipPopup(chip){
+    const pop = chip.querySelector('.fpop');
+    if(!pop || !this.detail.isConnected) return;
+    const cardW = this.detail.clientWidth;
+    const popW = pop.offsetWidth || 252;
+    const cx = chip.offsetLeft + chip.offsetWidth/2;
+    const x = Math.max(8, Math.min(cx - popW/2, cardW - popW - 8));
+    pop.style.left = x + 'px';
+    pop.style.setProperty('--farrow', Math.max(8, Math.min(cx - x - 4.5, popW - 12)) + 'px');
+  }
   renderDetail(){
     const code = this.state.selected;
     this.detail.hidden = !code;
@@ -5913,7 +5950,12 @@ class WMView{
     }).join('');
     this.detail.innerHTML = `<button class="close-detail" aria-label="Close country details">×</button>
       <div class="detail-header"><div class="shield"><div class="shield-number">${s.games}</div><div class="shield-label">MATCHES</div></div><div><div class="country-heading ${wmNameSize(name)}">${flag}${esc(name.toUpperCase())}</div><div class="country-caption">Opponent players from this country</div>${sharedLine}</div></div>
-      <div class="form" aria-label="Recent form">${matches.slice(-6).map(m=>`<div class="form-square ${wmResult(m)}" aria-label="${wmResultName(wmResult(m))}">${wmResult(m)}</div>`).join('')}</div>
+      <div class="form" aria-label="Recent form">${matches.slice(-6).map(m=>{
+        const r = wmResult(m);
+        const g = games.find(x=>x.id===m.gameId);
+        /* Same as the dashboard's form ticker: hover = that match's stats, click = open it in Match History. */
+        return `<span class="fwrap"><span class="form-square ${r}" data-goto-game="${m.gameId}" aria-label="${wmResultName(r)}">${r}</span><span class="fpop">${g?historyTile(g, true):''}</span></span>`;
+      }).join('')}</div>
       <div class="stats"><div class="stat-tile"><span class="stat-label">GOALS FOR</span><span class="stat-value gold">${s.gf}</span></div><div class="stat-tile"><span class="stat-label">GOALS AGAINST</span><span class="stat-value coral">${s.ga}</span></div><div class="stat-tile"><span class="stat-label">WIN RATE</span><span class="stat-value mint">${s.winRate}%</span></div></div>
       <div class="split-bar" aria-label="${s.wins} wins, ${s.draws} draws, ${s.losses} losses">${[['W',s.wins],['D',s.draws],['L',s.losses]].filter(([,n])=>n>0).map(([r,n])=>`<span class="${r}" style="flex:${n}"></span>`).join('')}</div><div class="split-label">${s.wins}W ${s.draws}D ${s.losses}L</div>
       ${s.games ? `<h2 class="detail-section-title">TEAMS FACED${more}</h2><div class="teams">${teamRows}</div>
