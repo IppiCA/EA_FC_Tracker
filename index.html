@@ -854,7 +854,8 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .history-table .wm-crest-img{width:20px; height:20px}
 .wm-page .history-table .club .vs{color:var(--ink-faint); font-size:10px}
 /* Ping column: one signal bar each for Stebo and Ippi —
-   green = high, gold = mid, red = low, all-dim when not recorded. */
+   connection quality: green = low ping (good), gold = mid, red = high ping (bad),
+   all-dim when not recorded. */
 .wm-page .conn-cell{display:flex; flex-direction:column; gap:3px; white-space:nowrap}
 .wm-page .conn{display:inline-flex; align-items:center; gap:5px}
 .wm-page .conn b{font:600 9.5px/1 'Rajdhani',sans-serif; letter-spacing:.4px; color:var(--ink-dim); width:25px}
@@ -863,9 +864,9 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .conn .bars i:nth-child(1){height:5px}
 .wm-page .conn .bars i:nth-child(2){height:8px}
 .wm-page .conn .bars i:nth-child(3){height:11px}
-.wm-page .conn.high .bars i.lit{background:var(--turf)}
+.wm-page .conn.high .bars i.lit{background:var(--red)}
 .wm-page .conn.mid .bars i.lit{background:var(--gold)}
-.wm-page .conn.low .bars i.lit{background:var(--red)}
+.wm-page .conn.low .bars i.lit{background:var(--turf)}
 .wm-page .opps{display:flex; flex-wrap:wrap; gap:6px}
 .wm-page .opp{display:inline-flex; align-items:center; gap:6px; padding:3px 8px 3px 6px; background:#ffffff08; border:1px solid #ffffff12; border-radius:8px; font-size:11px; white-space:nowrap; color:var(--ink)}
 .wm-page .opp b{font-weight:600}
@@ -2823,7 +2824,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v113';
+const SCAN_BUILD = 'v114';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -6025,9 +6026,9 @@ class WMView{
       const t = teamById(g.teamId);
       return (t && t.name) ? `<span class="wm-crest" title="${esc(t.name)}" aria-hidden="true">${esc(t.name.slice(0,3).toUpperCase())}</span>` : '';
     };
-    /* One signal bar per player: green = high, gold = mid, red = low, dim = not recorded. */
+    /* One signal bar per player: green = low ping (good), gold = mid, red = high ping (bad), dim = not recorded. */
     const conn = (v,lbl)=>{
-      const lit = v==='high'?3 : v==='mid'?2 : v==='low'?1 : 0;
+      const lit = v==='high'?1 : v==='mid'?2 : v==='low'?3 : 0;
       return `<span class="conn ${v||'off'}"><b>${lbl}</b><span class="bars"><i class="${lit>=1?'lit':''}"></i><i class="${lit>=2?'lit':''}"></i><i class="${lit>=3?'lit':''}"></i></span></span>`;
     };
     const season = this.state.season==='all' ? 'All seasons' : `Season ${esc(this.state.season)}`;
