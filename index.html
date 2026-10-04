@@ -791,9 +791,11 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .wm-page .fwrap{position:relative; display:inline-flex}
 .wm-page .fwrap:hover .form-square{transform:scale(1.18); box-shadow:0 0 0 2px rgba(255,255,255,.28)}
 /* The W/D/L chip popup lives OUTSIDE the scrollable country panel (which would clip
-   it and add a scrollbar): one body-level floating card, JS-positioned above the
+   it and add a scrollbar): one body-level floating card, JS-positioned under the
    hovered chip, so the full tile is always visible. */
-.wm-chip-pop{position:fixed; top:0; left:0; z-index:400; opacity:1; visibility:visible; transform:none; transition:none; pointer-events:none}
+/* right:auto is essential: with the .fpop base's right:-10px AND a left value the box
+   stretches to full viewport width (breaks sizing + JS position math). */
+.wm-chip-pop{position:fixed; top:0; left:0; right:auto; margin:0; z-index:400; opacity:1; visibility:visible; transform:none; transition:none; pointer-events:none}
 .wm-chip-pop::after{display:none}
 .wm-page .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px}
 .wm-page .stat-tile{background:#ffffff03; border:1px solid #ffffff07; border-radius:9px; padding:8px 6px; text-align:center}
@@ -2824,7 +2826,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v115';
+const SCAN_BUILD = 'v116';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -5930,7 +5932,7 @@ class WMView{
     this.tooltip.style.left = `${left}px`;
     this.tooltip.style.top = `${top}px`;
   }
-  /* The hovered W/D/L chip's popup floats ABOVE the chip, OUTSIDE the country panel
+  /* The hovered W/D/L chip's popup floats UNDER the chip, OUTSIDE the country panel
      (the panel scrolls and would clip it / add a scrollbar). It's a body-level
      element, so the panel's scale transform can't skew it; viewport coords. */
   chipPopEl(){
@@ -5949,10 +5951,11 @@ class WMView{
     pop.innerHTML = historyTile(g, true);
     pop.hidden = false;
     const r = chip.getBoundingClientRect();
-    const pw = pop.offsetWidth || 280, ph = pop.offsetHeight || 200;
+    const pw = pop.offsetWidth || 252, ph = pop.offsetHeight || 200;
     const x = Math.max(8, Math.min(r.left + r.width/2 - pw/2, window.innerWidth - pw - 8));
-    let y = r.top - ph - 12;                                   // above the chip
-    if(y < 8) y = Math.max(8, Math.min(r.bottom + 12, window.innerHeight - ph - 8));
+    let y = r.bottom + 12;                                      // under the chip, over the tile
+    if(y + ph > window.innerHeight - 8) y = r.top - ph - 12;    // no room below → above
+    if(y < 8) y = 8;                                            // neither fits → pin to top
     pop.style.left = x + 'px';
     pop.style.top = y + 'px';
   }
