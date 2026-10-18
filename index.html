@@ -1708,8 +1708,8 @@ function initDb(){
   };
   col('players', players, COL_SORTS.players);
   col('teams', teams, COL_SORTS.teams, maybeSeedTeams);
-  col('seasons', seasons, COL_SORTS.seasons, maybeSeedTeams);
-  col('games', games, COL_SORTS.games);
+  col('seasons', seasons, COL_SORTS.seasons, ()=>{ maybeSeedTeams(); seasonsLoaded = true; maybeSyncSeasonFlags(); });
+  col('games', games, COL_SORTS.games, ()=>{ gamesLoaded = true; maybeSyncSeasonFlags(); });
 }
 
 async function dbAdd(collection, data){
@@ -2026,11 +2026,13 @@ function computeOutcome(s){
     else if(rule.relegation!=null && r.points <= rule.relegation) state = 'relegated';
     else state = 'stayed';
   }
-  /* Perfect = the title has been won AND every single game a win (no draws, no
-     losses). An all-wins season WITHOUT the title is NOT a perfect season —
-     it's just (still) a season in progress. Applies to the current season too:
-     once the title is clinched with a clean all-wins run, it's perfect. */
-  const perfect = r.games>0 && r.l===0 && r.d===0 && state==='title';
+  /* Perfect = a DIVISION 1 title won with every single game a win (no draws, no
+     losses). A title from any other division — even an all-wins one — is a
+     division title, not a perfect season. An all-wins season WITHOUT the title
+     is not a perfect season either — it's just (still) a season in progress.
+     Applies to the current season too: clinch the Div 1 title with a clean
+     all-wins run and it's perfect. */
+  const perfect = r.games>0 && r.l===0 && r.d===0 && state==='title' && div===1;
   let nextDivision = div;
   if(state==='promoted') nextDivision = Math.max(1, div-1);
   else if(state==='relegated') nextDivision = Math.min(5, div+1);
@@ -2039,9 +2041,30 @@ function computeOutcome(s){
 /* Keep the season's champion / perfect / relegated flags in step with the computed
    result, unless the user has overridden them by hand (resultManual). */
 function seasonResultFlags(s){
-  if(s.resultManual) return {champion:!!s.champion, perfectSeason:!!s.perfectSeason, relegated:!!s.relegated};
+  /* A perfect season is by definition a Division 1 all-wins title — even a manual
+     override can't make a lower-division season count as one. */
+  if(s.resultManual) return {champion:!!s.champion, perfectSeason:divisionOf(s)===1 && !!s.champion && !!s.perfectSeason, relegated:!!s.relegated};
   const o = computeOutcome(s);
   return {champion:(o.state==='title'), perfectSeason:o.perfect, relegated:(o.state==='relegated')};
+}
+/* Retroactive pass for the perfect-season rule change (Div 1 titles only): seasons
+   saved under the old rule still carry perfectSeason:true in Firestore. Recompute
+   against the new rule and correct the stored flags — self-settling, it only writes
+   when a value actually differs, so it costs one round-trip. Manual overrides stay
+   untouched here (the definition still gates them in seasonResultFlags). Waits until
+   BOTH seasons and games are loaded, so the points are known. */
+let seasonsLoaded = false, gamesLoaded = false;
+function maybeSyncSeasonFlags(){
+  if(!(seasonsLoaded && gamesLoaded)) return;
+  (async ()=>{
+    for(const s of seasons){
+      if(s.resultManual) continue;
+      const f = seasonResultFlags(s);
+      if(f.champion!==!!s.champion || f.perfectSeason!==!!s.perfectSeason || f.relegated!==!!s.relegated){
+        await dbSet('seasons', s.id, {...stripId(s), champion:f.champion, perfectSeason:f.perfectSeason, relegated:f.relegated});
+      }
+    }
+  })();
 }
 
 /* ============================= TROPHY ROOM ============================= */
@@ -2087,7 +2110,7 @@ function renderTrophy(){
         : `<span class="todo">No trophies claimed yet — every slot is still waiting.</span><span class="dot"></span>`}
       <span class="todo">${todo.length ? 'Still to win: '+todo.map(sl=>sl.label).join(' · ') : 'Cabinet complete — all 6 claimed 🎉'}</span>
       <span class="dot"></span>
-      <span class="todo">Perfect Season = title won with every single game a win</span>
+      <span class="todo">Perfect Season = Division 1 title won with every single game a win</span>
     </div>
   </div>`;
 }
@@ -2164,7 +2187,11 @@ async function mountTitles(container){
         const live = buildLiveTitle({
           name: 'FC 27', platform: 'PC + console',
           titleIndex: data.titles.length,
-          games, seasons,
+          games,
+          /* Apply the app's definition (Div 1 all-wins titles) to the perfect flag,
+             so the live card agrees with the Trophy Room even before the stored
+             flags are retroactively corrected. */
+          seasons: seasons.map(s=>({...s, perfectSeason: seasonResultFlags(s).perfectSeason})),
           playerName: id => playerName(id),
           gameNumber: g => gamePosition(g.seasonId, g.id)
         });
@@ -3522,7 +3549,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v125';
+const SCAN_BUILD = 'v126';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
