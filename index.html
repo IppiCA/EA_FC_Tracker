@@ -476,6 +476,9 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .sp.res-relegated{border-color:rgba(255,92,114,.55); color:var(--red); background:rgba(255,92,114,.10)}
 .sp.res-promoted{border-color:rgba(91,143,217,.6); color:#8FB8F2; background:rgba(91,143,217,.12)}
 .sp.res-stay{border-color:var(--line); color:var(--ink-dim)}
+/* In progress = white (user request): games logged, but no result is clinched yet. */
+.sp.res-progress{border-color:rgba(255,255,255,.75); color:var(--ink); background:rgba(255,255,255,.16)}
+.seasonbar .sp.active.res-progress{background:linear-gradient(90deg,#FFFFFF,#C9D5E0); color:#0E1A17}
 .sp.future{opacity:.4}
 .sp .sp-badge{font-size:12px}
 .sp-sep{color:var(--ink-faint); font-size:11px; line-height:1; margin:0 1px; flex:0 0 auto}
@@ -2015,6 +2018,14 @@ function currentSeasonId(){
   seasons.forEach(s=>{ if((Number(s.number)||0) > (Number(cur.number)||0)) cur = s; });
   return cur.id;
 }
+/* A season is FINAL once it has the full 10 matches, or once a later season has
+   started (it is no longer the one in progress). While it is still running, a result
+   only counts if it is mathematically CLINCHED — everything else shows as 'progress'
+   (white tab) instead of flashing "Relegated"/"Stayed" after the first games. */
+const SEASON_GAMES = 10;
+function seasonIsFinal(s, r){
+  return r.games >= SEASON_GAMES || s.id !== currentSeasonId();
+}
 function computeOutcome(s){
   const r = seasonRecord(s.id);
   const div = divisionOf(s);
@@ -2023,8 +2034,11 @@ function computeOutcome(s){
   if(r.games>0){
     if(r.points >= rule.title) state = 'title';
     else if(rule.promotion!=null && r.points >= rule.promotion) state = 'promoted';
-    else if(rule.relegation!=null && r.points <= rule.relegation) state = 'relegated';
-    else state = 'stayed';
+    /* Relegated only when unavoidable: even winning EVERY remaining match would not
+       clear the relegation line. */
+    else if(rule.relegation!=null && r.points + Math.max(0, SEASON_GAMES - r.games)*3 <= rule.relegation) state = 'relegated';
+    else if(seasonIsFinal(s, r)) state = 'stayed';
+    else state = 'progress';
   }
   /* Perfect = a DIVISION 1 title won with every single game a win (no draws, no
      losses). A title from any other division — even an all-wins one — is a
@@ -2742,7 +2756,7 @@ function seasonPanel(s){
   /* Per-game average for the season (up to 2 decimals, trimmed: 2.33 / 2.3 / 2). */
   const pgF = v => r.games ? String(Math.round(v / r.games * 100) / 100) : '';
   const o = computeOutcome(s);
-  const oLbl = {title:'🏆 Title — Champions', promoted:'⬆ Promoted', relegated:'⬇ Relegated', stayed:'→ Stayed in division'}[o.state]||'';
+  const oLbl = {title:'🏆 Title — Champions', promoted:'⬆ Promoted', relegated:'⬇ Relegated', stayed:'→ Stayed in division', progress:'… In progress'}[o.state]||'';
   /* Division pill and the W/D/L strip share one row: pill on the left with its TOP
      aligned to the top of the squares (user request), squares stay right. */
   const divPill = o.games>0?`<span class="tag" style="font-size:12px">Division ${o.div} · ${oLbl} · ${o.points} pts · next season: Division ${o.nextDivision}${o.perfect?' · ✦ Perfect':''}</span>`:'';
@@ -3549,7 +3563,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v126';
+const SCAN_BUILD = 'v127';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4991,7 +5005,7 @@ function seasonEditCard(s){
   const r = seasonRecord(s.id);
   const o = computeOutcome(s);
   const flags = seasonResultFlags(s);
-  const stateLabel = {title:'🏆 Title — Champions', promoted:'⬆ Promoted', relegated:'⬇ Relegated', stayed:'→ Stayed in division', unknown:'· no games logged yet'}[o.state];
+  const stateLabel = {title:'🏆 Title — Champions', promoted:'⬆ Promoted', relegated:'⬇ Relegated', stayed:'→ Stayed in division', progress:'… In progress', unknown:'· no games logged yet'}[o.state];
   const divOpts = [5,4,3,2,1].map(d=>`<option value="${d}" ${o.div===d?'selected':''}>Division ${d}</option>`).join('');
   const rule = o.rule;
   const threshold = rule.title!=null?`Title ${rule.title}`:'';
@@ -6011,6 +6025,7 @@ function seasonStatsPanel(sid){
     else if(f.perfectSeason) badge = `<div style="margin-top:10px"><span class="pill" style="background:rgba(139,108,255,.16);color:var(--violet)">✦ Perfect season</span></div>`;
     else if(f.relegated) badge = `<div style="margin-top:10px"><span class="pill loss">▼ Relegated</span></div>`;
     else if(o.state==='promoted') badge = `<div style="margin-top:10px"><span class="pill win">⬆ Promoted</span></div>`;
+    else if(o.state==='progress') badge = `<div style="margin-top:10px"><span class="pill" style="background:rgba(255,255,255,.14);color:var(--ink)">In progress</span></div>`;
     else if(n>0) badge = `<div style="margin-top:10px"><span class="pill" style="background:var(--panel-2);color:var(--ink-dim)">Stayed</span></div>`;
   }
   return `<div class="card" style="margin-bottom:14px">
@@ -6135,7 +6150,7 @@ function seasonBarHTML(){
     const f = seasonResultFlags(s);
     const o = computeOutcome(s);
     const played = seasonRecord(s.id).games > 0;
-    const cls = !played ? 'future' : f.champion ? 'res-title' : f.perfectSeason ? 'res-perfect' : f.relegated ? 'res-relegated' : (o.state==='promoted' ? 'res-promoted' : 'res-stay');
+    const cls = !played ? 'future' : f.champion ? 'res-title' : f.perfectSeason ? 'res-perfect' : f.relegated ? 'res-relegated' : (o.state==='promoted' ? 'res-promoted' : (o.state==='progress' ? 'res-progress' : 'res-stay'));
     const badge = f.champion ? '🏆' : f.perfectSeason ? '✦' : f.relegated ? '▼' : (o.state==='promoted' ? '⬆' : '');
     /* Just the number + one crest per team (a mid-season switch shows "crest / crest");
        a team without a logo falls back to its name. Full name stays in the tooltip. */
@@ -6149,7 +6164,7 @@ function seasonBarHTML(){
     pills.push(`<button type="button" class="sp ${cls} ${historyFilterSeason===s.id?'active':''}" data-season-pick="${s.id}" title="Season #${esc(s.number)} · ${esc(fullName)}"><span>#${esc(s.number)}</span>${crests}${badge?`<span class="sp-badge">${badge}</span>`:''}</button>`);
   });
   [1,2,3].forEach(k=> pills.push(`<span class="sp future" title="Not started yet">#${maxNum+k}</span>`));
-  pills.push(`<span class="sp-legend">🏆 title · ✦ perfect · ⬆ promoted · ▼ relegated · grey stayed</span>`);
+  pills.push(`<span class="sp-legend">🏆 title · ✦ perfect · ⬆ promoted · ▼ relegated · white in progress · grey stayed</span>`);
   return pills.join('');
 }
 
