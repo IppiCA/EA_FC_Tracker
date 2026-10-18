@@ -2021,10 +2021,23 @@ function currentSeasonId(){
 /* A season is FINAL once it has the full 10 matches, or once a later season has
    started (it is no longer the one in progress). While it is still running, a result
    only counts if it is mathematically CLINCHED — everything else shows as 'progress'
-   (white tab) instead of flashing "Relegated"/"Stayed" after the first games. */
+   (white tab) instead of flashing "Relegated"/"Stayed" after the first games.
+   v128: "Stayed" is also clinched MID-SEASON the moment relegation is impossible
+   AND promotion/title are no longer reachable — the in-game ladder then forces a
+   new season anyway, so the tracker shows it early. */
 const SEASON_GAMES = 10;
 function seasonIsFinal(s, r){
   return r.games >= SEASON_GAMES || s.id !== currentSeasonId();
+}
+/* Points can only go UP, so "stayed" is locked in when: we're safe from relegation
+   (above the line, or no line in Div 5) AND even winning EVERY remaining match
+   can't reach promotion (Div 2–4) or the title (all divisions). */
+function stayedClinched(r, rule){
+  const remaining = Math.max(0, SEASON_GAMES - r.games);
+  if(rule.relegation!=null && r.points <= rule.relegation) return false;
+  if(rule.title!=null && r.points + remaining*3 >= rule.title) return false;
+  if(rule.promotion!=null && r.points + remaining*3 >= rule.promotion) return false;
+  return true;
 }
 function computeOutcome(s){
   const r = seasonRecord(s.id);
@@ -2037,7 +2050,8 @@ function computeOutcome(s){
     /* Relegated only when unavoidable: even winning EVERY remaining match would not
        clear the relegation line. */
     else if(rule.relegation!=null && r.points + Math.max(0, SEASON_GAMES - r.games)*3 <= rule.relegation) state = 'relegated';
-    else if(seasonIsFinal(s, r)) state = 'stayed';
+    /* Stayed: clinched mid-season (see stayedClinched) OR the season is finished. */
+    else if(stayedClinched(r, rule) || seasonIsFinal(s, r)) state = 'stayed';
     else state = 'progress';
   }
   /* Perfect = a DIVISION 1 title won with every single game a win (no draws, no
@@ -3563,7 +3577,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v127';
+const SCAN_BUILD = 'v128';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
