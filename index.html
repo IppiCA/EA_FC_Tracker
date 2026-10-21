@@ -1105,6 +1105,70 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
 .ti-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:60;background:#101923f5;border:1px solid #8b6cff55;border-radius:12px;padding:12px 18px;font-size:13px;box-shadow:0 14px 40px #000a}
 @media (max-width:1100px){.ti-split{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:900px){.ti-h1{font-size:34px}.ti-drawer{top:10px;bottom:10px;right:10px;left:10px;width:auto}.ti-tc-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* ---- Monthly — month-by-month comparison (FIFA-History-style tiles) ---- */
+.mo-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:20px}
+.mo-title{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:44px;line-height:.95;letter-spacing:.01em;margin:0}
+.mo-sub{color:var(--ink-dim);font-size:13.5px;margin-top:6px}
+.mo-ver{display:flex;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:99px;padding:4px;flex-wrap:wrap}
+.mopill{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13.5px;letter-spacing:.04em;color:var(--ink-dim);background:transparent;border:0;border-radius:99px;padding:6px 16px;cursor:pointer;white-space:nowrap}
+.mopill.active{background:rgba(60,255,154,.14);color:var(--turf)}
+.mopill:disabled{opacity:.5;cursor:default}
+.mo-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:30px}
+.mo-kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.mo-kpi .kv{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:34px;line-height:1}
+.mo-kpi .kv small{font-size:18px;color:var(--ink-dim);margin-left:2px}
+.mo-kpi .kl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin-top:6px}
+.mo-kpi.green .kv{color:var(--turf)}
+.mo-kpi.gold .kv{color:var(--gold)}
+.mo-sech{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin:6px 0 14px;flex-wrap:wrap}
+.mo-sech h2{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:26px;margin:0}
+.mo-sech .note{font-size:12px;color:var(--ink-faint)}
+.mo-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;margin-bottom:34px}
+.mo-tile{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px 15px 13px;overflow:hidden}
+.mo-tile .grad{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--turf),var(--violet))}
+.mo-tile.best{border-color:rgba(240,196,100,.45);box-shadow:0 0 0 1px rgba(240,196,100,.12),0 8px 28px rgba(240,196,100,.07)}
+.mo-tile.live{border-color:rgba(139,108,255,.5)}
+.mo-thead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
+.mo-tname{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;letter-spacing:.02em;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mo-badge{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:11px;letter-spacing:.05em;color:var(--ink-dim);background:var(--panel-2);border:1px solid var(--line);border-radius:99px;padding:2.5px 10px;white-space:nowrap}
+.mo-best{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:.08em;color:#0E1512;background:var(--gold);border-radius:99px;padding:2px 8px}
+.mo-live{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:.1em;color:var(--violet);background:rgba(139,108,255,.16);border-radius:99px;padding:2px 8px}
+.mo-tsub{font-size:11.5px;color:var(--ink-faint);margin-bottom:13px}
+.mo-wrrow{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.mo-wr{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:40px;line-height:.9;color:var(--turf)}
+.mo-wr small{font-size:19px;color:#22C97A;margin-left:1px}
+.mo-wrl{font-size:9px;letter-spacing:.12em;color:var(--ink-faint);margin-top:5px}
+.mo-rec{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;color:var(--ink-dim);text-align:right;white-space:nowrap}
+.mo-rec b{color:var(--ink);font-weight:700}
+.mo-gn{font-size:10.5px;color:var(--ink-faint);text-align:right;margin-top:2px}
+.mo-seg{display:flex;height:7px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.05);margin:12px 0 13px}
+.mo-seg i{display:block;height:100%}
+.mo-seg .w{background:var(--turf)} .mo-seg .d{background:var(--gold)} .mo-seg .l{background:var(--red)}
+.mo-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mo-m{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:7px 9px;text-align:center}
+.mo-m b{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;display:block}
+.mo-m span{font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);display:block;margin-top:2px}
+.mo-form{display:flex;gap:4px;margin-top:11px}
+.mo-form i{width:21px;height:21px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-style:normal;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10.5px;color:#081008}
+.mo-form i.w{background:var(--turf)} .mo-form i.d{background:var(--gold)} .mo-form i.l{background:var(--red);color:#2b0006}
+.mo-tfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);margin-top:12px;padding-top:10px;font-family:'Rajdhani',sans-serif;font-weight:600;font-size:12px;letter-spacing:.03em}
+.mo-champ{color:var(--gold)} .mo-champ.zero,.mo-perf.zero{color:var(--ink-faint)}
+.mo-perf{color:var(--turf)}
+.mo-tblwrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;padding:8px 16px 14px}
+.mo-tbl{border-collapse:collapse;width:100%;min-width:520px}
+.mo-tbl th,.mo-tbl td{padding:12px 14px;text-align:right;font-size:13.5px;white-space:nowrap}
+.mo-tbl th:first-child,.mo-tbl td:first-child{text-align:left;color:var(--ink-dim)}
+.mo-tbl thead th{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15.5px;color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:14px}
+.mo-tbl thead th .tsub2{display:block;font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:10px;color:var(--ink-faint);margin-top:2px;letter-spacing:0}
+.mo-tbl tbody td{border-bottom:1px solid rgba(255,255,255,.05);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:15px;color:var(--ink)}
+.mo-tbl tbody tr:last-child td{border-bottom:0}
+.mo-tbl .bestv{color:var(--gold);font-weight:700}
+.mo-tbl .bestv::after{content:'\25CF';font-size:8px;color:var(--gold);margin-left:6px;vertical-align:2px}
+.mo-gbar{display:block;height:4px;border-radius:99px;background:linear-gradient(90deg,var(--turf),var(--violet));margin-top:6px;margin-left:auto}
+.mo-livecol{color:var(--violet)}
+.mo-livechip{display:inline-block;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:9px;letter-spacing:.1em;color:var(--violet);background:rgba(139,108,255,.16);border-radius:99px;padding:1.5px 7px;margin-left:6px;vertical-align:2px}
+@media (max-width:900px){ .mo-kpis{grid-template-columns:repeat(2,1fr)} .mo-title{font-size:34px} }
 </style>
 </head>
 <body>
@@ -1144,6 +1208,7 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
     <button class="navbtn" data-tab="highscores"><span class="ic">★</span> Highscores</button>
     <button class="navbtn" data-tab="trophy"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span> Trophy Room</button>
     <button class="navbtn" data-tab="worldmap"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span> World Map</button>
+    <button class="navbtn" data-tab="monthly"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h3"/></svg></span> Monthly</button>
     <button class="navbtn" data-tab="titles"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span> FIFA History</button>
     <button class="navbtn" data-tab="log" style="margin-top:auto"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> New Season</button>
@@ -1167,6 +1232,7 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
     <button data-tab="highscores"><span class="ic">★</span>High</button>
     <button data-tab="trophy"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>Trophy</button>
     <button data-tab="worldmap"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span>Map</button>
+    <button data-tab="monthly"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h3"/></svg></span>Monthly</button>
     <button data-tab="titles"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span>FIFA</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
@@ -2254,8 +2320,206 @@ function paintTitlesError(container){
   });
 }
 
-/* ============================= RENDER SHELL ============================= */
-const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy','worldmap','titles'];
+/* ============================= MONTHLY — month-by-month comparison =============================
+   Groups one game version's matches by calendar month. Month = the date on the Time/Date row
+   (matches logged from EA FC 27 onward carry it; older matches have no stamp and don't count).
+   Best month = highest win rate among months with 5+ games (else: most games).
+   LIVE badge = the current calendar month, on the newest version only. */
+let monthlyVersion = null; // normalized version key; null = auto-pick the newest version
+const MO_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function moNormVer(v){ return String(v||'').toUpperCase().replace(/\s+/g,' ').trim(); }
+
+function moGameMonth(g){
+  /* 'YYYY-MM' of a match: prefer the logged match date; fall back to the save-time stamp. */
+  const md = String(g.matchDate||'');
+  if(/^\d{4}-\d{2}/.test(md)) return md.slice(0,7);
+  const t = Number(g.createdAt)||0;
+  const d = t ? new Date(t) : null;
+  if(d && d.getFullYear()>1990) return d.getFullYear()+'-'+p2(d.getMonth()+1);
+  return '';
+}
+
+function moVersions(){
+  /* Every game version that has seasons, newest (highest season number) first. */
+  const map = new Map();
+  seasons.forEach(s=>{
+    const k = moNormVer(s.gameVersion);
+    if(!k) return;
+    const e = map.get(k) || {label:String(s.gameVersion||'').trim(), maxSeason:0};
+    e.maxSeason = Math.max(e.maxSeason, Number(s.number)||0);
+    map.set(k, e);
+  });
+  const verOfSeason = new Map();
+  seasons.forEach(s=>{ const k = moNormVer(s.gameVersion); if(k) verOfSeason.set(s.id, k); });
+  const list = [...map.entries()].map(([k,e])=>({
+    key:k, label:e.label, maxSeason:e.maxSeason,
+    hasTs: games.some(g=> verOfSeason.get(g.seasonId)===k && moGameMonth(g))
+  }));
+  list.sort((a,b)=> b.maxSeason-a.maxSeason || a.key.localeCompare(b.key));
+  return list;
+}
+
+function moLatestVersionKey(){
+  const vs = moVersions();
+  return vs.length ? vs[0].key : null;
+}
+
+function moMonthStats(verKey){
+  const verOfSeason = new Map();
+  seasons.forEach(s=>{ const k = moNormVer(s.gameVersion); if(k) verOfSeason.set(s.id, k); });
+  const seasonById = new Map(seasons.map(s=>[s.id,s]));
+  const byMonth = new Map();
+  games.forEach(g=>{
+    if(verOfSeason.get(g.seasonId)!==verKey) return;
+    const ym = moGameMonth(g);
+    if(!ym) return;
+    if(!byMonth.has(ym)) byMonth.set(ym, []);
+    byMonth.get(ym).push(g);
+  });
+  const months = [...byMonth.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([ym,gs])=>{
+    gs.sort((a,b)=> String(a.matchDate||'').localeCompare(String(b.matchDate||'')) || ((Number(a.createdAt)||0)-((Number(b.createdAt)||0))));
+    let w=0,d=0,l=0,gf=0,ga=0,rq=0;
+    const sids = new Set();
+    gs.forEach(g=>{
+      const o = outcome(g);
+      if(o==='win')w++; else if(o==='draw')d++; else l++;
+      gf += Number(g.scoreFor||0); ga += Number(g.scoreAgainst||0);
+      if(g.rageQuit==='them') rq++;
+      if(g.seasonId) sids.add(g.seasonId);
+    });
+    const nums = [...sids].map(id=>Number((seasonById.get(id)||{}).number)||0).filter(n=>n>0).sort((a,b)=>a-b);
+    return {
+      ym, n:gs.length, w,d,l,gf,ga,rq,
+      ch: seasons.filter(s=>sids.has(s.id)&&s.champion).length,
+      pf: seasons.filter(s=>sids.has(s.id)&&s.perfectSeason).length,
+      wr: gs.length? Math.round(w/gs.length*1000)/10 : 0,
+      gg: gs.length? Math.round(gf/gs.length*100)/100 : 0,
+      cg: gs.length? Math.round(ga/gs.length*100)/100 : 0,
+      rqPct: gs.length? Math.round(rq/gs.length*1000)/10 : 0,
+      form: gs.slice(-8).map(g=>{ const o=outcome(g); return o==='win'?'W':o==='draw'?'D':'L'; }),
+      seasonsLbl: nums.length ? (nums[0]===nums[nums.length-1] ? String(nums[0]) : nums[0]+'\u2013'+nums[nums.length-1]) : ''
+    };
+  });
+  /* Best month: highest win rate among months with 5+ games; if no month reaches 5
+     games yet, fall back to most games (a 2-game month shouldn't take the gold). */
+  let best = '';
+  const pool = months.filter(m=>m.n>=5).length ? months.filter(m=>m.n>=5) : months;
+  if(pool.length) best = pool.slice().sort((a,b)=> b.wr-a.wr || b.n-a.n)[0].ym;
+  const now = new Date();
+  return { months, best, curYM: now.getFullYear()+'-'+p2(now.getMonth()+1),
+           latestKey: moLatestVersionKey(), multiYear: new Set(months.map(m=>m.ym.slice(0,4))).size>1 };
+}
+
+function moLabel(m, multiYear){
+  const y = Number(m.ym.slice(0,4)), mo = Number(m.ym.slice(5,7))-1;
+  const name = MO_MONTHS[mo] || m.ym;
+  return multiYear ? name+' \u2019'+String(y).slice(2) : name;
+}
+
+function renderMonthly(){
+  const versions = moVersions();
+  const pills = versions.map(x=>`<button type="button" class="mopill ${x.key===monthlyVersion?'active':''}" ${x.hasTs?'':'disabled'} data-mo-ver="${esc(x.key)}" title="${x.hasTs?'':'no timestamped matches yet'}">${esc(x.label)}</button>`).join('');
+  if(!versions.length)
+    return `<div class="mo-head"><div><h1 class="mo-title">Monthly</h1><div class="mo-sub">How we play in each month, side by side</div></div></div>
+      <div class="card" style="text-align:center;padding:34px"><div class="num" style="font-size:22px">No seasons yet</div>
+      <p style="color:var(--ink-dim);font-size:13.5px;margin-top:8px">Start a season and log a couple of matches \u2014 the month tiles will appear here.</p></div>`;
+  if(!monthlyVersion || !versions.find(v=>v.key===monthlyVersion)) monthlyVersion = moLatestVersionKey();
+  const v = versions.find(x=>x.key===monthlyVersion);
+  if(!v || !v.hasTs)
+    return `<div class="mo-head"><div><h1 class="mo-title">Monthly</h1><div class="mo-sub">How we play in each month, side by side \u00B7 months come from the match date stamp</div></div>
+      <div class="mo-ver">${pills}</div></div>
+      <div class="card" style="text-align:center;padding:34px"><div class="num" style="font-size:22px">No monthly data for ${esc(v?v.label:'this version')} yet</div>
+      <p style="color:var(--ink-dim);font-size:13.5px;margin-top:8px">Matches get a date stamp on the Time/Date row (EA FC 27 onward). Once a few are logged, the month tiles fill in here.</p></div>`;
+  const st = moMonthStats(v.key);
+  const isLive = v.key===st.latestKey;
+  const tot = {n:0,w:0,gf:0};
+  st.months.forEach(m=>{ tot.n+=m.n; tot.w+=m.w; tot.gf+=m.gf; });
+  const totWr = tot.n? Math.round(tot.w/tot.n*1000)/10 : 0;
+  const bestM = st.months.find(m=>m.ym===st.best);
+  const bestShort = bestM ? MO_MONTHS[Number(bestM.ym.slice(5,7))-1].slice(0,3).toUpperCase() : '';
+
+  const tiles = st.months.map(m=>{
+    const best = m.ym===st.best, live = isLive && m.ym===st.curYM;
+    return `<div class="mo-tile ${best?'best':''} ${live?'live':''}">
+      <div class="grad"></div>
+      <div class="mo-thead">
+        <div class="mo-tname">${esc(moLabel(m,st.multiYear))}${best?'<span class="mo-best">\u2605 Best month</span>':''}${live?'<span class="mo-live">LIVE</span>':''}</div>
+        <span class="mo-badge">${esc(v.label)}</span>
+      </div>
+      <div class="mo-tsub">Seasons ${esc(m.seasonsLbl||'\u2014')} \u00B7 ${m.n} games played</div>
+      <div class="mo-wrrow">
+        <div><div class="mo-wr">${m.wr}<small>%</small></div><div class="mo-wrl">WIN RATE</div></div>
+        <div><div class="mo-rec"><b>${m.w}</b>W \u00B7 ${m.d}D \u00B7 ${m.l}L</div><div class="mo-gn">${m.n} games</div></div>
+      </div>
+      <div class="mo-seg"><i class="w" style="width:${(m.w/m.n*100).toFixed(2)}%"></i><i class="d" style="width:${(m.d/m.n*100).toFixed(2)}%"></i><i class="l" style="width:${(m.l/m.n*100).toFixed(2)}%"></i></div>
+      <div class="mo-mini">
+        <div class="mo-m"><b>${m.gg.toFixed(2)}</b><span>goals / game</span></div>
+        <div class="mo-m"><b>${m.cg.toFixed(2)}</b><span>conceded / game</span></div>
+        <div class="mo-m"><b>${m.rqPct.toFixed(1)}%</b><span>rage quits</span></div>
+      </div>
+      <div class="mo-form">${m.form.map(c=>`<i class="${c==='W'?'w':c==='D'?'d':'l'}">${c==='W'?'W':c==='D'?'D':'L'}</i>`).join('')}</div>
+      <div class="mo-tfoot">
+        <span class="mo-champ ${m.ch?'':'zero'}">\uD83C\uDFA6 ${m.ch} champion seasons</span>
+        <span class="mo-perf ${m.pf?'':'zero'}">\u2726 ${m.pf} perfect</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const maxN = Math.max(...st.months.map(m=>m.n));
+  const bests = {
+    win: Math.max(...st.months.map(m=>m.wr)),
+    gg:  Math.max(...st.months.map(m=>m.gg)),
+    cg:  Math.min(...st.months.map(m=>m.cg)),
+    rq:  Math.min(...st.months.map(m=>m.rqPct)),
+    ch:  Math.max(...st.months.map(m=>m.ch)),
+    pf:  Math.max(...st.months.map(m=>m.pf))
+  };
+  const rows = [
+    {name:'Games',            f:m=>m.n,     bar:true},
+    {name:'Win rate',         f:m=>m.wr,    best:m=>m.wr===bests.win,  fmt:x=>x.toFixed(1)+'%'},
+    {name:'Goals / game',     f:m=>m.gg,    best:m=>m.gg===bests.gg,   fmt:x=>x.toFixed(2)},
+    {name:'Conceded / game',  f:m=>m.cg,    best:m=>m.cg===bests.cg,   fmt:x=>x.toFixed(2)},
+    {name:'Rage quits',       f:m=>m.rqPct, best:m=>m.rqPct===bests.rq,fmt:x=>x.toFixed(1)+'%'},
+    {name:'Champion seasons', f:m=>m.ch,    best:m=>m.ch===bests.ch,   fmt:x=>String(x)},
+    {name:'Perfect seasons',  f:m=>m.pf,    best:m=>m.pf===bests.pf,   fmt:x=>String(x)}
+  ];
+  const table = `<div class="mo-tblwrap"><table class="mo-tbl">
+    <thead><tr><th></th>${st.months.map(m=>`<th class="${isLive&&m.ym===st.curYM?'mo-livecol':''}">${esc(moLabel(m,st.multiYear))}${isLive&&m.ym===st.curYM?'<span class="mo-livechip">LIVE</span>':''}<span class="tsub2">${m.n} games</span></th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${r.name}</td>${st.months.map(m=>{
+      const val = r.f(m);
+      const inner = (r.best && r.best(m)) ? `<span class="bestv">${r.fmt(val)}</span>` : r.fmt(val);
+      const bar = r.bar ? `<span class="mo-gbar" style="width:${(val/maxN*100).toFixed(1)}%"></span>` : '';
+      return `<td>${inner}${bar}</td>`;
+    }).join('')}</tr>`).join('')}
+    </tbody></table></div>`;
+
+  return `<div class="mo-head">
+    <div><h1 class="mo-title">Monthly</h1><div class="mo-sub">How we play in each month of ${esc(v.label)}, side by side \u00B7 months come from the match date stamp</div></div>
+    <div class="mo-ver">${pills}</div>
+  </div>
+  <div class="mo-kpis">
+    <div class="mo-kpi"><div class="kv">${tot.n}</div><div class="kl">games across ${st.months.length} month${st.months.length===1?'':'s'}</div></div>
+    <div class="mo-kpi green"><div class="kv">${totWr}<small>%</small></div><div class="kl">win rate, ${esc(v.label)}</div></div>
+    <div class="mo-kpi"><div class="kv">${tot.gf}</div><div class="kl">goals scored</div></div>
+    <div class="mo-kpi"><div class="kv">${st.months.length}<small>/12</small></div><div class="kl">months with games</div></div>
+    <div class="mo-kpi gold"><div class="kv">${esc(bestShort)}</div><div class="kl">best month \u00B7 ${bestM?bestM.wr.toFixed(1):'0'}% win rate</div></div>
+  </div>
+  <div class="mo-sech"><h2>${esc(v.label)}</h2><div class="note">months from the match date stamp \u00B7 gold ring = best month (5+ games)</div></div>
+  <div class="mo-tiles">${tiles}</div>
+  <div class="mo-sech"><h2>Side by side</h2><div class="note">Gold dot = best month</div></div>
+  ${table}`;
+}
+
+function wireMonthlyHandlers(){
+  document.querySelectorAll('[data-mo-ver]').forEach(b=> b.addEventListener('click', ()=>{
+    if(b.disabled) return;
+    monthlyVersion = b.dataset.moVer;
+    render();
+  }));
+}
+
+const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy','worldmap','titles','monthly'];
 function setTab(t, fromHash){
   if(currentTab==='log' && t!=='log'){
     /* Leaving Log Match: drop any in-progress / being-edited match so the tab always
@@ -2312,6 +2576,7 @@ function render(){
   else if(currentTab==='hof') main.innerHTML = renderHof();
   else if(currentTab==='highscores') main.innerHTML = renderHighscores();
   else if(currentTab==='trophy') main.innerHTML = renderTrophy();
+  else if(currentTab==='monthly') main.innerHTML = renderMonthly();
   else if(currentTab==='worldmap'){
     /* Map already open? Keep the live view — wireWorldMap() (below) refreshes it
        in place. Rebuild the shell only when there is no live view. */
@@ -3577,7 +3842,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v128';
+const SCAN_BUILD = 'v129';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -6220,6 +6485,7 @@ function wireTabHandlers(){
   if(currentTab==='squad') wireSquadHandlers();
   if(currentTab==='settings') wireSettingsHandlers();
   if(currentTab==='history') wireHistoryHandlers();
+  if(currentTab==='monthly') wireMonthlyHandlers();
   if(currentTab==='worldmap') wireWorldMap();
 }
 
