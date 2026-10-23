@@ -1946,8 +1946,46 @@ function canonicalName(rawName){
   return null;
 }
 
+/* Players the engine must always recognize and keep as DISTINCT people. These are
+   short look-alike names the fuzzy matcher would otherwise collapse ("Rodri" into
+   "Pedri"), and surname pairs that differ only by a leading initial ("J. Garcia" vs
+   "E. Garcia"). Add any name here and every path that resolves a name (OCR scan,
+   auto-add) will always resolve it to itself, never to a look-alike. The team-sheet
+   "add player" button already creates these cleanly; this list protects the fuzzy paths. */
+const KNOWN_PLAYERS = ['Pedri', 'Rodri', 'J. Garcia', 'E. Garcia'];
+/* Identity key that KEEPS the leading initial (unlike normalizeName, which strips it):
+   "J. Garcia" -> "jgarcia" but "E. Garcia" -> "egarcia", so the two stay distinct. */
+const knownKey = n => String(n).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'');
+const KNOWN_PLAYER_MAP = new Map(KNOWN_PLAYERS.map(n => [knownKey(n), n]));
+/* Create a player and file them on the current team sheet (logDraft.teamId), the same
+   way a brand-new scanned player is filed (v107 rule). Shared by the known-player path
+   and the fall-through creation path so both behave identically. */
+async function createPlayerAndFile(name){
+  const id = await dbAdd('players', {name});
+  try{
+    let tid = (typeof logDraft!=='undefined' && logDraft && logDraft.teamId) ? logDraft.teamId : '';
+    if(!tid){
+      const s = (typeof logDraft!=='undefined' && logDraft && logDraft.seasonId) ? seasonById(logDraft.seasonId) : seasons[0];
+      tid = (s && s.teamId) ? s.teamId : '';
+    }
+    const t = tid ? teamById(tid) : null;
+    if(t && !(t.playerIds||[]).includes(id)){
+      await dbSet('teams', t.id, {...stripId(t), playerIds:[...(t.playerIds||[]), id]});
+    }
+  }catch(e){}
+  return id;
+}
 async function resolveOrCreatePlayer(rawName){
   let name = rawName.trim();
+  /* KNOWN players always resolve to themselves (created if new) — the fuzzy matcher below
+     is skipped for them, so "Rodri" can never become "Pedri", and "J. Garcia" / "E. Garcia"
+     stay two separate people. */
+  const nk = knownKey(name);
+  if(KNOWN_PLAYER_MAP.has(nk)){
+    const match = players.find(pp => knownKey(pp.name)===nk);
+    if(match) return match.id;
+    return createPlayerAndFile(KNOWN_PLAYER_MAP.get(nk));
+  }
   /* Known truncated EA FC names resolve to one canonical player (create under the full name
      if we've never met them) so a truncated and a full reading never become two players. */
   const canon = canonicalName(name);
@@ -1987,23 +2025,7 @@ async function resolveOrCreatePlayer(rawName){
   }
   cand.sort((a,b)=>a.d-b.d);
   if(cand.length && cand[0].d<=2 && (cand.length<2 || cand[1].d>cand[0].d)) return cand[0].p.id;
-  const id = await dbAdd('players', {name});
-  // A player the scanner met for the first time joins the sheet of the team in the Team box
-  // (logDraft.teamId). NOT the season's first team: in a mid-season-switch season those
-  // differ, and a new player from a Manchester City screenshot must not land on the
-  // Real Madrid sheet just because the season started under Real Madrid (v107 fix).
-  try{
-    let tid = (typeof logDraft!=='undefined' && logDraft && logDraft.teamId) ? logDraft.teamId : '';
-    if(!tid){
-      const s = (typeof logDraft!=='undefined' && logDraft && logDraft.seasonId) ? seasonById(logDraft.seasonId) : seasons[0];
-      tid = (s && s.teamId) ? s.teamId : '';
-    }
-    const t = tid ? teamById(tid) : null;
-    if(t && !(t.playerIds||[]).includes(id)){
-      await dbSet('teams', t.id, {...stripId(t), playerIds:[...(t.playerIds||[]), id]});
-    }
-  }catch(e){}
-  return id;
+  return createPlayerAndFile(name);
 }
 function seasonById(id){ return seasons.find(s=>s.id===id); }
 function teamById(id){ return teams.find(t=>t.id===id); }
@@ -3842,7 +3864,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v130';
+const SCAN_BUILD = 'v131';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
