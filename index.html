@@ -323,6 +323,7 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .tgwrap .tg-in{width:100%}
 .tgwrap:hover .tg-in.tg-known{border-color:#FFE9B8; box-shadow:0 0 0 1px rgba(240,196,100,.35)}
 .tgwrap:hover .opp-tag.tg-known{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.30)}
+.opp-tag.tg-known{cursor:pointer}
 /* the "we've played this tag before" state for the Log Match tag boxes */
 .tg-in.tg-known{border-color:var(--gold); box-shadow:0 0 0 1px rgba(240,196,100,.25); background:rgba(240,196,100,.07)}
 .tgpop{position:fixed; z-index:400; white-space:nowrap;
@@ -330,8 +331,9 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
   border:1px solid var(--line); box-shadow:0 18px 44px rgba(0,0,0,.55);
   opacity:0; visibility:hidden; transform:translateY(6px);
   transition:opacity .14s ease,transform .14s ease,visibility .14s; pointer-events:none}
-.tgpop.on{opacity:1; visibility:visible; transform:translateY(0)}
-.tgpop .tgstrip{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:9px 14px}
+.tgpop.on{opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto}
+.tgpop .tgstrip{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:9px 14px; width:100%; border:0; background:transparent; color:inherit; font-family:inherit; text-align:left; cursor:pointer}
+.tgpop .tgstrip:hover{background:var(--panel-2)}
 .tgpop .tgstrip + .tgstrip{border-top:1px solid var(--line)}
 .tgstrip .res{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:12px; letter-spacing:.03em}
 .tgstrip .res.win{color:var(--turf)} .tgstrip .res.draw{color:var(--gold)} .tgstrip .res.loss{color:var(--red)}
@@ -1102,6 +1104,8 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
 .ti-tl .ti-t{font:700 15px var(--ti-headline);letter-spacing:.3px}
 .ti-tl .ti-m{color:var(--ti-muted);font-size:11.5px}
 .ti-tl .ti-s{font:700 22px var(--ti-headline);text-align:right}
+.ti-tl.flash{animation:tiflash 2.2s ease}
+@keyframes tiflash{0%,55%{border-color:#3cff9a;background:#3cff9a21;box-shadow:0 0 0 2px #3cff9a55}100%{}}
 .ti-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:60;background:#101923f5;border:1px solid #8b6cff55;border-radius:12px;padding:12px 18px;font-size:13px;box-shadow:0 14px 40px #000a}
 @media (max-width:1100px){.ti-split{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:900px){.ti-h1{font-size:34px}.ti-drawer{top:10px;bottom:10px;right:10px;left:10px;width:auto}.ti-tc-grid{grid-template-columns:repeat(2,1fr)}}
@@ -1459,7 +1463,7 @@ function rival(key) {
     <div class="ti-chips" style="margin:0 0 10px"><span class="ti-gt ti-rival">${ic('swords')}Played before</span></div>
     <h2>${esc(name)}</h2>${variants.get(key).size > 1 ? `<p class="ti-sub" style="margin-bottom:4px">Also typed as: ${[...variants.get(key)].filter(v => v !== name).map(esc).join(', ')} (same gamertag)</p>` : ''}<p class="ti-sub">${games.length === 1 ? 'Only one game against this gamertag' : `${games.length} games across ${titles.length} title${titles.length > 1 ? 's' : ''}: ${esc(titles.join(', '))}`}</p>
     <div class="ti-dstats"><div><b>${w}-${d}-${l}</b><span>our record</span></div><div><b>${esc(T[f.t].name)}</b><span>first met · S${f.s}</span></div><div><b>${esc(T[z.t].name)}</b><span>last met · S${z.s}</span></div></div>
-    <div class="ti-timeline">${games.map(g => `<div class="ti-tl ${g.ok ? '' : 'ti-excluded'}"><span class="ti-rp ti-${res(g)}">${res(g)}</span>
+    <div class="ti-timeline">${games.map(g => `<div class="ti-tl ${g.ok ? '' : 'ti-excluded'}" data-tl="${g.t}:${g.s}:${g.n}"><span class="ti-rp ti-${res(g)}">${res(g)}</span>
       <div><div class="ti-t">${esc(T[g.t].name)} · Season ${g.s} · Game ${g.n}</div><div class="ti-m">${esc(g.c || '—')} · ${g.aw ? 'away' : 'home'}${g.rq ? ' · they rage quit' : ''}${g.dc ? ' · we disconnected' : ''}${g.ok ? '' : ' · doesn’t count'}</div>
       <div class="ti-tags" style="margin-top:7px">${g.g.filter(Boolean).map(x => norm(x) === key ? `<span class="ti-gt ti-rival">${esc(x)}</span>` : `<button class="ti-gt" data-rival="${esc(norm(x))}">${esc(x)}</button>`).join('')}</div></div><div class="ti-s">${g.f}–${g.a}</div></div>`).join('')}</div></aside>`;
   requestAnimationFrame(() => { const x = root.querySelector('.ti-drawer .ti-x'); if (x) x.focus(); });
@@ -2664,6 +2668,28 @@ document.addEventListener('click', (e)=>{
   const el = e.target.closest('[data-goto-game]');
   if(el) gotoGame(el.dataset.gotoGame);
 });
+/* Archived game (FIFA 20 – EA FC 26) from a rival strip → FIFA History with the
+   tag's rival drawer open, scrolled to that entry with a brief green flash. */
+function gotoLegacyGame(tagKey, ti, season, num){
+  setTab('titles');
+  let tries = 0;
+  const attempt = ()=>{
+    if(!titlesPage){
+      if(tries++ < 40){ setTimeout(attempt, 150); return; }
+      toast('FIFA History is still loading — try again in a moment');
+      return;
+    }
+    titlesPage.openRival(tagKey);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      const el = document.querySelector('.ti-tl[data-tl="'+ti+':'+season+':'+num+'"]');
+      if(el){
+        el.scrollIntoView({behavior:'smooth', block:'center'});
+        el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      }
+    }));
+  };
+  attempt();
+}
 
 /* ============================= DASHBOARD ============================= */
 /* Best/worst seasons: top-3 lists per stat, one shared team filter ('' = All teams). */
@@ -3599,12 +3625,12 @@ function rivalStripHtml(g){
   if(g.rageQuitMin!=null){
     parts.push(`<span class="dot"></span><span class="rq">RQ ${parseFloat(Number(g.rageQuitMin).toFixed(1))} min</span>`);
   }
-  return `<span class="tgstrip">${parts.join('')}</span>`;
+  return `<button type="button" class="tgstrip" data-tgj-live="${g.id}" title="Open this match in Match History">${parts.join('')}</button>`;
 }
 /* The one-line strip for an ARCHIVED (legacy) game — same layout as the live strip, but:
    MOTM is the name only (the legacy data has no ratings), RQ is shown bare (no minutes),
    and the title (e.g. "FIFA 20") sits at the end of the row. */
-function rivalLegacyStripHtml(g){
+function rivalLegacyStripHtml(g, tag){
   const f = Number(g.goalsFor)||0, a = Number(g.goalsAgainst)||0;
   const o = f > a ? 'win' : f === a ? 'draw' : 'loss';
   const parts = [
@@ -3619,9 +3645,9 @@ function rivalLegacyStripHtml(g){
   if(motm && motm.name) parts.push(`<span class="dot"></span><span class="m">\u2b50 <span class="motm">${esc(motm.name)}</span></span>`);
   if(g.rageQuit) parts.push(`<span class="dot"></span><span class="rq">RQ</span>`);
   parts.push(`<span class="dot"></span><span class="ttl">${esc(g.title||'')}</span>`);
-  return `<span class="tgstrip">${parts.join('')}</span>`;
+  return `<button type="button" class="tgstrip" data-tgj-tag="${rivalKey(tag)}" data-tgj-ti="${g.ti}" data-tgj-season="${g.season}" data-tgj-num="${g.gameNumber}" title="Open in FIFA History">${parts.join('')}</button>`;
 }
-const tgStripHtml = g => g.legacy ? rivalLegacyStripHtml(g) : rivalStripHtml(g);
+const tgStripHtml = (g, tag) => g.legacy ? rivalLegacyStripHtml(g, tag) : rivalStripHtml(g);
 /* Kick the one-time legacy archive load off lazily (first Log-tab paint / first hover),
    then refresh the gold states + any open hover strip so legacy games count too. */
 function legacyKickoff(){
@@ -3636,6 +3662,14 @@ function refreshGoldStates(){
   });
   if(tgPopWrap) tgRefreshPop();
 }
+/* The chip's own tag (History chip = data-tag; Log Match box = the typed value) —
+   a legacy row needs it to open FIFA History on this tag's rival drawer. */
+function tgChipTag(w){
+  if(!w || !w.dataset) return '';
+  if(w.dataset.gid) return w.dataset.tag || '';
+  const el = document.getElementById(w.dataset.taginput || '');
+  return el ? el.value : '';
+}
 function tgRefreshPop(){
   const w = tgPopWrap; if(!w) return;
   let list = [];
@@ -3645,7 +3679,7 @@ function tgRefreshPop(){
     if(el) list = rivalOthers(el.value, editingGameId);
   }
   if(!list.length){ tgPopHide(); return; }
-  tgPop.innerHTML = list.map(tgStripHtml).join('');
+  tgPop.innerHTML = list.map(g=>tgStripHtml(g, tgChipTag(w))).join('');
 }
 /* Light up a Log Match tag box (gold) when this would be a REPEAT game — the tag is
    already on record at least once (or, while editing, once outside the game being
@@ -3661,8 +3695,10 @@ const tgPop = document.createElement('div');
 tgPop.className = 'tgpop';
 document.body.appendChild(tgPop);
 let tgPopWrap = null;
+let tgPinned = false;
 function tgPopHide(){
   tgPopWrap = null;
+  tgPinned = false;
   tgPop.classList.remove('on');
 }
 document.addEventListener('mouseover', (e)=>{
@@ -3683,7 +3719,7 @@ document.addEventListener('mouseover', (e)=>{
   }
   if(!list.length) return; /* no other game against this tag → no strip */
   tgPopWrap = w;
-  tgPop.innerHTML = list.map(tgStripHtml).join('');
+  tgPop.innerHTML = list.map(g=>tgStripHtml(g, tgChipTag(w))).join('');
   const r = w.getBoundingClientRect();
   const pw = tgPop.offsetWidth, ph = tgPop.offsetHeight;
   tgPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8)) + 'px';
@@ -3695,11 +3731,36 @@ document.addEventListener('mouseover', (e)=>{
 document.addEventListener('mouseout', (e)=>{
   if(!tgPopWrap) return;
   const to = e.relatedTarget;
-  if(to && to.nodeType===1 && tgPopWrap.contains(to)) return;
+  if(to && to.nodeType===1 && (tgPopWrap.contains(to) || tgPop.contains(to))) return;
+  if(tgPinned) return; /* pinned: click the chip again, click away, or press Esc to close */
   tgPopHide();
 });
 window.addEventListener('scroll', tgPopHide, true); /* capture: also fires for the strip's own scroll */
 window.addEventListener('resize', tgPopHide);
+
+/* Click a known-rival chip = PIN the strip so it stays open; click the chip again,
+   click anywhere else, or press Esc to close it. (Rows inside the strip navigate —
+   they handle their own click, below.) */
+document.addEventListener('click', (e)=>{
+  if(e.target.closest && e.target.closest('.tgpop')) return;
+  const w = e.target.closest ? e.target.closest('.tgwrap') : null;
+  if(w && w.querySelector('.opp-tag')){
+    if(tgPinned && w===tgPopWrap){ tgPopHide(); return; }
+    tgPinned = true; /* the hover already opened the strip for this chip */
+    return;
+  }
+  if(tgPinned) tgPopHide(); /* click anywhere else closes a pinned strip */
+});
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && tgPinned) tgPopHide(); });
+/* A strip row = that match: a live row opens it in Match History (scroll + glow);
+   an archived row opens FIFA History on the tag's rival list, scrolled to that game. */
+tgPop.addEventListener('click', (e)=>{
+  const b = e.target.closest ? e.target.closest('.tgstrip') : null;
+  if(!b) return;
+  if(b.dataset.tgjLive){ tgPopHide(); gotoGame(b.dataset.tgjLive); return; }
+  tgPopHide();
+  gotoLegacyGame(b.dataset.tgjTag||'', Number(b.dataset.tgjTi), Number(b.dataset.tgjSeason), Number(b.dataset.tgjNum));
+});
 
 function wireLogHandlers(){
   legacyKickoff(); /* Log Match is the main place repeat rivals are typed — start the legacy load here too */
@@ -3864,7 +3925,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v131';
+const SCAN_BUILD = 'v132';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -6194,7 +6255,7 @@ function oppTagsLine(g){
     /* Gold only for REPEAT rivals — this tag on record in 2+ games (this one + at
        least one other). Hover then lists the other game(s) against that tag. */
     const known = rivalOthers(tag, g.id).length > 0;
-    out.push(`<span class="tgwrap" data-gid="${g.id}" data-tag="${esc(tag)}"><span class="opp-tag${known?' tg-known':''}">${ic?`<span class="plat-ic">${ic}</span>`:''}<span class="tgname">${esc(tag)}</span>${cty?`<img class="flagimg" src="${countryFlag(cty)}" alt="" loading="lazy">`:''}</span></span>`);
+    out.push(`<span class="tgwrap" data-gid="${g.id}" data-tag="${esc(tag)}"><span class="opp-tag${known?' tg-known':''}"${known?' title="Played before — click to pin this list"':''}>${ic?`<span class="plat-ic">${ic}</span>`:''}<span class="tgname">${esc(tag)}</span>${cty?`<img class="flagimg" src="${countryFlag(cty)}" alt="" loading="lazy">`:''}</span></span>`);
   }
   return out.length ? `<div class="opp-tags">${out.join('')}</div>` : '';
 }
