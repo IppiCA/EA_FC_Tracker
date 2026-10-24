@@ -335,6 +335,11 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
   opacity:0; visibility:hidden; transform:translateY(6px);
   transition:opacity .14s ease,transform .14s ease,visibility .14s; pointer-events:none}
 .tgpop.on{opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto}
+/* Invisible bridges across the gap above/below the pop, so the mouse can travel
+   chip → row without ever leaving "chip or pop" (the gap made the rows unclickable). */
+.tgpop::before,.tgpop::after{content:''; position:absolute; left:0; right:0; height:14px}
+.tgpop::before{top:-14px}
+.tgpop::after{bottom:-14px}
 .tgpop .tgstrip{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:9px 14px; width:100%; border:0; background:transparent; color:inherit; font-family:inherit; text-align:left; cursor:pointer}
 .tgpop .tgstrip:hover{background:var(--panel-2)}
 .tgpop .tgstrip + .tgstrip{border-top:1px solid var(--line)}
@@ -2552,8 +2557,23 @@ const TABS = ['dashboard','log','squad','settings','history','hof','highscores',
 function setTab(t, fromHash){
   if(currentTab==='log' && t!=='log'){
     /* Leaving Log Match: drop any in-progress / being-edited match so the tab always
-       opens as a FRESH, EMPTY form (user rule — "log match" in the nav = new match). */
-    if(autosaveTimer){ clearTimeout(autosaveTimer); autosaveTimer = null; }
+       opens as a FRESH, EMPTY form (user rule — "log match" in the nav = new match).
+       But a PENDING autosave is flushed right now (the form is still in the DOM), so
+       an in-progress match lands in Firestore instead of being dropped with the form. */
+    if(autosaveTimer){
+      clearTimeout(autosaveTimer); autosaveTimer = null;
+      if(logDraft && !autosaveBusy){
+        autosaveBusy = true;
+        const wasNew = !editingGameId;
+        commitGame().then(r=>{
+          editingGameId = null;
+          if(r===true) toast(wasNew ? '✓ Match saved' : '✓ Saved');
+        }).catch(err=>{
+          console.warn('autosave flush failed', err);
+          toast("Couldn't save that match — open Log Match and press Save");
+        }).finally(()=>{ autosaveBusy = false; });
+      }
+    }
     editingGameId = null;
     logDraft = null;
   }
@@ -3213,7 +3233,7 @@ function renderLog(){
     return `<div class="pagehead"><h1>Log Match</h1></div><div class="card empty">Create a season first (with a squad) under <b>New Season</b> before logging a match.</div>`;
   }
   return `
-  <div class="pagehead"><div><h1>${isEditing?'Edit Match':'Log Match'}</h1><div class="sub">${isEditing?'Changes save automatically as you edit — no need to scroll down to save':'Scan the in-game screens or enter it manually — review before saving'}</div></div></div>
+  <div class="pagehead"><div><h1>${isEditing?'Edit Match':'Log Match'}</h1><div class="sub">${isEditing?'Changes save automatically as you edit — no need to scroll down to save':'Saves automatically as you fill it in — no need to press Save (it stays editable in Match History)'}</div></div></div>
 
   <div class="card" style="margin-bottom:16px">
     <div class="scanbox meta" id="scan-meta" tabindex="0">
@@ -3508,7 +3528,10 @@ async function commitGame(){
     await dbSet('games', editingGameId, {seasonId, ...rest, gameNumber: orig?.gameNumber||1, createdAt: orig?.createdAt||Date.now()});
   } else {
     const existingCount = gamesFor(seasonId).length;
-    await dbAdd('games', {seasonId, ...rest, gameNumber: existingCount+1, createdAt: Date.now()});
+    const newId = await dbAdd('games', {seasonId, ...rest, gameNumber: existingCount+1, createdAt: Date.now()});
+    /* First save of a brand-new match (autosave): from now on it IS a saved game —
+       further saves UPDATE it instead of creating duplicates. */
+    if(!editingGameId && newId) editingGameId = newId;
   }
   const s = seasonById(seasonId);
   if(s){
@@ -3545,14 +3568,17 @@ async function commitGame(){
   return true;
 }
 
-/* Edit-Match autosave: after the user stops touching anything for a moment, the match
-   saves itself (same writes as the Save button) — no need to scroll down to save. */
+/* Autosave: after the user stops touching anything for a moment, the match saves itself
+   (same writes as the Save button) — no need to scroll down to save. Works while
+   EDITING a match AND while LOGGING A NEW one: the first save creates it in Firestore,
+   then the draft is treated as that saved game, so nothing is lost when the tab closes
+   and no duplicates are created. */
 let autosaveTimer = null, autosaveBusy = false;
 function queueAutosave(){
-  if(!editingGameId || !logDraft) return;
+  if(!logDraft) return;
   clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(async ()=>{
-    if(!editingGameId || autosaveBusy) return;
+    if(!logDraft || autosaveBusy) return;
     autosaveBusy = true;
     try{
       if((await commitGame())===true) toast('✓ Saved');
@@ -3726,13 +3752,29 @@ tgPop.className = 'tgpop';
 document.body.appendChild(tgPop);
 let tgPopWrap = null;
 let tgPinned = false;
+let tgCloseTimer = null;
+function tgCancelClose(){ if(tgCloseTimer){ clearTimeout(tgCloseTimer); tgCloseTimer = null; } }
 function tgPopHide(){
   tgPopWrap = null;
   tgPinned = false;
+  tgCancelClose();
   tgPop.classList.remove('on');
+}
+/* Grace period on close: the mouse crosses a sliver of page between chip and pop —
+   closing the instant it left the chip made the rows unreachable. Only close if, when
+   the grace runs out, the mouse is no longer over the chip OR the pop. */
+function tgScheduleClose(){
+  if(tgPinned) return;
+  tgCancelClose();
+  tgCloseTimer = setTimeout(()=>{
+    tgCloseTimer = null;
+    if(tgPop.matches(':hover') || (tgPopWrap && tgPopWrap.matches(':hover'))) return;
+    tgPopHide();
+  }, 160);
 }
 document.addEventListener('mouseover', (e)=>{
   legacyKickoff(); /* first hover starts the one-time legacy load (cached afterwards) */
+  tgCancelClose(); /* the mouse is back over the chip or the pop — keep it open */
   const w = e.target.closest ? e.target.closest('.tgwrap') : null;
   if(!w || w===tgPopWrap) return;
   tgPopHide();
@@ -3763,7 +3805,7 @@ document.addEventListener('mouseout', (e)=>{
   const to = e.relatedTarget;
   if(to && to.nodeType===1 && (tgPopWrap.contains(to) || tgPop.contains(to))) return;
   if(tgPinned) return; /* pinned: click the chip again, click away, or press Esc to close */
-  tgPopHide();
+  tgScheduleClose();
 });
 window.addEventListener('scroll', tgPopHide, true); /* capture: also fires for the strip's own scroll */
 window.addEventListener('resize', tgPopHide);
@@ -3902,9 +3944,10 @@ function wireLogHandlers(){
     if(saveBusy) return;
     saveBusy = true;
     try{
+    const wasNew = !editingGameId;
     const ok = await commitGame();
     if(ok!==true){ toast(ok==='no-season' ? 'Pick a season first' : 'Not saved — the match was not stored'); return; }
-    toast(editingGameId ? 'Match updated' : 'Match saved');
+    toast(wasNew ? 'Match saved' : 'Match updated');
     editingGameId = null;
     logDraft = null;
     setTab('history');
@@ -3923,7 +3966,7 @@ function wireLogHandlers(){
       stampFirstScreenshot();
       metaBox.classList.add('active');
       try{ await scanPlayersScreen(files, 'scan-meta-progress'); } finally { metaBox.classList.remove('active'); }
-      if(editingGameId) queueAutosave(); // a scan fills fields too — persist them without a manual Save
+      queueAutosave(); // a scan fills fields too — autosave (new match or edit) without a manual Save
     };
     metaInput.addEventListener('change', async (e)=>{ const files=Array.from(e.target.files||[]); await run(files); e.target.value=''; });
     document.getElementById('scan-meta-choose')?.addEventListener('click', (e)=>{ e.stopPropagation(); metaInput.click(); });
@@ -3957,7 +4000,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v133';
+const SCAN_BUILD = 'v134';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4879,7 +4922,7 @@ function wireScan(inputId, boxId, progId, scanFn){
     stampFirstScreenshot();
     box.classList.add('active');
     try{ await scanFn(files, progId); } finally { box.classList.remove('active'); }
-    if(editingGameId) queueAutosave(); // a scan fills fields too — persist them without a manual Save
+    queueAutosave(); // a scan fills fields too — autosave (new match or edit) without a manual Save
   };
   input.addEventListener('change', async (e)=>{ const files = Array.from(e.target.files||[]); await run(files); e.target.value=''; });
   box.addEventListener('click', (e)=>{ if(e.target.tagName!=='INPUT') box.focus(); });
@@ -5016,7 +5059,7 @@ function renderCountryList(d, q){
    checkboxes, row add/remove) schedules an autosave. render() rebuilds #main, so per-node
    listeners would die — same trick as wireDdropsOnce. */
 (function wireAutosaveOnce(){
-  const onLogTab = ()=> currentTab==='log' && editingGameId;
+  const onLogTab = ()=> currentTab==='log'; /* new matches autosave too (v134) */
   document.addEventListener('input', ()=>{ if(onLogTab()) queueAutosave(); });
   document.addEventListener('change', ()=>{ if(onLogTab()) queueAutosave(); });
   document.addEventListener('click', (e)=>{
