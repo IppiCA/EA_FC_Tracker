@@ -3741,7 +3741,10 @@ function paintTagFlag(i){
   const inp = document.getElementById('f-tag'+i);
   if(!box || !inp) return;
   const cty = knownTagCountry(inp.value);
-  if(cty){ box.innerHTML = `<img class="tg-flagimg" src="${countryFlag(cty)}" alt="" title="${esc(countryName(cty))} — played before" loading="lazy">`; box.hidden = false; }
+  if(cty){ box.innerHTML = `<img class="tg-flagimg" src="${countryFlag(cty)}" alt="" title="${esc(countryName(cty))} — played before" loading="lazy">`; box.hidden = false;
+    const ctyInp = document.getElementById('f-cty'+i);
+    if(ctyInp && !ctyInp.value){ ctyInp.value = cty; paintDdrops(); }
+  }
   else { box.innerHTML = ''; box.hidden = true; }
 }
 /* Hover wiring for the strips — ONE delegated set of top-level listeners (v64 lesson:
@@ -4000,7 +4003,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v134';
+const SCAN_BUILD = 'v135';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
