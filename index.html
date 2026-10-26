@@ -1187,7 +1187,7 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
   --cm-text:#F2F6F4; --cm-muted:#A6B4B9; --cm-faint:#6F8088;
   --cm-head:'Rajdhani','Arial Narrow',sans-serif; --cm-body:'IBM Plex Sans',system-ui,sans-serif;;color-scheme:dark;color:var(--cm-text);font:400 14px/1.45 var(--cm-body);min-width:0}
 .cm-root *,.cm-root *::before,.cm-root *::after{box-sizing:border-box}
-.cm-wrap{max-width:1480px;margin:0 auto;display:grid;gap:16px}
+.cm-wrap{display:grid;gap:16px}
 .cm-root :where(h1,h2,h3){font-family:var(--cm-head);margin:0;letter-spacing:.02em;text-wrap:balance}
 .cm-root :where(h1){font-size:34px;line-height:1}
 .cm-root :where(h2){font-size:22px}
@@ -1799,8 +1799,8 @@ function mount(container,opts){
   var root=document.createElement('div');root.className='cm-root';container.appendChild(root);
   root.innerHTML=
    '<div class="cm-wrap">'+
-   '<header class="cm-top"><div><div class="cm-eyebrow">Opponent analysis</div><h1>Club Matrix</h1>'+
-   '<p class="cm-sub">Which club we played as, against which club they picked. Pick a cell to see the record, the score lines and how the games split over the titles.</p></div><div class="cm-kpis" data-r="kpis"></div></header>'+
+   '<header class="cm-top"><div><h1>Club Matrix</h1>'+
+   '<p class="cm-sub">The club we played as against the club they picked</p></div><div class="cm-kpis" data-r="kpis"></div></header>'+
    '<section class="cm-glass cm-controls" aria-label="Filters">'+
    '<div class="cm-ctl"><span>Title</span><div class="cm-seg" data-r="segTitle" role="group" aria-label="Title"></div></div>'+
    '<div class="cm-ctl"><span>Colour by</span><div class="cm-seg" data-r="segMetric" role="group" aria-label="Colour by"></div></div>'+
@@ -4433,7 +4433,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v138';
+const SCAN_BUILD = 'v139';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
