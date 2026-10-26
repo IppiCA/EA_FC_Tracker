@@ -2054,7 +2054,13 @@ function toast(msg){
    Opponent teams get their own record (logoOnly) so a crest can exist without
    a player sheet — that's how opponent logos on the match tiles work. */
 function normName(s){ return (s||'').toString().trim().toLowerCase().replace(/[._-]+/g,' ').replace(/\s+/g,' '); }
-function teamByName(name){ const k = normName(name); return (k && teams.find(t=> normName(t.name)===k)) || null; }
+/* Team lookup key: ignores accents/case/punctuation and folds known spelling variants onto one name,
+   so "Bayern München" (archive, Club Matrix) finds the logo saved under "Bayern Munchen" / "Munchen Bayern FC" (game engine). */
+const TEAM_KEY_ALIAS = {'munchen bayern fc':'bayern munchen','bayern munchen fc':'bayern munchen','fc bayern munchen':'bayern munchen','fc bayern':'bayern munchen','bayern':'bayern munchen',
+  'paris sg':'psg','paris saint germain':'psg','paris':'psg','barcelona':'fc barcelona','barca':'fc barcelona','club brugge':'brugge','fc brugge':'brugge',
+  'man city':'manchester city','man united':'manchester united','man utd':'manchester united','borussia dortmund':'bvb','dortmund':'bvb'};
+function teamKey(s){ const k = normName(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\./g,''); return TEAM_KEY_ALIAS[k] || k; }
+function teamByName(name){ const k = teamKey(name); return (k && teams.find(t=> teamKey(t.name)===k)) || null; }
 function teamLogo(name){ const t = teamByName(name); return (t && t.logo) ? t.logo : ''; }
 /* Team crest (if one has been uploaded) or the classic number shield, at a given size. */
 function crestHTML(s, w, h, nfont, label){
@@ -4424,7 +4430,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v136';
+const SCAN_BUILD = 'v137';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
