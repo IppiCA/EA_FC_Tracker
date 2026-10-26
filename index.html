@@ -1181,6 +1181,148 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
 .mo-livecol{color:var(--violet)}
 .mo-livechip{display:inline-block;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:9px;letter-spacing:.1em;color:var(--violet);background:rgba(139,108,255,.16);border-radius:99px;padding:1.5px 7px;margin-left:6px;vertical-align:2px}
 @media (max-width:900px){ .mo-kpis{grid-template-columns:repeat(2,1fr)} .mo-title{font-size:34px} }
+/* ===== Club Matrix ===== every class is cm-*, every colour a --cm-* token on .cm-root */
+.cm-root{--cm-bg:#070B10; --cm-glass:rgba(14,23,32,.62); --cm-line:rgba(255,255,255,.09); --cm-line2:rgba(255,255,255,.16);
+  --cm-mint:#3CFF9A; --cm-violet:#8B6CFF; --cm-gold:#F0C464; --cm-coral:#FF5C72;
+  --cm-text:#F2F6F4; --cm-muted:#A6B4B9; --cm-faint:#6F8088;
+  --cm-head:'Rajdhani','Arial Narrow',sans-serif; --cm-body:'IBM Plex Sans',system-ui,sans-serif;;color-scheme:dark;color:var(--cm-text);font:400 14px/1.45 var(--cm-body);min-width:0}
+.cm-root *,.cm-root *::before,.cm-root *::after{box-sizing:border-box}
+.cm-wrap{max-width:1480px;margin:0 auto;display:grid;gap:16px}
+.cm-root :where(h1,h2,h3){font-family:var(--cm-head);margin:0;letter-spacing:.02em;text-wrap:balance}
+.cm-root :where(h1){font-size:34px;line-height:1}
+.cm-root :where(h2){font-size:22px}
+.cm-eyebrow{font:600 11px var(--cm-body);letter-spacing:.14em;text-transform:uppercase;color:var(--cm-mint)}
+.cm-sub{color:var(--cm-muted);margin:6px 0 0;max-width:62ch}
+.cm-glass{position:relative;background:var(--cm-glass);border:1px solid var(--cm-line);border-radius:20px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);min-width:0}
+.cm-glass::before{content:"";position:absolute;left:16px;right:16px;top:0;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(100deg,var(--cm-mint),var(--cm-violet));opacity:.9}
+.cm-card{padding:18px 18px 16px}
+.cm-root :where(button){font:inherit;color:inherit;cursor:pointer}
+.cm-root :where(:focus-visible){outline:2px solid var(--cm-mint);outline-offset:2px}
+.cm-top{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;align-items:flex-end}
+.cm-controls{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;padding:12px 14px;margin-top:0}
+.cm-ctl{display:flex;flex-direction:column;gap:5px;min-width:0}
+.cm-ctl>label,.cm-ctl>span{font:600 10.5px var(--cm-body);letter-spacing:.13em;text-transform:uppercase;color:var(--cm-faint)}
+.cm-seg{display:flex;flex-wrap:wrap;gap:4px;padding:3px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--cm-line)}
+.cm-seg button{border:0;background:transparent;padding:6px 11px;border-radius:9px;color:var(--cm-muted);font-weight:500;font-size:13px;white-space:nowrap}
+.cm-seg button:hover{color:var(--cm-text)}
+.cm-seg button[aria-pressed=true]{background:linear-gradient(100deg,rgba(60,255,154,.22),rgba(139,108,255,.26));color:var(--cm-text);box-shadow:inset 0 0 0 1px rgba(60,255,154,.35)}
+.cm-spacer{flex:1}
+.cm-kpis{display:flex;gap:18px;flex-wrap:wrap}
+.cm-kpi b{display:block;font:700 24px/1 var(--cm-head);font-variant-numeric:tabular-nums}
+.cm-kpi i{font:normal 500 11px var(--cm-body);color:var(--cm-faint);letter-spacing:.08em;text-transform:uppercase}
+.cm-main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+.cm-left{display:grid;gap:16px;min-width:0}
+@media(max-width:1100px){.cm-main{grid-template-columns:minmax(0,1fr)}
+}
+.cm-mhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-bottom:12px}
+.cm-legend{display:flex;align-items:center;gap:8px;color:var(--cm-muted);font-size:12px;flex-wrap:wrap}
+.cm-ramp{width:120px;height:8px;border-radius:4px}
+.cm-hint{font-size:12px;color:var(--cm-faint);margin:0 0 10px}
+.cm-scroller{overflow-x:auto;padding-bottom:6px;margin:0 -6px;padding-inline:6px}
+.cm-mx{display:grid;gap:4px;min-width:0}
+.cm-corner{position:sticky;left:0;z-index:3;background:#0c141b;border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;justify-content:flex-end;font-size:11px;color:var(--cm-faint);line-height:1.3}
+.cm-corner b{color:var(--cm-muted);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:10.5px}
+.cm-ch{background:none;border:1px solid transparent;border-radius:12px;padding:6px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center}
+.cm-ch:hover,.cm-rh:hover{background:rgba(255,255,255,.05)}
+.cm-ch[aria-pressed=true],.cm-rh[aria-pressed=true]{border-color:rgba(139,108,255,.7);background:rgba(139,108,255,.12)}
+.cm-ch .cm-nm{font:600 11.5px/1.15 var(--cm-body);max-width:70px;overflow-wrap:break-word;hyphens:none}
+.cm-pick{width:100%;display:grid;gap:3px;justify-items:center}
+.cm-pick .cm-bar{width:100%;height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
+.cm-pick .cm-bar i{display:block;height:100%;background:var(--cm-violet);border-radius:3px}
+.cm-pick small{white-space:nowrap;font-size:10.5px;color:var(--cm-muted);font-variant-numeric:tabular-nums}
+.cm-badge{width:34px;height:38px;flex:none;display:grid;place-items:center;font:700 12px var(--cm-head);letter-spacing:.04em;color:var(--cm-text);
+  background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.04));
+  clip-path:polygon(50% 0,100% 12%,100% 58%,50% 100%,0 58%,0 12%);position:relative}
+.cm-badge::after{content:"";position:absolute;inset:1.5px;clip-path:inherit;background:#101a22;z-index:-1}
+.cm-badge{isolation:isolate;background:linear-gradient(160deg,rgba(60,255,154,.55),rgba(139,108,255,.55))}
+.cm-badge.cm-sm{width:24px;height:27px;font-size:9px}
+.cm-rh{position:sticky;left:0;z-index:2;background:#0c141b;border:1px solid transparent;border-radius:12px;padding:8px 8px;display:flex;align-items:center;gap:8px;text-align:left;min-width:152px}
+.cm-rh .cm-t{display:grid;gap:1px;min-width:0}
+.cm-rh .cm-t b{font:600 12.5px var(--cm-body);white-space:nowrap}
+.cm-rh .cm-t span{font-size:11px;color:var(--cm-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cm-cell{position:relative;min-height:54px;min-width:62px;border-radius:12px;border:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-variant-numeric:tabular-nums;padding:4px}
+.cm-root button.cm-cell:hover{border-color:var(--cm-text);z-index:1}
+.cm-root button.cm-cell[aria-pressed=true]{outline:2px solid var(--cm-violet);outline-offset:1px;border-color:transparent}
+.cm-cell .cm-v{font:700 17px/1 var(--cm-head);letter-spacing:.02em}
+.cm-cell .cm-n{font-size:10.5px;color:rgba(242,246,244,.62)}
+.cm-cell.cm-thin{border-style:dashed;border-color:rgba(255,255,255,.2)}
+.cm-cell.cm-thin .cm-v{font-weight:600;opacity:.75}
+.cm-cell.cm-none{border-color:rgba(255,255,255,.04);background:transparent;color:var(--cm-faint);font-size:12px}
+.cm-cell.cm-mirror::after{content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--cm-gold);box-shadow:0 0 0 2px rgba(240,196,100,.25)}
+.cm-cell.cm-tot{background:rgba(255,255,255,.04);border-color:var(--cm-line)}
+.cm-sumhead{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;font:600 10.5px var(--cm-body);letter-spacing:.1em;text-transform:uppercase;color:var(--cm-faint);padding-bottom:8px}
+.cm-mnote{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--cm-muted);font-size:12px}
+.cm-mnote span{display:inline-flex;align-items:center;gap:6px}
+.cm-dot{width:8px;height:8px;border-radius:50%;background:var(--cm-gold);display:inline-block}
+.cm-dash{width:16px;height:12px;border:1px dashed rgba(255,255,255,.4);border-radius:4px;display:inline-block}
+.cm-picks{display:grid;gap:4px}
+.cm-prow{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(120px,1.4fr) 56px minmax(120px,1fr);gap:12px;align-items:center;padding:7px 8px;border-radius:12px;border:1px solid transparent;background:none;text-align:left;width:100%}
+.cm-prow:hover{background:rgba(255,255,255,.05)}
+.cm-prow[aria-pressed=true]{border-color:rgba(139,108,255,.7);background:rgba(139,108,255,.1)}
+.cm-pname{display:flex;align-items:center;gap:10px;min-width:0}
+.cm-pname b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cm-pname>span:last-child{display:block}
+.cm-pname>span:last-child>span{display:block;font-size:11px;color:var(--cm-muted)}
+.cm-pbar{height:10px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}
+.cm-pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--cm-violet),#b19cff);border-radius:5px}
+.cm-pnum{font:700 17px var(--cm-head);text-align:right;font-variant-numeric:tabular-nums}
+.cm-spark{display:flex;align-items:flex-end;gap:3px;height:30px}
+.cm-spark i{flex:1;min-width:5px;background:var(--cm-violet);border-radius:3px 3px 0 0;opacity:.85}
+.cm-spark i.cm-z{background:rgba(255,255,255,.1);height:2px!important}
+.cm-spark i.cm-on{background:var(--cm-mint)}
+.cm-pkh{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(120px,1.4fr) 56px minmax(120px,1fr);gap:12px;padding:0 8px 6px;font:600 10.5px var(--cm-body);letter-spacing:.12em;text-transform:uppercase;color:var(--cm-faint)}
+.cm-pkh .cm-tl{display:flex;justify-content:space-between}
+@media(max-width:700px){.cm-prow,.cm-pkh{grid-template-columns:minmax(0,1fr) 54px}
+.cm-prow .cm-pbar,.cm-prow .cm-spark,.cm-pkh span:nth-child(2),.cm-pkh span:nth-child(4){display:none}
+}
+.cm-drawer{position:sticky;top:12px;padding:18px;display:grid;gap:14px}
+@media(max-width:1100px){.cm-drawer{position:relative;top:0}
+}
+.cm-dtitle{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cm-vs{font:700 12px var(--cm-head);color:var(--cm-faint);letter-spacing:.1em}
+.cm-dline{font-size:12.5px;color:var(--cm-muted)}
+.cm-tags{display:flex;gap:6px;flex-wrap:wrap}
+.cm-tag{font:600 11px var(--cm-body);padding:3px 9px;border-radius:99px;border:1px solid var(--cm-line2);color:var(--cm-muted)}
+.cm-tag.cm-gold{color:var(--cm-gold);border-color:rgba(240,196,100,.5);background:rgba(240,196,100,.08)}
+.cm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cm-stat{padding:10px 10px 9px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--cm-line)}
+.cm-stat b{display:block;font:700 21px/1.1 var(--cm-head);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cm-stat i{font:normal 500 10.5px var(--cm-body);color:var(--cm-faint);letter-spacing:.08em;text-transform:uppercase}
+.cm-stat em{display:block;font-style:normal;font-size:11px;margin-top:2px}
+.cm-up{color:var(--cm-mint)}
+.cm-down{color:var(--cm-coral)}
+.cm-flat{color:var(--cm-muted)}
+.cm-wdl{display:flex;height:12px;gap:2px;border-radius:6px;overflow:hidden}
+.cm-wdl i{display:block;height:100%}
+.cm-wdl .cm-w{background:var(--cm-mint)}
+.cm-wdl .cm-d{background:var(--cm-gold)}
+.cm-wdl .cm-l{background:var(--cm-coral)}
+.cm-wdlt{display:flex;justify-content:space-between;font-size:12px;color:var(--cm-muted);margin-top:5px;font-variant-numeric:tabular-nums}
+.cm-sec{font:600 10.5px var(--cm-body);letter-spacing:.13em;text-transform:uppercase;color:var(--cm-faint);margin-bottom:6px}
+.cm-form{display:flex;gap:4px;flex-wrap:wrap}
+.cm-sq{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font:700 12px var(--cm-head);color:#06110b}
+.cm-sq.cm-W{background:var(--cm-mint)}
+.cm-sq.cm-D{background:var(--cm-gold)}
+.cm-sq.cm-L{background:var(--cm-coral);color:#1a0509}
+.cm-tt{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.cm-tt td,.cm-tt th{padding:5px 4px;text-align:right;border-bottom:1px solid var(--cm-line);font-weight:400}
+.cm-tt th{color:var(--cm-faint);font:600 10.5px var(--cm-body);letter-spacing:.08em;text-transform:uppercase}
+.cm-tt td:first-child,.cm-tt th:first-child{text-align:left;color:var(--cm-muted)}
+.cm-tt tr:last-child td{border-bottom:0}
+.cm-ext{display:grid;gap:6px;font-size:12.5px}
+.cm-ext div{display:flex;justify-content:space-between;gap:10px;color:var(--cm-muted)}
+.cm-ext b{color:var(--cm-text);font-weight:600;font-variant-numeric:tabular-nums}
+.cm-pickcmp{padding:10px 12px;border-radius:14px;background:rgba(139,108,255,.1);border:1px solid rgba(139,108,255,.3);font-size:13px}
+.cm-pickcmp b{font:700 20px var(--cm-head);color:#c4b5ff}
+.cm-clear{justify-self:start;background:none;border:1px solid var(--cm-line2);border-radius:10px;padding:5px 11px;color:var(--cm-muted);font-size:12.5px}
+.cm-clear:hover{color:var(--cm-text);border-color:var(--cm-text)}
+.cm-tip{position:fixed;z-index:50;pointer-events:none;padding:8px 10px;border-radius:12px;background:rgba(10,16,22,.96);border:1px solid var(--cm-line2);font-size:12px;line-height:1.4;max-width:240px;opacity:0;transition:opacity .08s}
+.cm-tip.cm-on{opacity:1}
+.cm-tip b{font-weight:600}
+.cm-foot{color:var(--cm-faint);font-size:12px}
+@media(prefers-reduced-motion:reduce){.cm-tip{transition:none}}
+.cm-badge.cm-img{object-fit:contain;clip-path:none;background:none;isolation:auto}
+#app.cm-full main{max-width:none}
 </style>
 </head>
 <body>
@@ -1222,6 +1364,7 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
     <button class="navbtn" data-tab="worldmap"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span> World Map</button>
     <button class="navbtn" data-tab="monthly"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h3"/></svg></span> Monthly</button>
     <button class="navbtn" data-tab="titles"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span> FIFA History</button>
+    <button class="navbtn" data-tab="matrix"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span> Club Matrix</button>
     <button class="navbtn" data-tab="log" style="margin-top:auto"><span class="ic">＋</span> Log Match</button>
     <button class="navbtn" data-tab="squad"><span class="ic">▤</span> New Season</button>
     <button class="navbtn" data-tab="settings"><span class="ic">⚙</span> Team Sheets</button>
@@ -1246,6 +1389,7 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
     <button data-tab="worldmap"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span>Map</button>
     <button data-tab="monthly"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h3"/></svg></span>Monthly</button>
     <button data-tab="titles"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span>FIFA</button>
+    <button data-tab="matrix"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span>Matrix</button>
     <button data-tab="log"><span class="ic">＋</span>Log</button>
     <button data-tab="squad"><span class="ic">▤</span>New Season</button>
     <button data-tab="settings"><span class="ic">⚙</span>Team Sheets</button>
@@ -1627,6 +1771,223 @@ const api = { showCompare: compare, showTitle: title, openRival: rival, destroy(
   if (typeof module !== 'undefined' && module.exports) module.exports = { buildLiveTitle };
   root.buildLiveTitle = buildLiveTitle;
 })(typeof window !== 'undefined' ? window : globalThis);
+
+/* ===== Club Matrix: component ===== ClubMatrix.mount(container,{games,titles,crest?}) -> {select,destroy}
+   games : [{t,s,n,u,c,f,a}]  title index, season, game no, our club, their club, goals for, goals against
+   titles: [{short,name}]     index = t
+   crest : name => image URL or '' (optional, e.g. the app's teamLogo)   No dependencies, read-only. */
+(function(global){
+'use strict';
+var ABBR={'Real Madrid':'RMA','PSG':'PSG','Liverpool':'LIV','FC Barcelona':'FCB','Bayern München':'BAY','Manchester City':'MCI','Juventus':'JUV','BVB':'BVB','Manchester United':'MUN','Inter Milan':'INT','Arsenal':'ARS','Chelsea':'CHE','France':'FRA','Portugal':'POR','England':'ENG','Unknown':'?'};
+var METRICS=[['games','Games'],['win','Win rate'],['gd','Goal diff'],['share','Their pick share']];
+var SEP='\u0001', MIN_SAMPLE=5;
+function esc(s){return String(s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
+function ab(c){return ABBR[c]||String(c).replace(/[^A-Za-zÀ-ÿ ]/g,'').split(' ').map(function(w){return w[0]||''}).join('').slice(0,3).toUpperCase()||'?'}
+function pct(x,d){return (x*100).toFixed(d||0)+'%'}
+function agg(list){var w=0,d=0,l=0,gf=0,ga=0;list.forEach(function(g){g.r==='W'?w++:g.r==='D'?d++:l++;gf+=g.f;ga+=g.a});var n=list.length;return{n:n,w:w,d:d,l:l,gf:gf,ga:ga,wr:n?w/n:0,gd:n?(gf-ga)/n:0}}
+function mint(a){return 'rgba(60,255,154,'+a+')'}function viol(a){return 'rgba(139,108,255,'+a+')'}function cor(a){return 'rgba(255,92,114,'+a+')'}
+
+function mount(container,opts){
+  if(container.__cm)container.__cm.destroy();
+  var TITLES=opts.titles||[];
+  var G=(opts.games||[]).map(function(x){return{t:x.t,s:x.s,n:x.n,u:x.u,c:x.c||'Unknown',f:x.f,a:x.a,r:x.f>x.a?'W':x.f===x.a?'D':'L'}})
+    .sort(function(a,b){return a.t-b.t||a.s-b.s||a.n-b.n});
+  var crest=opts.crest||function(){return ''};
+  var st={title:'all',metric:'games',cols:'top10',sel:{u:null,c:null}};
+  var ac=new AbortController(),sig=ac.signal,V=null;
+  container.innerHTML='';
+  var root=document.createElement('div');root.className='cm-root';container.appendChild(root);
+  root.innerHTML=
+   '<div class="cm-wrap">'+
+   '<header class="cm-top"><div><div class="cm-eyebrow">Opponent analysis</div><h1>Club Matrix</h1>'+
+   '<p class="cm-sub">Which club we played as, against which club they picked. Pick a cell to see the record, the score lines and how the games split over the titles.</p></div><div class="cm-kpis" data-r="kpis"></div></header>'+
+   '<section class="cm-glass cm-controls" aria-label="Filters">'+
+   '<div class="cm-ctl"><span>Title</span><div class="cm-seg" data-r="segTitle" role="group" aria-label="Title"></div></div>'+
+   '<div class="cm-ctl"><span>Colour by</span><div class="cm-seg" data-r="segMetric" role="group" aria-label="Colour by"></div></div>'+
+   '<div class="cm-ctl"><span>Their clubs</span><div class="cm-seg" data-r="segCols" role="group" aria-label="Their clubs"></div></div></section>'+
+   '<div class="cm-main"><div class="cm-left">'+
+   '<section class="cm-glass cm-card" aria-label="Club matrix"><div class="cm-mhead"><h2>We play as <span style="color:var(--cm-mint)">↓</span> &nbsp;they pick <span style="color:var(--cm-violet)">→</span></h2><div class="cm-legend" data-r="legend"></div></div>'+
+   '<p class="cm-hint" data-r="hint"></p><div class="cm-scroller"><div class="cm-mx" data-r="mx"></div></div>'+
+   '<div class="cm-mnote"><span><i class="cm-dot"></i> Same club on both sides (mirror match)</span><span><i class="cm-dash"></i> Fewer than '+MIN_SAMPLE+' games, read with care</span><span>Click a club name to see every game against or as that club</span></div></section>'+
+   '<section class="cm-glass cm-card" aria-label="What opponents pick"><div class="cm-mhead"><div><h2>What opponents pick</h2><p class="cm-sub" data-r="pksub" style="margin-top:4px"></p></div></div>'+
+   '<div class="cm-pkh"><span>Club</span><span>Share of all our games</span><span style="text-align:right">Games</span><span class="cm-tl"><span>First title</span><span>Latest</span></span></div><div class="cm-picks" data-r="picks"></div></section>'+
+   '</div><aside class="cm-glass cm-drawer" data-r="drawer" aria-live="polite" aria-label="Details"></aside></div></div>'+
+   '<div class="cm-tip" data-r="tip" role="tooltip"></div>';
+  var R={};[].forEach.call(root.querySelectorAll('[data-r]'),function(e){R[e.dataset.r]=e});
+
+  function badge(c,sm){var u=crest(c);return u?'<img class="cm-badge cm-img'+(sm?' cm-sm':'')+'" src="'+esc(u)+'" alt="" loading="lazy">':'<span class="cm-badge'+(sm?' cm-sm':'')+'" aria-hidden="true">'+esc(ab(c))+'</span>'}
+  function view(){
+    var L=st.title==='all'?G:G.filter(function(g){return g.t===+st.title});
+    var byC={},byU={},cell={};
+    L.forEach(function(g){(byC[g.c]=byC[g.c]||[]).push(g);(byU[g.u]=byU[g.u]||[]).push(g);(cell[g.u+SEP+g.c]=cell[g.u+SEP+g.c]||[]).push(g)});
+    var clubs=Object.keys(byC).sort(function(a,b){return byC[b].length-byC[a].length});
+    var cols=clubs.map(function(c){return{key:c,label:c,list:byC[c]}});
+    if(st.cols==='top10'&&cols.length>10){var rest=cols.slice(10);cols=cols.slice(0,10);
+      cols.push({key:'__other',label:'Other clubs',list:[].concat.apply([],rest.map(function(x){return x.list})),other:rest.length})}
+    var rows=Object.keys(byU).sort(function(a,b){return byU[b].length-byU[a].length}).map(function(u){return{key:u,list:byU[u]}});
+    return{L:L,byC:byC,byU:byU,cell:cell,cols:cols,rows:rows,total:agg(L)};
+  }
+  function cellList(v,u,c){
+    if(u&&c){if(c==='__other'){var set=new Set(v.cols.filter(function(x){return x.key==='__other'})[0].list);return (v.byU[u]||[]).filter(function(g){return set.has(g)})}return v.cell[u+SEP+c]||[]}
+    if(u)return v.byU[u]||[];
+    if(c){if(c==='__other')return v.cols.filter(function(x){return x.key==='__other'})[0].list;return v.byC[c]||[]}
+    return v.L;
+  }
+  function pickBest(){var best=null,bn=0;V.rows.forEach(function(r){V.cols.forEach(function(c){if(c.key==='__other')return;var n=cellList(V,r.key,c.key).length;if(n>bn&&(r.key!==c.key||!best)){bn=n;best={u:r.key,c:c.key}}})});return best||{u:null,c:null}}
+  function paint(list,rowTotal){
+    var n=list.length,a=agg(list);if(!n)return null;var f=n<MIN_SAMPLE?.55:1;
+    if(st.metric==='games')return{bg:mint((.06+.5*Math.sqrt(n/V.maxCell))*f),txt:String(n),sub:''};
+    if(st.metric==='win'){var d=a.wr-V.total.wr,k=Math.min(1,Math.abs(d)/.25);return{bg:(d>=0?mint:cor)((.07+.5*k)*f),txt:pct(a.wr),sub:'n='+n}}
+    if(st.metric==='gd'){var k2=Math.min(1,Math.abs(a.gd)/3.5);return{bg:(a.gd>=0?mint:cor)((.07+.5*k2)*f),txt:(a.gd>0?'+':'')+a.gd.toFixed(1),sub:'n='+n}}
+    var sh=n/rowTotal;return{bg:viol((.06+.62*Math.min(1,sh/V.maxShare))*f),txt:pct(sh),sub:'n='+n};
+  }
+  function seg(el,items,cur,fn){
+    el.innerHTML=items.map(function(it){return '<button type="button" data-k="'+esc(it[0])+'" aria-pressed="'+(String(it[0])===String(cur))+'">'+esc(it[1])+'</button>'}).join('');
+    el.onclick=function(e){var b=e.target.closest('button');if(b)fn(b.dataset.k)};
+  }
+  function render(){
+    V=view();
+    V.maxCell=Math.max(1,Math.max.apply(null,V.rows.map(function(r){return Math.max.apply(null,V.cols.map(function(c){return cellList(V,r.key,c.key).length}).concat([0]))}).concat([1])));
+    V.maxShare=Math.max(.05,Math.max.apply(null,V.rows.map(function(r){return Math.max.apply(null,V.cols.map(function(c){return cellList(V,r.key,c.key).length/r.list.length}).concat([0]))})));
+    var t=V.total;
+    R.kpis.innerHTML='<div class="cm-kpi"><b>'+t.n+'</b><i>Games</i></div><div class="cm-kpi"><b>'+pct(t.wr)+'</b><i>Win rate</i></div><div class="cm-kpi"><b>'+V.cols.filter(function(c){return !c.other}).length+'</b><i>Clubs shown</i></div><div class="cm-kpi"><b>'+V.rows.length+'</b><i>Clubs we played as</i></div>';
+    seg(R.segTitle,[['all','All titles']].concat(TITLES.map(function(x,i){return [i,x.short]})),st.title,function(k){st.title=k;render();st.sel=pickBest();render()});
+    seg(R.segMetric,METRICS,st.metric,function(k){st.metric=k;render()});
+    seg(R.segCols,[['top10','Top 10'],['all','All '+Object.keys(V.byC).length]],st.cols,function(k){st.cols=k;render()});
+    var m=st.metric,div='linear-gradient(90deg,'+cor(.55)+',rgba(255,255,255,.06),'+mint(.55)+')';
+    R.legend.innerHTML={games:'<span>Few</span><span class="cm-ramp" style="background:linear-gradient(90deg,'+mint(.08)+','+mint(.56)+')"></span><span>Many games</span>',
+      win:'<span style="color:var(--cm-coral)">Below our '+pct(t.wr)+'</span><span class="cm-ramp" style="background:'+div+'"></span><span style="color:var(--cm-mint)">Above</span>',
+      gd:'<span style="color:var(--cm-coral)">Conceded more</span><span class="cm-ramp" style="background:'+div+'"></span><span style="color:var(--cm-mint)">Scored more</span>',
+      share:'<span>Rare</span><span class="cm-ramp" style="background:linear-gradient(90deg,'+viol(.08)+','+viol(.68)+')"></span><span>Often picked</span>'}[m];
+    R.hint.textContent={games:'Number of games for each pairing.',win:'Win rate in each pairing. Colour compares it with our overall win rate for this view.',gd:'Average goal difference per game. Green means we outscored them.',share:'Read along a row: of all the games we played as that club, the share where the opponent picked the club in the column.'}[m];
+    var selU=st.sel.u,selC=st.sel.c;
+    R.mx.style.gridTemplateColumns='152px repeat('+V.cols.length+',minmax(62px,1fr)) 74px';
+    var h='<div class="cm-corner"><b>We play as</b>games · win rate</div>';
+    V.cols.forEach(function(c){var sh=c.list.length/t.n;
+      h+='<button type="button" class="cm-ch" data-c="'+esc(c.key)+'" aria-pressed="'+(selC===c.key&&!selU)+'" aria-label="'+esc(c.label)+': picked in '+c.list.length+' games">'+
+        (c.other?'<span class="cm-badge" aria-hidden="true">+'+c.other+'</span>':badge(c.key))+'<span class="cm-nm">'+(c.other?c.other+' other clubs':esc(c.label))+'</span>'+
+        '<span class="cm-pick"><span class="cm-bar"><i style="width:'+Math.min(100,c.list.length/V.cols[0].list.length*100)+'%"></i></span><small>'+c.list.length+' · '+pct(sh,sh<.1?1:0)+'</small></span></button>'});
+    h+='<div class="cm-sumhead">All their<br>clubs</div>';
+    V.rows.forEach(function(r){var ra=agg(r.list);
+      h+='<button type="button" class="cm-rh" data-u="'+esc(r.key)+'" aria-pressed="'+(selU===r.key&&!selC)+'">'+badge(r.key,1)+'<span class="cm-t"><b>'+esc(r.key)+'</b><span>'+ra.n+' games · '+pct(ra.wr)+'</span></span></button>';
+      V.cols.forEach(function(c){var l=cellList(V,r.key,c.key);
+        if(!l.length){h+='<div class="cm-cell cm-none" aria-label="'+esc(r.key)+' against '+esc(c.label)+': no games">·</div>';return}
+        var p=paint(l,r.list.length),a=agg(l),thin=l.length<MIN_SAMPLE,mir=r.key===c.key;
+        h+='<button type="button" class="cm-cell'+(thin?' cm-thin':'')+(mir?' cm-mirror':'')+'" style="background:'+p.bg+'" data-u="'+esc(r.key)+'" data-c="'+esc(c.key)+'" aria-pressed="'+(selU===r.key&&selC===c.key)+'" aria-label="We played as '+esc(r.key)+', they picked '+esc(c.label)+': '+l.length+' games, '+a.w+' wins, '+a.d+' draws, '+a.l+' losses"><span class="cm-v">'+p.txt+'</span><span class="cm-n">'+(p.sub||(thin?'few':pct(a.wr)+' W'))+'</span></button>'});
+      h+='<div class="cm-cell cm-tot"><span class="cm-v">'+(m==='share'?'100%':m==='gd'?(ra.gd>0?'+':'')+ra.gd.toFixed(1):m==='win'?pct(ra.wr):ra.n)+'</span><span class="cm-n">'+(m==='games'?pct(ra.wr)+' W':'n='+ra.n)+'</span></div>'});
+    R.mx.innerHTML=h;
+    /* picks */
+    var top=Object.keys(V.byC).map(function(c){return{key:c,list:V.byC[c]}}).sort(function(a,b){return b.list.length-a.list.length}).slice(0,10);
+    var tn=TITLES.map(function(_,i){return G.filter(function(g){return g.t===i}).length});
+    R.pksub.textContent=st.title==='all'?'The ten clubs opponents picked most often, and how their pick share moved from '+(TITLES[0]||{}).name+' to '+(TITLES[TITLES.length-1]||{}).name+'.':'The ten clubs opponents picked most often in '+TITLES[+st.title].name+'.';
+    R.picks.innerHTML=top.map(function(c){
+      var per=TITLES.map(function(_,i){var k=G.filter(function(g){return g.t===i&&g.c===c.key}).length;return tn[i]?k/tn[i]:0}),pm=Math.max.apply(null,per.concat([.01]));
+      var spark=per.map(function(v,i){return '<i class="'+(v===0?'cm-z':'')+(st.title!=='all'&&+st.title===i?' cm-on':'')+'" style="height:'+(v?Math.max(8,v/pm*100):0)+'%" data-tip="'+esc(TITLES[i].name)+': '+pct(v,1)+' of games ('+Math.round(v*tn[i])+' of '+tn[i]+')"></i>'}).join('');
+      return '<button type="button" class="cm-prow" data-c="'+esc(c.key)+'" aria-pressed="'+(selC===c.key&&!selU)+'"><span class="cm-pname">'+badge(c.key,1)+'<span><b>'+esc(c.key)+'</b><span>'+pct(c.list.length/t.n,1)+' of games</span></span></span>'+
+        '<span class="cm-pbar"><i style="width:'+c.list.length/top[0].list.length*100+'%"></i></span><span class="cm-pnum">'+c.list.length+'</span><span class="cm-spark" role="img" aria-label="Pick share per title">'+spark+'</span></button>'}).join('');
+    drawer();
+  }
+  function drawer(){
+    var u=st.sel.u,c=st.sel.c,el=R.drawer,list=cellList(V,u,c),a=agg(list),t=V.total;
+    var cname=c==='__other'?'Other clubs':c;
+    var head=(u&&c)?'<span class="cm-dtitle">'+badge(u,1)+'<h2>'+esc(u)+'</h2><span class="cm-vs">VS</span>'+badge(c==='__other'?'+':c,1)+'<h2>'+esc(cname)+'</h2></span>'
+      :u?'<span class="cm-dtitle">'+badge(u,1)+'<h2>Playing as '+esc(u)+'</h2></span>'
+      :c?'<span class="cm-dtitle">'+badge(c==='__other'?'+':c,1)+'<h2>When they pick '+esc(cname)+'</h2></span>':'<span class="cm-dtitle"><h2>All games</h2></span>';
+    var line=(u&&c)?'We played as '+esc(u)+', they picked '+esc(cname)+'.':u?'Every game where we played as this club.':c?'Every game where the opponent picked this club.':'Pick a cell, a row or a column in the matrix.';
+    if(!list.length){el.innerHTML=head+'<p class="cm-dline">No games for this pairing in '+(st.title==='all'?'any title':esc(TITLES[+st.title].name))+'.</p>';return}
+    var dWr=a.wr-t.wr,dTxt=Math.abs(dWr)<.005?'<span class="cm-flat">same as overall</span>':'<span class="'+(dWr>0?'cm-up':'cm-down')+'">'+(dWr>0?'+':'−')+Math.abs(dWr*100).toFixed(0)+' pts vs overall</span>';
+    var tags=[];if(u&&c&&u===c)tags.push('<span class="cm-tag cm-gold">Mirror match</span>');if(list.length<MIN_SAMPLE)tags.push('<span class="cm-tag">Small sample</span>');if(a.w===a.n&&a.n>=3)tags.push('<span class="cm-tag cm-gold">Unbeaten, all wins</span>');
+    var byT=TITLES.map(function(_,i){var x=agg(list.filter(function(g){return g.t===i}));x.i=i;return x}).filter(function(x){return x.n});
+    var last=list.slice(-10),best=list.reduce(function(m,g){return g.f-g.a>m.f-m.a?g:m},list[0]),worst=list.reduce(function(m,g){return g.f-g.a<m.f-m.a?g:m},list[0]);
+    var gl=function(g){return g.f+'–'+g.a},where=function(g){return TITLES[g.t].short+' · S'+g.s+' G'+g.n};
+    var pickBox='';
+    if(u&&c&&c!=='__other'){var share=list.length/V.byU[u].length,ovr=cellList(V,null,c).length/t.n;
+      pickBox='<div class="cm-pickcmp"><b>'+pct(share,1)+'</b> of our games as '+esc(u)+' were against '+esc(c)+'.<br><span style="color:var(--cm-muted);font-size:12px">All our games: '+pct(ovr,1)+'. '+(share>ovr*1.15?'They pick it more often against this club.':share<ovr*.85?'They pick it less often against this club.':'About the usual rate.')+'</span></div>'}
+    else if(c&&!u){var rs=V.rows.map(function(r){return{k:r.key,n:cellList(V,r.key,c).length}}).filter(function(x){return x.n}).slice(0,4);
+      pickBox='<div class="cm-pickcmp"><b>'+pct(list.length/t.n,1)+'</b> of all our games.<br><span style="color:var(--cm-muted);font-size:12px">Most often when we play as '+rs.map(function(x){return esc(x.k)+' ('+x.n+')'}).join(', ')+'.</span></div>'}
+    el.innerHTML=head+'<p class="cm-dline">'+line+'</p>'+(tags.length?'<div class="cm-tags">'+tags.join('')+'</div>':'')+
+     '<div class="cm-stats"><div class="cm-stat"><b>'+a.n+'</b><i>Games</i><em class="cm-flat">'+a.w+'W '+a.d+'D '+a.l+'L</em></div>'+
+     '<div class="cm-stat"><b>'+pct(a.wr)+'</b><i>Win rate</i><em>'+dTxt+'</em></div>'+
+     '<div class="cm-stat"><b style="font-size:'+(String(a.gf+a.ga).length>5?17:21)+'px">'+a.gf+'–'+a.ga+'</b><i>Goals</i><em class="'+(a.gd>0?'cm-up':a.gd<0?'cm-down':'cm-flat')+'">'+(a.gd>0?'+':'')+a.gd.toFixed(1)+' per game</em></div></div>'+
+     '<div><div class="cm-wdl" role="img" aria-label="'+a.w+' wins, '+a.d+' draws, '+a.l+' losses"><i class="cm-w" style="flex:'+a.w+'"></i><i class="cm-d" style="flex:'+a.d+'"></i><i class="cm-l" style="flex:'+a.l+'"></i></div><div class="cm-wdlt"><span>'+a.w+' W</span><span>'+a.d+' D</span><span>'+a.l+' L</span></div></div>'+pickBox+
+     '<div><div class="cm-sec">Last '+last.length+' games, oldest to newest</div><div class="cm-form">'+last.map(function(g){return '<span class="cm-sq cm-'+g.r+'" data-tip="'+where(g)+'<br>'+esc(g.u)+' '+gl(g)+' '+esc(g.c)+'">'+g.r+'</span>'}).join('')+'</div></div>'+
+     '<div><div class="cm-sec">By title</div><table class="cm-tt"><tr><th>Title</th><th>G</th><th>W-D-L</th><th>Win</th></tr>'+byT.map(function(x){return '<tr><td>'+esc(TITLES[x.i].name)+'</td><td>'+x.n+'</td><td>'+x.w+'-'+x.d+'-'+x.l+'</td><td>'+pct(x.wr)+'</td></tr>'}).join('')+'</table></div>'+
+     '<div class="cm-ext"><div><span>Biggest win</span><b>'+gl(best)+' · '+where(best)+'</b></div><div><span>Worst result</span><b>'+gl(worst)+' · '+where(worst)+'</b></div></div>'+
+     ((u||c)?'<button type="button" class="cm-clear" data-act="clear">Clear selection</button>':'');
+  }
+  /* events: delegated on the root, removed by destroy() */
+  root.addEventListener('click',function(e){
+    if(e.target.closest('[data-act=clear]')){st.sel={u:null,c:null};render();return}
+    if(e.target.closest('.cm-seg')||e.target.closest('.cm-drawer'))return;
+    var b=e.target.closest('[data-u],[data-c]');if(!b)return;
+    var u=b.dataset.u==null?null:b.dataset.u,c=b.dataset.c==null?null:b.dataset.c,same=st.sel.u===u&&st.sel.c===c;
+    st.sel=same?{u:null,c:null}:{u:u,c:c};render();
+    if(!same&&global.innerWidth<=1100&&R.drawer.scrollIntoView)R.drawer.scrollIntoView({behavior:'smooth',block:'start'});
+  },{signal:sig});
+  root.addEventListener('mousemove',function(e){
+    var el=e.target.closest('[data-tip],.cm-cell:not(.cm-none):not(.cm-tot)'),tip=R.tip;
+    if(!el){tip.classList.remove('cm-on');return}
+    var html=el.dataset.tip;
+    if(!html){var u=el.dataset.u,c=el.dataset.c;if(!u)return;var l=cellList(V,u,c),a=agg(l);
+      html='<b>'+esc(u)+'</b> vs <b>'+esc(c==='__other'?'Other clubs':c)+'</b><br>'+a.n+' games · '+a.w+'W '+a.d+'D '+a.l+'L<br>'+a.gf+':'+a.ga+' goals · '+pct(a.wr)+' win rate'}
+    tip.innerHTML=html;tip.classList.add('cm-on');
+    var w=tip.offsetWidth,h=tip.offsetHeight;
+    tip.style.left=Math.min(global.innerWidth-w-8,Math.max(8,e.clientX+14))+'px';tip.style.top=Math.min(global.innerHeight-h-8,e.clientY+14)+'px';
+  },{signal:sig});
+  root.addEventListener('mouseleave',function(){R.tip.classList.remove('cm-on')},{signal:sig});
+
+  render();st.sel=pickBest();render();
+  var api={
+    select:function(u,c){st.sel={u:u||null,c:c||null};render()},
+    destroy:function(){ac.abort();container.innerHTML='';container.__cm=null}
+  };
+  container.__cm=api;return api;
+}
+global.ClubMatrix={mount:mount};
+})(window);
+
+/* ===== Club Matrix: data adapter ===== pure functions, no DOM, no network.
+   buildMatrixData({archive, live}) -> { games, titles }   (feed straight into ClubMatrix.mount)
+   archive: the title docs from loadTitleDocs() (same input as buildTitlesData in the Titles module)
+   live   : optional { name, short, games, ourClub(game)->club name  (or teamNameById(teamId)), seasonNumber(seasonId)->n, gameNumber(game)->n }  the app's live arrays */
+(function(root){
+'use strict';
+var SHORT={fifa20:'F20',fifa21:'F21',fifa22:'F22',fifa23:'F23',eafc24:'FC24',eafc25:'FC25',eafc26:'FC26'};
+/* typed variants -> the one name the matrix groups by. Extend when a new variant shows up. Keys are lower-case, no accents/dots. */
+var ALIAS={'munchen bayern fc':'Bayern München','bayern munchen':'Bayern München','bayern':'Bayern München','fc bayern':'Bayern München',
+  'club brugge':'Club Brugge','paris sg':'PSG','paris saint germain':'PSG','paris':'PSG','barcelona':'FC Barcelona','barca':'FC Barcelona','fc barcelona':'FC Barcelona',
+  'man city':'Manchester City','man united':'Manchester United','man utd':'Manchester United','borussia dortmund':'BVB','dortmund':'BVB',
+  'inter':'Inter Milan','inter mailand':'Inter Milan','ac mailand':'AC Milan','roma':'AS Roma','roma fc':'AS Roma','sporting lis':'Sporting CP','nederland':'Netherlands'};
+function key(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[.]/g,'').replace(/\s+/g,' ').trim().toLowerCase()}
+function canonClub(name){var s=String(name||'').trim();if(!s)return '';return ALIAS[key(s)]||s}
+
+function buildMatrixData(input){
+  var games=[],titles=[];
+  (input.archive||[]).forEach(function(td,ti){
+    titles.push({short:SHORT[td.titleKey]||td.title,name:td.title});
+    (td.seasons||[]).forEach(function(s){
+      (s.games||[]).forEach(function(g){
+        if(!g.played||g.countsInStats===false)return;           /* same rule as the Titles page */
+        var u=canonClub(s.team);if(!u)return;
+        games.push({t:ti,s:s.season,n:g.gameNumber,u:u,c:canonClub(g.opponentTeam),f:g.goalsFor||0,a:g.goalsAgainst||0});
+      });
+    });
+  });
+  var lv=input.live;
+  if(lv&&lv.games&&lv.games.length){
+    var ti=titles.length;
+    titles.push({short:lv.short||'Live',name:lv.name||'Live'});
+    lv.games.forEach(function(g){
+      if(g.scoreFor==null||g.scoreAgainst==null)return;
+      var u=canonClub(lv.ourClub?lv.ourClub(g):(lv.teamNameById?lv.teamNameById(g.teamId):''));if(!u)return;
+      games.push({t:ti,s:lv.seasonNumber?lv.seasonNumber(g.seasonId):0,n:lv.gameNumber?lv.gameNumber(g):g.gameNumber,u:u,c:canonClub(g.opponentTeam),f:g.scoreFor,a:g.scoreAgainst});
+    });
+  }
+  return{games:games,titles:titles};
+}
+var api={buildMatrixData:buildMatrixData,canonClub:canonClub};
+if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ClubMatrixAdapter=api;
+})(typeof window!=='undefined'?window:this);
 
 /* ======================================================================
    PASTE YOUR FIREBASE CONFIG HERE — from Firebase Console → Project
@@ -2354,6 +2715,50 @@ function paintTitlesError(container){
   });
 }
 
+/* ============================= CLUB MATRIX =============================
+   Read-only page: our club (rows) x the club the opponent picked (columns). Archive games come from the
+   same cached legacy docs as FIFA History; live games from the in-memory arrays. Never writes to Firestore. */
+let matrixPage = null, matrixMounting = null, matrixError = null;
+async function mountMatrix(container){
+  if(matrixPage) return;
+  if(!matrixMounting){
+    matrixMounting = (async ()=>{
+      try{
+        let archive = [];
+        try{ archive = (await loadLegacyDocs()).titles; }
+        catch(e){ console.warn('Club Matrix: archive not available, showing live games only', e); }   /* import not done / rules: still show live data */
+        if(currentTab !== 'matrix') return;
+        const seasonByIdM = new Map(seasons.map(s=>[s.id, s]));
+        const md = ClubMatrixAdapter.buildMatrixData({
+          archive,
+          live: { name:'FC 27', short:'FC27', games,
+                  ourClub: g => (seasonByIdM.get(g.seasonId)||{}).team || '',
+                  seasonNumber: id => (seasonByIdM.get(id)||{}).number,
+                  gameNumber: g => gamePosition(g.seasonId, g.id) }
+        });
+        if(!md.games.length) throw new Error('No games to show yet');
+        const logoMemo = new Map();
+        container.innerHTML = '';
+        matrixPage = ClubMatrix.mount(container, { games: md.games, titles: md.titles,
+          crest: name => { if(!logoMemo.has(name)) logoMemo.set(name, teamLogo(name) || ''); return logoMemo.get(name); } });
+      } catch(err){
+        matrixError = err;
+        console.error('Club Matrix load failed:', err);
+        if(currentTab === 'matrix') paintMatrixError(container);
+      } finally { matrixMounting = null; }
+    })();
+  }
+  return matrixMounting;
+}
+function paintMatrixError(container){
+  const raw = (matrixError && matrixError.message) || 'unknown error';
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  container.innerHTML = '<div class="ti-error"><div class="ti-error-t">Club Matrix couldn\'t load</div><div class="ti-error-h">'+esc(raw)+'</div>'
+    + '<button class="ti-error-btn" id="cm-retry" type="button">Try again</button></div>';
+  const b = container.querySelector('#cm-retry');
+  if(b) b.addEventListener('click', ()=>{ matrixError = null; render(); });
+}
+
 /* ============================= MONTHLY — month-by-month comparison =============================
    Groups one game version's matches by calendar month. Month = the date on the Time/Date row
    (matches logged from EA FC 27 onward carry it; older matches have no stamp and don't count).
@@ -2553,7 +2958,7 @@ function wireMonthlyHandlers(){
   }));
 }
 
-const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy','worldmap','titles','monthly'];
+const TABS = ['dashboard','log','squad','settings','history','hof','highscores','trophy','worldmap','titles','matrix','monthly'];
 function setTab(t, fromHash){
   if(currentTab==='log' && t!=='log'){
     /* Leaving Log Match: drop any in-progress / being-edited match so the tab always
@@ -2583,6 +2988,11 @@ function setTab(t, fromHash){
        Clear any load error too, so the next visit auto-retries. */
     if(titlesPage){ titlesPage.destroy(); titlesPage = null; }
     titlesError = null;
+  }
+  if(currentTab==='matrix' && t!=='matrix'){
+    /* Leaving Club Matrix: destroy the instance; the next visit mounts fresh and picks up new games. */
+    if(matrixPage){ matrixPage.destroy(); matrixPage = null; }
+    matrixError = null;
   }
   currentTab = t; render();
   /* Give each screen its own URL (#screen) so the mouse/browser BACK button moves
@@ -2643,6 +3053,16 @@ function render(){
       }
     }
   }
+  else if(currentTab==='matrix'){
+    /* Mount ONCE (async archive load); never re-mount on Firestore snapshots. setTab() destroys it when the tab is left. */
+    if(!matrixPage){
+      if(matrixError) paintMatrixError(main);
+      else{
+        if(!main.querySelector('.cm-root')) main.innerHTML = '<div class="ti-loading">Loading club matrix…</div>';
+        mountMatrix(main);
+      }
+    }
+  }
   /* Full-width season bar (under the rail too) — Match History screen only. */
   const sb = document.getElementById('seasonbar');
   const sbOn = currentTab==='history' && seasons.length>0;
@@ -2651,6 +3071,7 @@ function render(){
   document.getElementById('app').classList.toggle('hist-full', currentTab==='history');
   document.getElementById('app').classList.toggle('trophy-full', currentTab==='trophy');
   document.getElementById('app').classList.toggle('wm-full', currentTab==='worldmap');
+  document.getElementById('app').classList.toggle('cm-full', currentTab==='matrix');
   wireTabHandlers();
 }
 
@@ -4003,7 +4424,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v135';
+const SCAN_BUILD = 'v136';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
