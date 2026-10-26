@@ -1775,7 +1775,8 @@ const api = { showCompare: compare, showTitle: title, openRival: rival, destroy(
 /* ===== Club Matrix: component ===== ClubMatrix.mount(container,{games,titles,crest?}) -> {select,destroy}
    games : [{t,s,n,u,c,f,a}]  title index, season, game no, our club, their club, goals for, goals against
    titles: [{short,name}]     index = t
-   crest : name => image URL or '' (optional, e.g. the app's teamLogo)   No dependencies, read-only. */
+   crest : name => image URL or '' (optional, e.g. the app's teamLogo)
+   state : {title:'all'|short name e.g. 'FC27', metric, cols:'top10'|'all'} optional starting selection;  onState(state) is called after every change so the host can save it   No dependencies, read-only. */
 (function(global){
 'use strict';
 var ABBR={'Real Madrid':'RMA','PSG':'PSG','Liverpool':'LIV','FC Barcelona':'FCB','Bayern München':'BAY','Manchester City':'MCI','Juventus':'JUV','BVB':'BVB','Manchester United':'MUN','Inter Milan':'INT','Arsenal':'ARS','Chelsea':'CHE','France':'FRA','Portugal':'POR','England':'ENG','Unknown':'?'};
@@ -1793,7 +1794,10 @@ function mount(container,opts){
   var G=(opts.games||[]).map(function(x){return{t:x.t,s:x.s,n:x.n,u:x.u,c:x.c||'Unknown',f:x.f,a:x.a,r:x.f>x.a?'W':x.f===x.a?'D':'L'}})
     .sort(function(a,b){return a.t-b.t||a.s-b.s||a.n-b.n});
   var crest=opts.crest||function(){return ''};
-  var st={title:'all',metric:'games',cols:'top10',sel:{u:null,c:null}};
+  var init=opts.state||{};
+  var tIdx=TITLES.findIndex(function(x){return x.short===init.title});
+  var st={title:tIdx>=0?String(tIdx):'all',metric:METRICS.some(function(m){return m[0]===init.metric})?init.metric:'games',cols:init.cols==='all'?'all':'top10',sel:{u:null,c:null}};
+  function emit(){if(opts.onState)opts.onState({title:st.title==='all'?'all':TITLES[+st.title].short,metric:st.metric,cols:st.cols})}
   var ac=new AbortController(),sig=ac.signal,V=null;
   container.innerHTML='';
   var root=document.createElement('div');root.className='cm-root';container.appendChild(root);
@@ -1851,9 +1855,9 @@ function mount(container,opts){
     V.maxShare=Math.max(.05,Math.max.apply(null,V.rows.map(function(r){return Math.max.apply(null,V.cols.map(function(c){return cellList(V,r.key,c.key).length/r.list.length}).concat([0]))})));
     var t=V.total;
     R.kpis.innerHTML='<div class="cm-kpi"><b>'+t.n+'</b><i>Games</i></div><div class="cm-kpi"><b>'+pct(t.wr)+'</b><i>Win rate</i></div><div class="cm-kpi"><b>'+V.cols.filter(function(c){return !c.other}).length+'</b><i>Clubs shown</i></div><div class="cm-kpi"><b>'+V.rows.length+'</b><i>Clubs we played as</i></div>';
-    seg(R.segTitle,[['all','All titles']].concat(TITLES.map(function(x,i){return [i,x.short]})),st.title,function(k){st.title=k;render();st.sel=pickBest();render()});
-    seg(R.segMetric,METRICS,st.metric,function(k){st.metric=k;render()});
-    seg(R.segCols,[['top10','Top 10'],['all','All '+Object.keys(V.byC).length]],st.cols,function(k){st.cols=k;render()});
+    seg(R.segTitle,[['all','All titles']].concat(TITLES.map(function(x,i){return [i,x.short]})),st.title,function(k){st.title=k;render();st.sel=pickBest();render();emit()});
+    seg(R.segMetric,METRICS,st.metric,function(k){st.metric=k;render();emit()});
+    seg(R.segCols,[['top10','Top 10'],['all','All '+Object.keys(V.byC).length]],st.cols,function(k){st.cols=k;render();emit()});
     var m=st.metric,div='linear-gradient(90deg,'+cor(.55)+',rgba(255,255,255,.06),'+mint(.55)+')';
     R.legend.innerHTML={games:'<span>Few</span><span class="cm-ramp" style="background:linear-gradient(90deg,'+mint(.08)+','+mint(.56)+')"></span><span>Many games</span>',
       win:'<span style="color:var(--cm-coral)">Below our '+pct(t.wr)+'</span><span class="cm-ramp" style="background:'+div+'"></span><span style="color:var(--cm-mint)">Above</span>',
@@ -2191,7 +2195,8 @@ async function dbDelete(collection, id){
    stick across logins (and a toast points to the missing rule). */
 const SHEET_SORT_KEYS = ['apps','goals','assists','points','motm','avg'];
 let userSettings = { bestDivs:[1,2,3,4,5], worstDivs:[1,2,3,4,5], sheetSortKey:'points', sheetSortDir:-1, hofTeams:null, hofSortKey:'pts', hofSortDir:-1,
-  hsTeams:null, hsSKey:'pts', hsSDir:-1, hsGKey:'pts', hsGDir:-1, hsTopS:true, hsTopG:true };
+  hsTeams:null, hsSKey:'pts', hsSDir:-1, hsGKey:'pts', hsGDir:-1, hsTopS:true, hsTopG:true,
+  cmTitle:'all', cmMetric:'games', cmCols:'top10' };
 let settingsSaveTimer = null;
 let settingsWarned = false;
 function settingsUid(){
@@ -2216,6 +2221,7 @@ function applySettings(){
   else if(currentTab==='history') render();
   else if(currentTab==='hof') render();
   else if(currentTab==='highscores') render();
+  else if(currentTab==='matrix' && matrixPage){ matrixPage.destroy(); matrixPage = null; render(); }   /* settings arrived after the page mounted: rebuild with the saved selection */
 }
 async function loadUserSettings(){
   const uid = settingsUid();
@@ -2237,7 +2243,10 @@ async function loadUserSettings(){
       hsGKey: d && HS_SORT_KEYS.includes(d.hsGKey) ? d.hsGKey : 'pts',
       hsGDir: d && d.hsGDir===1 ? 1 : -1,
       hsTopS: d ? d.hsTopS!==false : true,
-      hsTopG: d ? d.hsTopG!==false : true
+      hsTopG: d ? d.hsTopG!==false : true,
+      cmTitle: d && typeof d.cmTitle==='string' && d.cmTitle.length<=20 ? d.cmTitle : 'all',
+      cmMetric: d && ['games','win','gd','share'].includes(d.cmMetric) ? d.cmMetric : 'games',
+      cmCols: d && d.cmCols==='all' ? 'all' : 'top10'
     };
     settingsWarned = false;
     applySettings();
@@ -2271,6 +2280,9 @@ function saveUserSettings(){
         hsGDir: userSettings.hsGDir,
         hsTopS: userSettings.hsTopS,
         hsTopG: userSettings.hsTopG,
+        cmTitle: userSettings.cmTitle,
+        cmMetric: userSettings.cmMetric,
+        cmCols: userSettings.cmCols,
         updatedAt: Date.now()
       });
       settingsWarned = false;
@@ -2751,6 +2763,9 @@ async function mountMatrix(container){
         const logoMemo = new Map();
         container.innerHTML = '';
         matrixPage = ClubMatrix.mount(container, { games: md.games, titles: md.titles,
+          /* Title / Colour by / Their clubs are remembered per account (settings/{uid}), like the other tabs. */
+          state: { title: userSettings.cmTitle, metric: userSettings.cmMetric, cols: userSettings.cmCols },
+          onState: s => { userSettings.cmTitle = s.title; userSettings.cmMetric = s.metric; userSettings.cmCols = s.cols; saveUserSettings(); },
           crest: name => { if(!logoMemo.has(name)) logoMemo.set(name, teamLogo(name) || ''); return logoMemo.get(name); } });
       } catch(err){
         matrixError = err;
@@ -4435,7 +4450,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v140';
+const SCAN_BUILD = 'v141';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
