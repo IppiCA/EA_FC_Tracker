@@ -2738,7 +2738,10 @@ async function mountMatrix(container){
         const md = ClubMatrixAdapter.buildMatrixData({
           archive,
           live: { name:'FC 27', short:'FC27', games,
-                  ourClub: g => (seasonByIdM.get(g.seasonId)||{}).team || '',
+                  /* A season can span several team sheets (mid-season switch), so use the team the GAME was logged under;
+                     fall back to the season's first team, then its legacy name. */
+                  ourClub: g => { const gt = g.teamId && teamById(g.teamId); if(gt && gt.name) return gt.name;
+                                  const s = seasonByIdM.get(g.seasonId); const st = s && seasonTeams(s)[0]; return (st && st.name) || (s && s.team) || ''; },
                   seasonNumber: id => (seasonByIdM.get(id)||{}).number,
                   gameNumber: g => gamePosition(g.seasonId, g.id) }
         });
@@ -4430,7 +4433,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v137';
+const SCAN_BUILD = 'v138';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
