@@ -1862,6 +1862,8 @@ function mount(container,opts){
     R.hint.textContent={games:'Number of games for each pairing.',win:'Win rate in each pairing. Colour compares it with our overall win rate for this view.',gd:'Average goal difference per game. Green means we outscored them.',share:'Read along a row: of all the games we played as that club, the share where the opponent picked the club in the column.'}[m];
     var selU=st.sel.u,selC=st.sel.c;
     R.mx.style.gridTemplateColumns='152px repeat('+V.cols.length+',minmax(62px,1fr)) 74px';
+    /* The grid box must be as wide as its content, or the sticky first column stops sticking once the grid's own box ends. */
+    R.mx.style.minWidth=(152+74+V.cols.length*62+(V.cols.length+1)*4)+'px';
     var h='<div class="cm-corner"><b>We play as</b>games · win rate</div>';
     V.cols.forEach(function(c){var sh=c.list.length/t.n;
       h+='<button type="button" class="cm-ch" data-c="'+esc(c.key)+'" aria-pressed="'+(selC===c.key&&!selU)+'" aria-label="'+esc(c.label)+': picked in '+c.list.length+' games">'+
@@ -4433,7 +4435,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v139';
+const SCAN_BUILD = 'v140';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
