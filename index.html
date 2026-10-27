@@ -2430,7 +2430,25 @@ function seasonTeams(s){
   const list = [];
   ids.forEach(id=>{ const t = teamById(id); if(t && !list.some(x=>x.id===t.id)) list.push(t); });
   if(!list.length && s.team) list.push({id:'', name:s.team, playerIds:(s.squadIds||[])});
+  /* A team that was only pre-selected when the season was created (and then switched away from before
+     any match was logged) is not part of the season: once matches exist, keep only the teams that
+     actually played one. A match without a team counts for the season's first team. */
+  if(list.length>1){
+    const used = seasonUsedTeamIds(s.id);
+    if(used){
+      const keep = list.filter((t,i)=> used.has(t.id) || (i===0 && used.has('')));
+      if(keep.length) return keep;
+    }
+  }
   return list;
+}
+let _stGames = null, _stLen = -1, _stUsed = new Map();
+function seasonUsedTeamIds(seasonId){
+  if(_stGames!==games || _stLen!==games.length){
+    _stGames = games; _stLen = games.length; _stUsed = new Map();
+    games.forEach(g=>{ let set = _stUsed.get(g.seasonId); if(!set) _stUsed.set(g.seasonId, set = new Set()); set.add(g.teamId||''); });
+  }
+  return _stUsed.get(seasonId) || null;
 }
 function seasonTeamName(s){
   const names = seasonTeams(s).map(t=>t.name);
@@ -4450,7 +4468,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v143';
+const SCAN_BUILD = 'v144';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
