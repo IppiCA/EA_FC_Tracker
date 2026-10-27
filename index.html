@@ -1225,7 +1225,7 @@ tr.ti-excluded td.ti-sc{text-decoration:line-through;text-decoration-color:#ffff
 .cm-ch{background:none;border:1px solid transparent;border-radius:12px;padding:6px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center}
 .cm-ch:hover,.cm-rh:hover{background:rgba(255,255,255,.05)}
 .cm-ch[aria-pressed=true],.cm-rh[aria-pressed=true]{border-color:rgba(139,108,255,.7);background:rgba(139,108,255,.12)}
-.cm-ch .cm-nm{font:600 11.5px/1.15 var(--cm-body);max-width:70px;overflow-wrap:break-word;hyphens:none}
+.cm-ch .cm-nm{font:600 10.5px/1.15 var(--cm-body);width:100%;height:2.3em;display:flex;align-items:center;justify-content:center;overflow-wrap:normal;hyphens:none}
 .cm-pick{width:100%;display:grid;gap:3px;justify-items:center}
 .cm-pick .cm-bar{width:100%;height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
 .cm-pick .cm-bar i{display:block;height:100%;background:var(--cm-violet);border-radius:3px}
@@ -1865,9 +1865,9 @@ function mount(container,opts){
       share:'<span>Rare</span><span class="cm-ramp" style="background:linear-gradient(90deg,'+viol(.08)+','+viol(.68)+')"></span><span>Often picked</span>'}[m];
     R.hint.textContent={games:'Number of games for each pairing.',win:'Win rate in each pairing. Colour compares it with our overall win rate for this view.',gd:'Average goal difference per game. Green means we outscored them.',share:'Read along a row: of all the games we played as that club, the share where the opponent picked the club in the column.'}[m];
     var selU=st.sel.u,selC=st.sel.c;
-    R.mx.style.gridTemplateColumns='152px repeat('+V.cols.length+',minmax(62px,1fr)) 74px';
+    R.mx.style.gridTemplateColumns='152px repeat('+V.cols.length+',minmax(74px,1fr)) 74px';
     /* The grid box must be as wide as its content, or the sticky first column stops sticking once the grid's own box ends. */
-    R.mx.style.minWidth=(152+74+V.cols.length*62+(V.cols.length+1)*4)+'px';
+    R.mx.style.minWidth=(152+74+V.cols.length*74+(V.cols.length+1)*4)+'px';
     var h='<div class="cm-corner"><b>We play as</b>games · win rate</div>';
     V.cols.forEach(function(c){var sh=c.list.length/t.n;
       h+='<button type="button" class="cm-ch" data-c="'+esc(c.key)+'" aria-pressed="'+(selC===c.key&&!selU)+'" aria-label="'+esc(c.label)+': picked in '+c.list.length+' games">'+
@@ -4450,7 +4450,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v141';
+const SCAN_BUILD = 'v142';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
