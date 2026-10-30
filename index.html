@@ -3646,7 +3646,7 @@ function freshDraft(){
     scoreFor:0, scoreAgainst:0, rageQuit:'none', rageQuitMin:null, disconnect:false, motmPlayerId:'',
     pingIppi:'', pingStebo:'',
     matchTime: nowHM(), matchDate: nowISODate(),
-    top100:'', top100Wins:0, top100Draws:0, top100Losses:0,
+    top100:'', top100Rank:0, top100Wins:0, top100Draws:0, top100Losses:0,
     playerStats: squad.map(pid=>({playerId:pid, position:'', rating:'', goals:0, assists:0})),
     teamStats: {for:{}, against:{}}
   };
@@ -3662,7 +3662,7 @@ function gameToDraft(g){
     opponentCountries: (Array.isArray(g.opponentCountries)&&g.opponentCountries.length===2)?g.opponentCountries:['',''],
     pingIppi: g.pingIppi||'', pingStebo: g.pingStebo||'',
     matchTime: g.matchTime||'', matchDate: g.matchDate||'',
-    top100: g.top100||'', top100Wins: Number(g.top100Wins)||0, top100Draws: Number(g.top100Draws)||0, top100Losses: Number(g.top100Losses)||0,
+    top100: g.top100||'', top100Rank: Number(g.top100Rank)||0, top100Wins: Number(g.top100Wins)||0, top100Draws: Number(g.top100Draws)||0, top100Losses: Number(g.top100Losses)||0,
     homeAway: g.homeAway||'home',
     scoreFor: g.scoreFor||0,
     scoreAgainst: g.scoreAgainst||0,
@@ -3768,6 +3768,7 @@ function renderLog(){
           <option value="Top 100 Monthly" ${logDraft.top100==='Top 100 Monthly'?'selected':''}>Top 100 Monthly</option>
         </select>
       </div>
+      <div class="field t100-wdl" style="flex:.6"><label>Rank</label><input type="number" min="1" step="1" inputmode="numeric" id="f-t100r" placeholder="#" value="${logDraft.top100Rank||''}"></div>
       <div class="field t100-wdl" style="flex:.6"><label>Wins</label><input type="number" min="0" id="f-t100w" value="${logDraft.top100Wins||0}"></div>
       <div class="field t100-wdl" style="flex:.6"><label>Draws</label><input type="number" min="0" id="f-t100d" value="${logDraft.top100Draws||0}"></div>
       <div class="field t100-wdl" style="flex:.6"><label>Losses</label><input type="number" min="0" id="f-t100l" value="${logDraft.top100Losses||0}"></div>
@@ -3930,6 +3931,7 @@ function readDraftFromForm(){
   g.matchTime = val('f-matchtime')||'';
   g.matchDate = val('f-matchdate')||'';
   g.top100 = val('f-top100')||'';
+  g.top100Rank = Math.max(0, Math.floor(Number(val('f-t100r'))||0));   /* 0 = rank not entered */
   g.top100Wins = Math.max(0, Number(val('f-t100w'))||0);
   g.top100Draws = Math.max(0, Number(val('f-t100d'))||0);
   g.top100Losses = Math.max(0, Number(val('f-t100l'))||0);
@@ -4455,7 +4457,8 @@ function wireLogHandlers(){
     document.querySelectorAll('.t100-wdl').forEach(el=>{ el.style.display = show ? '' : 'none'; });
     if(!show){
       ['f-t100w','f-t100d','f-t100l'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = 0; });
-      if(logDraft){ logDraft.top100Wins = 0; logDraft.top100Draws = 0; logDraft.top100Losses = 0; }
+      const rk = document.getElementById('f-t100r'); if(rk) rk.value = '';
+      if(logDraft){ logDraft.top100Rank = 0; logDraft.top100Wins = 0; logDraft.top100Draws = 0; logDraft.top100Losses = 0; }
     }
   };
   if(t100) t100.addEventListener('change', syncTop100);
@@ -4468,7 +4471,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v144';
+const SCAN_BUILD = 'v145';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
