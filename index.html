@@ -2345,7 +2345,7 @@ function canonicalName(rawName){
    "E. Garcia"). Add any name here and every path that resolves a name (OCR scan,
    auto-add) will always resolve it to itself, never to a look-alike. The team-sheet
    "add player" button already creates these cleanly; this list protects the fuzzy paths. */
-const KNOWN_PLAYERS = ['Pedri', 'Rodri', 'J. Garcia', 'E. Garcia', 'H. Kane', 'L. Karl'];   /* Kane / Karl: 2 edits apart, both Bayern München */
+const KNOWN_PLAYERS = ['Pedri', 'Rodri', 'J. Garcia', 'E. Garcia', 'H. Kane', 'L. Karl', 'D. Doué'];   /* Kane / Karl: 2 edits apart, both Bayern München;  Doué / Doku: 1 edit apart (accent is ignored), both PSG-era look-alikes */
 /* Identity key that KEEPS the leading initial (unlike normalizeName, which strips it):
    "J. Garcia" -> "jgarcia" but "E. Garcia" -> "egarcia", so the two stay distinct. */
 const knownKey = n => String(n).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'');
@@ -4471,7 +4471,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v145';
+const SCAN_BUILD = 'v146';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
