@@ -2124,6 +2124,29 @@ const COL_SORTS = {
   games:   (a,b)=> (b.createdAt||0)-(a.createdAt||0)
 };
 
+/* Log Match: a database update (including the echo of our own autosave) used to rebuild the whole form,
+   which dropped the cursor, closed the country list and swallowed keystrokes. While the person is working
+   in the form we now hold the rebuild back and do it once they pause (nothing focused, no list open,
+   no typing for a moment). The data arrays are already up to date; only the repaint waits. */
+let lastLogActivity = 0, renderPending = false, renderFlushTimer = null;
+function logFormBusy(){
+  if(currentTab!=='log' || !logDraft) return false;
+  if(autosaveBusy || Date.now()-lastLogActivity < 2500) return true;
+  if(document.querySelector('.ddrop.pop-open')) return true;
+  const a = document.activeElement;
+  return !!(a && a.closest && a.closest('#main') && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName));
+}
+function renderFromSnapshot(){
+  if(!logFormBusy()){ render(); return; }
+  renderPending = true;
+  if(renderFlushTimer) return;
+  renderFlushTimer = setInterval(()=>{
+    if(currentTab!=='log' || !logDraft){ clearInterval(renderFlushTimer); renderFlushTimer = null; renderPending = false; return; }   /* left the tab: setTab() repaints */
+    if(logFormBusy()) return;
+    clearInterval(renderFlushTimer); renderFlushTimer = null;
+    if(renderPending){ renderPending = false; try{ if(document.getElementById('f-season')) readDraftFromForm(); }catch(e){} render(); }
+  }, 1000);
+}
 function initDb(){
   try{
     db = firebase.firestore();
@@ -2140,7 +2163,7 @@ function initDb(){
       snap.forEach(doc=>{ const data = doc.data(); if(!data || seen.has(doc.id)) return; seen.add(doc.id); arr.push({id:doc.id, ...data}); });
       if(sortFn) arr.sort(sortFn);
       document.getElementById('syncstate') && (document.getElementById('syncstate').textContent = 'synced');
-      render();
+      renderFromSnapshot();
       if(after) after();
     }, (err)=>{
       console.error(name, 'sync error', err);
@@ -4054,6 +4077,7 @@ function queueAutosave(){
       toast("Couldn't save automatically — use the Save button at the bottom");
     }finally{
       autosaveBusy = false;
+      lastLogActivity = Date.now();   /* the echo of our own write arrives just after this: do not repaint under the user's hands */
     }
   }, 900);
 }
@@ -4471,7 +4495,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v146';
+const SCAN_BUILD = 'v147';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -5531,11 +5555,11 @@ function renderCountryList(d, q){
    listeners would die — same trick as wireDdropsOnce. */
 (function wireAutosaveOnce(){
   const onLogTab = ()=> currentTab==='log'; /* new matches autosave too (v134) */
-  document.addEventListener('input', ()=>{ if(onLogTab()) queueAutosave(); });
-  document.addEventListener('change', ()=>{ if(onLogTab()) queueAutosave(); });
+  document.addEventListener('input', ()=>{ if(onLogTab()){ lastLogActivity = Date.now(); queueAutosave(); } });
+  document.addEventListener('change', ()=>{ if(onLogTab()){ lastLogActivity = Date.now(); queueAutosave(); } });
   document.addEventListener('click', (e)=>{
     if(!onLogTab()) return;
-    if(e.target && e.target.closest && e.target.closest('.ddrop-opt,[data-remove],[data-rename],#add-teamstat')) queueAutosave();
+    if(e.target && e.target.closest && e.target.closest('.ddrop-opt,[data-remove],[data-rename],#add-teamstat')){ lastLogActivity = Date.now(); queueAutosave(); }
   });
 })();
 
