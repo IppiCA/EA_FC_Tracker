@@ -2977,7 +2977,7 @@ function renderMonthly(){
     win: Math.max(...st.months.map(m=>m.wr)),
     gg:  Math.max(...st.months.map(m=>m.gg)),
     cg:  Math.min(...st.months.map(m=>m.cg)),
-    rq:  Math.min(...st.months.map(m=>m.rqPct)),
+    rq:  Math.max(...st.months.map(m=>m.rqPct)),   /* a rage quit is the OPPONENT quitting: more is better */
     ch:  Math.max(...st.months.map(m=>m.ch)),
     pf:  Math.max(...st.months.map(m=>m.pf))
   };
@@ -4495,7 +4495,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v147';
+const SCAN_BUILD = 'v148';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
