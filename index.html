@@ -4495,7 +4495,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v148';
+const SCAN_BUILD = 'v149';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
@@ -4713,12 +4713,18 @@ function flattenWords(data){
 /* Reconstruct visual rows purely from each word's vertical position — this is what makes
    wide-gapped table UIs work, since it ignores wherever Tesseract itself decided a line broke. */
 function clusterRows(words){
-  const sorted = [...words].sort((a,b)=> a.bbox.y0 - b.bbox.y0);
+  /* v149: Tesseract often draws tall junk boxes over the dim G/AST digit columns (one box
+     spanning 3-12 rows). They used to bridge the header row and the first player row into one
+     row, losing that player (usually the man of the match). Row height is now capped at the
+     typical word height and absurdly tall boxes are ignored when building rows. */
+  const hs = words.map(w=>w.bbox.y1-w.bbox.y0).filter(h=>h>0).sort((a,b)=>a-b);
+  const med = hs.length ? hs[hs.length>>1] : 20;
+  const sorted = words.filter(w=>(w.bbox.y1-w.bbox.y0) <= med*2.6).sort((a,b)=> a.bbox.y0 - b.bbox.y0);
   const rows = [];
   let current = null;
   sorted.forEach(w=>{
     const cy = (w.bbox.y0 + w.bbox.y1)/2;
-    const h = w.bbox.y1 - w.bbox.y0;
+    const h = Math.min(w.bbox.y1 - w.bbox.y0, med*1.5);
     if(!current || Math.abs(cy - current.cy) > Math.max(current.h, h) * 0.65){
       current = {cy, h, words:[]};
       rows.push(current);
