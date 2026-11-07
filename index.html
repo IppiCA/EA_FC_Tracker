@@ -2836,13 +2836,41 @@ const MO_MONTHS = ['January','February','March','April','May','June','July','Aug
 
 function moNormVer(v){ return String(v||'').toUpperCase().replace(/\s+/g,' ').trim(); }
 
+/* v150: months are counted in European time (Europe/Amsterdam = CET/CEST), not Pacific.
+   Match dates/times are stored as the Pacific wall clock of the PC that logged them, so the
+   stamp is converted to a real instant first, then read back in European time. Intl applies
+   each region's own daylight-saving rules for that exact date (US: 2nd Sun Mar -> 1st Sun Nov;
+   EU: last Sun Mar -> last Sun Oct), so the 9h gap (8h or 7h in the weeks the changes differ,
+   e.g. late Oct and mid-Mar to late Mar) is handled correctly. */
+const MO_SRC_TZ = 'America/Los_Angeles', MO_DST_TZ = 'Europe/Amsterdam';
+const _moFmt = {};
+function moParts(ms, tz){
+  const f = _moFmt[tz] || (_moFmt[tz] = new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+  const o = {}; f.formatToParts(new Date(ms)).forEach(p=>{ o[p.type]=Number(p.value); });
+  return o;
+}
+function moWallToUtc(y,mo,d,h,mi,tz){
+  /* instant at which the wall clock in `tz` reads y-mo-d h:mi (two passes settle the DST offset) */
+  let guess = Date.UTC(y,mo-1,d,h,mi);
+  for(let k=0;k<2;k++){
+    const p = moParts(guess, tz);
+    const shown = Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute);
+    guess += Date.UTC(y,mo-1,d,h,mi) - shown;
+  }
+  return guess;
+}
+function moYM(ms){ const p = moParts(ms, MO_DST_TZ); return p.year+'-'+p2(p.month); }
 function moGameMonth(g){
-  /* 'YYYY-MM' of a match: prefer the logged match date; fall back to the save-time stamp. */
+  /* 'YYYY-MM' (European time) of a match: logged date+time first, then the save-time stamp. */
   const md = String(g.matchDate||'');
-  if(/^\d{4}-\d{2}/.test(md)) return md.slice(0,7);
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(md);
+  if(m){
+    const tm = /^(\d{1,2}):(\d{2})/.exec(String(g.matchTime||''));
+    if(tm) return moYM(moWallToUtc(+m[1],+m[2],+m[3],+tm[1],+tm[2],MO_SRC_TZ));
+    return md.slice(0,7); // date only (no time logged) - keep the logged month
+  }
   const t = Number(g.createdAt)||0;
-  const d = t ? new Date(t) : null;
-  if(d && d.getFullYear()>1990) return d.getFullYear()+'-'+p2(d.getMonth()+1);
+  if(t && new Date(t).getFullYear()>1990) return moYM(t);
   return '';
 }
 
@@ -2913,7 +2941,7 @@ function moMonthStats(verKey){
   const pool = months.filter(m=>m.n>=5).length ? months.filter(m=>m.n>=5) : months;
   if(pool.length) best = pool.slice().sort((a,b)=> b.wr-a.wr || b.n-a.n)[0].ym;
   const now = new Date();
-  return { months, best, curYM: now.getFullYear()+'-'+p2(now.getMonth()+1),
+  return { months, best, curYM: moYM(now.getTime()),
            latestKey: moLatestVersionKey(), multiYear: new Set(months.map(m=>m.ym.slice(0,4))).size>1 };
 }
 
@@ -4495,7 +4523,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v149';
+const SCAN_BUILD = 'v150';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
