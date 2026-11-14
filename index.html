@@ -349,6 +349,9 @@ label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:5px}
 .tgstrip .dot{width:3px; height:3px; border-radius:99px; background:var(--ink-faint); flex:0 0 auto}
 .tgstrip .m{color:var(--ink-dim)} .tgstrip .m b{color:var(--ink)}
 .tgstrip .motm{color:var(--gold); font-weight:600}
+.tgstrip .tgvs{display:inline-flex; align-items:center; gap:6px}
+.tgstrip .tgcrest{width:22px; height:22px; object-fit:contain; flex:0 0 auto}
+.tgstrip .tgvs .vs{font-size:11px; color:var(--ink-faint)}
 .tgstrip .rq{color:var(--turf); font-weight:600}
 .tgstrip .ttl{font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:.03em; color:var(--gold)}
 .ti-loading{padding:80px 0; text-align:center; color:var(--ink-dim); font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:600; letter-spacing:.02em}
@@ -4138,7 +4141,7 @@ function legacyTagGames(k){
       if(g.played === false) continue;
       const tags = (g.opponentGamertags||[]).map(rivalKey).filter(Boolean);
       if(!tags.includes(k)) continue;
-      out.push(Object.assign({}, g, {legacy:true, ti}));
+      out.push(Object.assign({}, g, {legacy:true, ti, ourTeamName:s.team||''}));
     }
   });
   out.sort((a,b)=> (b.ti-a.ti) || ((b.season||0)-(a.season||0)) || ((b.gameNumber||0)-(a.gameNumber||0)));
@@ -4150,6 +4153,15 @@ function legacyTagGames(k){
 function rivalOthers(tag, excludeId){
   return rivalGames(tag).filter(g=>g.id!==excludeId);
 }
+/* v151: the opponent part of the strip is two crests - ours first, then theirs - instead of the
+   club name (names stay in the tooltip; a club without a logo falls back to its name). */
+function rivalCrestsHtml(g){
+  const ours = g.legacy ? teamLogo(g.ourTeamName||'') : ourLogo(g);
+  const ourName = g.legacy ? (g.ourTeamName||'') : ((teamById(g.teamId)||{}).name || (seasonById(g.seasonId)||{}).team || '');
+  const theirs = teamLogo(g.opponentTeam||'');
+  const crest = (src,name)=> src ? `<img class="tgcrest" src="${src}" alt="${esc(name)}" title="${esc(name)}">` : (name ? `<b>${esc(name)}</b>` : '');
+  return `<span class="m tgvs">${crest(ours,ourName)}<span class="vs">vs</span>${crest(theirs,g.opponentTeam||'\u2014')}</span>`;
+}
 /* The one-line match strip (approved Option C): result, score (us:them), opponent,
    season, home/away + game number, MOTM (or the best-rated player) and the rage-quit
    minute. */
@@ -4159,7 +4171,7 @@ function rivalStripHtml(g){
   const parts = [
     `<span class="res ${o}">${o.toUpperCase()}</span>`,
     `<span class="sc">${Number(g.scoreFor)||0}:${Number(g.scoreAgainst)||0}</span>`,
-    `<span class="m">vs <b>${esc(g.opponentTeam||'\u2014')}</b></span>`,
+    rivalCrestsHtml(g),
     `<span class="dot"></span>`,
   ];
   if(s) parts.push(`<span class="m"><b>Season #${esc(s.number)}</b></span><span class="dot"></span>`);
@@ -4523,7 +4535,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v150';
+const SCAN_BUILD = 'v151';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
