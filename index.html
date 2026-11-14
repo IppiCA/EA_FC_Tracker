@@ -4308,8 +4308,10 @@ function tgScheduleClose(){
 }
 document.addEventListener('mouseover', (e)=>{
   legacyKickoff(); /* first hover starts the one-time legacy load (cached afterwards) */
-  tgCancelClose(); /* the mouse is back over the chip or the pop — keep it open */
   const w = e.target.closest ? e.target.closest('.tgwrap') : null;
+  /* v152: only a mouse that is back over the chip or the pop keeps it open. This used to cancel
+     the close timer on ANY mouseover, so moving onto other page elements left the pop stuck. */
+  if((w && w===tgPopWrap) || (e.target.closest && e.target.closest('.tgpop'))) tgCancelClose();
   if(!w || w===tgPopWrap) return;
   tgPopHide();
   let list = [];
@@ -4535,7 +4537,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v151';
+const SCAN_BUILD = 'v152';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
