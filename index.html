@@ -3192,19 +3192,19 @@ function formTickerHtml(seasonId, n){
 }
 /* Chip click → Match History, scrolled to that match with a brief green glow. */
 function gotoGame(gameId){
-  const g = games.find(x=>x.id===gameId); if(!g) return;
+  const g = games.find(x=>String(x.id)===String(gameId)); if(!g){ toast('Could not find that match'); return; }
   setTab('history');
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  /* v153: retry until the tile is in the DOM (the page may take a frame or two to paint), clear a
+     season filter that hides it, then centre it in the strip and flash it. */
+  let tries = 0, cleared = false;
+  const attempt = ()=>{
     let tile = document.querySelector(`.mtile[data-game="${g.id}"]`);
-    if(!tile){
-      historyFilterSeason = '';  /* season filter hiding it? switch to all seasons */
-      render();
-      tile = document.querySelector(`.mtile[data-game="${g.id}"]`);
-    }
-    if(!tile){ toast('Could not find that match'); return; }
+    if(!tile && !cleared && currentTab==='history'){ cleared = true; historyFilterSeason = ''; render(); tile = document.querySelector(`.mtile[data-game="${g.id}"]`); }
+    if(!tile){ if(tries++ < 20){ setTimeout(attempt, 80); return; } toast('Could not find that match'); return; }
     tile.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
     tile.classList.remove('tile-flash'); void tile.offsetWidth; tile.classList.add('tile-flash');
-  }));
+  };
+  requestAnimationFrame(()=>requestAnimationFrame(attempt));
 }
 document.addEventListener('click', (e)=>{
   const el = e.target.closest('[data-goto-game]');
@@ -4199,7 +4199,7 @@ function rivalLegacyStripHtml(g, tag){
   const parts = [
     `<span class="res ${o}">${o==='win'?'W':o==='draw'?'D':'L'}</span>`,
     `<span class="sc">${f}:${a}</span>`,
-    `<span class="m">vs <b>${esc(g.opponentTeam||'\u2014')}</b></span>`,
+    rivalCrestsHtml(g),
     `<span class="dot"></span>`,
     `<span class="m"><b>Season #${g.season}</b></span><span class="dot"></span>`,
     `<span class="m">${g.awayGame?'Away':'Home'} \u00b7 Game ${g.gameNumber}</span>`,
@@ -4213,9 +4213,12 @@ function rivalLegacyStripHtml(g, tag){
 const tgStripHtml = (g, tag) => g.legacy ? rivalLegacyStripHtml(g, tag) : rivalStripHtml(g);
 /* Kick the one-time legacy archive load off lazily (first Log-tab paint / first hover),
    then refresh the gold states + any open hover strip so legacy games count too. */
+let legacyGoldDone = false;
 function legacyKickoff(){
-  if(legacyCache){ refreshGoldStates(); return; }
-  loadLegacyDocs().then(refreshGoldStates).catch(e=>console.warn('legacy archive failed to load', e));
+  /* v153: refresh ONCE per archive load. This used to run (and rebuild the open hover pop's rows)
+     on every single mouseover, so a click on a row could land on a node that had just been replaced. */
+  if(legacyCache){ if(!legacyGoldDone){ legacyGoldDone = true; refreshGoldStates(); } return; }
+  loadLegacyDocs().then(()=>{ legacyGoldDone = true; refreshGoldStates(); }).catch(e=>console.warn('legacy archive failed to load', e));
 }
 function refreshGoldStates(){
   ['f-tag1','f-tag2'].forEach(id=>{ const el=document.getElementById(id); if(el) paintKnownTag(el); });
@@ -4537,7 +4540,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v152';
+const SCAN_BUILD = 'v153';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
