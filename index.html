@@ -3193,6 +3193,8 @@ function formTickerHtml(seasonId, n){
 /* Chip click → Match History, scrolled to that match with a brief green glow. */
 function gotoGame(gameId){
   const g = games.find(x=>String(x.id)===String(gameId)); if(!g){ toast('Could not find that match'); return; }
+  /* v154: open the season tab the game belongs to (not "All"), so the strip shows that season. */
+  if(g.seasonId && seasonById(g.seasonId)) historyFilterSeason = g.seasonId;
   setTab('history');
   /* v153: retry until the tile is in the DOM (the page may take a frame or two to paint), clear a
      season filter that hides it, then centre it in the strip and flash it. */
@@ -4540,7 +4542,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v153';
+const SCAN_BUILD = 'v154';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
