@@ -696,10 +696,11 @@ table.hs td.seasons{white-space:normal;min-width:74px}
 .dbbw-season{color:var(--ink-dim);font-size:12.5px;width:88px;flex:0 0 auto;white-space:nowrap}
 .dbbw-games{color:var(--ink-dim);font-size:12.5px;width:70px;flex:0 0 auto;white-space:nowrap}
 .dbbw-champ{color:var(--gold);font-size:12px}
+.dbbw-season.wide{width:128px}.dbbw-games.wide{width:92px}
 .dbbw-pwrap{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .dbbw-player{color:var(--ink);font-weight:600;font-size:13px}
 .dbbw-rate{color:var(--ink-dim);font-weight:600}
-@media (max-width:620px){.dbbw-val{width:46px;font-size:16px}.dbbw-season{width:80px}.dbbw-games{width:64px}}
+@media (max-width:620px){.dbbw-val{width:46px;font-size:16px}.dbbw-season{width:80px}.dbbw-games{width:64px}.dbbw-season.wide{width:104px}.dbbw-games.wide{width:78px}}
 /* ---- division toggle: small Div: 1-5 buttons, top-right of each Best/Worst card.
    OFF = dimmed (barely visible), ON = lit in the card's own stripe color
    (Best = green, Worst = red). Each card filters independently. ---- */
@@ -2220,7 +2221,7 @@ async function dbDelete(collection, id){
    cover `settings` yet, everything keeps working in-memory — it just won't
    stick across logins (and a toast points to the missing rule). */
 const SHEET_SORT_KEYS = ['apps','goals','assists','points','motm','avg'];
-let userSettings = { bestDivs:[1,2,3,4,5], worstDivs:[1,2,3,4,5], sheetSortKey:'points', sheetSortDir:-1, hofTeams:null, hofSortKey:'pts', hofSortDir:-1,
+let userSettings = { bestDivs:[1,2,3,4,5], worstDivs:[1,2,3,4,5], winStreakDivs:[1,2,3,4,5], titleStreakDivs:[1,2,3,4,5], sheetSortKey:'points', sheetSortDir:-1, hofTeams:null, hofSortKey:'pts', hofSortDir:-1,
   hsTeams:null, hsSKey:'pts', hsSDir:-1, hsGKey:'pts', hsGDir:-1, hsTopS:true, hsTopG:true,
   cmTitle:'all', cmMetric:'games', cmCols:'top10' };
 let settingsSaveTimer = null;
@@ -2258,6 +2259,8 @@ async function loadUserSettings(){
     userSettings = {
       bestDivs: sanitizeDivs(d ? d.bestDivs : null),
       worstDivs: sanitizeDivs(d ? d.worstDivs : null),
+      winStreakDivs: sanitizeDivs(d ? d.winStreakDivs : null),
+      titleStreakDivs: sanitizeDivs(d ? d.titleStreakDivs : null),
       sheetSortKey: d && SHEET_SORT_KEYS.includes(d.sheetSortKey) ? d.sheetSortKey : 'points',
       sheetSortDir: d && d.sheetSortDir===1 ? 1 : -1,
       hofTeams: d && Array.isArray(d.hofTeams) ? d.hofTeams.filter(x=>typeof x==='string') : null,
@@ -2294,6 +2297,8 @@ function saveUserSettings(){
       await db.collection('settings').doc(uid).set({
         bestDivs: userSettings.bestDivs,
         worstDivs: userSettings.worstDivs,
+        winStreakDivs: userSettings.winStreakDivs,
+        titleStreakDivs: userSettings.titleStreakDivs,
         sheetSortKey: userSettings.sheetSortKey,
         sheetSortDir: userSettings.sheetSortDir,
         hofTeams: userSettings.hofTeams,
@@ -3240,7 +3245,8 @@ function gotoLegacyGame(tagKey, ti, season, num){
 let dashBW = { team:'' };
 const DIVISIONS = [1,2,3,4,5];
 function dashPct(a,b){ return b ? Math.round(a/b*100) : 0; }
-function dashDivsOn(kind){ return new Set(userSettings[kind==='best' ? 'bestDivs' : 'worstDivs']); }
+const DIV_KEYS = {best:'bestDivs', worst:'worstDivs', winStreak:'winStreakDivs', titleStreak:'titleStreakDivs'};
+function dashDivsOn(kind){ return new Set(userSettings[DIV_KEYS[kind]] || [1,2,3,4,5]); }
 const DASH_STATS = [
   {cap:'Scored total',      val:e=>e.gf,         per:false, high:true},
   {cap:'Scored per game',   val:e=>e.gf/e.games, per:true,  high:true},
@@ -3269,7 +3275,7 @@ function divBtnsHtml(kind){
 /* Re-paint the on/off state of both cards' buttons (the buttons themselves stay put —
    only the stat rows below them are rebuilt). */
 function paintDivBtns(){
-  ['best','worst'].forEach(kind=>{
+  Object.keys(DIV_KEYS).forEach(kind=>{
     const on = dashDivsOn(kind);
     document.querySelectorAll('#divctl-'+kind+' .divbtn').forEach(b=>{
       const d = Number(b.dataset.div);
@@ -3314,6 +3320,144 @@ function dashBWCard(kind, team){
     </div>`;
   }).join('');
 }
+/* ---- v155: streak cards (Dashboard) ------------------------------------------------
+   Win streaks: consecutive WON games (goals for > against), oldest first, across season and
+   team changes. Title streaks: consecutive seasons ending as champion or perfect.
+   A season outside the card's selected divisions (DIV buttons) or outside the team filter
+   BREAKS a streak - it is never skipped over. */
+function streakSeasonsSorted(kind, team){
+  const on = dashDivsOn(kind);
+  return seasons.slice().sort((a,b)=> Number(a.number)-Number(b.number)).map(s=>({
+    s, ok: on.has(divisionOf(s)) && (!team || seasonTeamName(s)===team)
+  }));
+}
+function streakLogos(list){
+  const seen = new Set(), out = [];
+  list.forEach(x=>{ const lg = x||''; if(lg && !seen.has(lg)){ seen.add(lg); out.push(lg); } });
+  return out.slice(0,3);
+}
+function streakTopPlayer(runGames){
+  const acc = {};
+  runGames.forEach(g=> (g.playerStats||[]).forEach(ps=>{
+    const r = parseFloat(ps.rating); if(!ps.playerId || !isFinite(r)) return;
+    (acc[ps.playerId] = acc[ps.playerId] || []).push(r);
+  }));
+  let best = null;
+  Object.keys(acc).forEach(id=>{
+    const a = acc[id]; if(a.length < Math.ceil(runGames.length/2)) return;
+    const avg = a.reduce((x,y)=>x+y,0)/a.length;
+    const pl = players.find(p=>p.id===id);
+    if(pl && (!best || avg > best.avg)) best = {name:pl.name, avg};
+  });
+  return best;
+}
+/* All win runs. perSeason=true: runs never cross a season boundary (one-season section). */
+function winStreakRuns(team, perSeason){
+  const runs = []; let cur = [];
+  const flush = ()=>{ if(cur.length) runs.push(cur); cur = []; };
+  streakSeasonsSorted('winStreak', team).forEach(({s, ok})=>{
+    if(!ok){ flush(); return; }
+    if(perSeason) flush();
+    gamesFor(s.id).slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).forEach(g=>{
+      if(outcome(g)==='win') cur.push({g, s}); else flush();
+    });
+  });
+  flush();
+  return runs;
+}
+function winStreakTop(team, perSeason){
+  let runs = winStreakRuns(team, perSeason);
+  runs = runs.map(r=>({
+    len: r.length, first: r[0].s, last: r[r.length-1].s,
+    logos: streakLogos(r.map(x=>{ const tm = teamById(x.g.teamId); return (tm && tm.logo) || teamLogo(seasonTeamName(x.s)); })),
+    gf: r.reduce((n,x)=>n+Number(x.g.scoreFor||0),0), ga: r.reduce((n,x)=>n+Number(x.g.scoreAgainst||0),0),
+    top: streakTopPlayer(r.map(x=>x.g))
+  }));
+  /* longest first; equal length -> the more recent run first */
+  runs.sort((a,b)=> b.len-a.len || Number(b.last.number)-Number(a.last.number));
+  return runs.slice(0,3);
+}
+function streakRowHtml(rk, val, color, logos, fallbackLabel, seasonHtml, midHtml, player){
+  const crest = logos.length ? logos.map(lg=>`<img src="${esc(lg)}" alt="">`).join('') : `<span class="dbbw-dot">${esc(fallbackLabel||'')}</span>`;
+  return `<div class="dbbw-row">
+    <span class="dbbw-rank">#${rk}</span>
+    <span class="dbbw-val" style="color:var(--${color})">${val}</span>
+    <span class="dbbw-dot">·</span>
+    <span class="dbbw-crest">${crest}</span>
+    <span class="dbbw-season wide">${seasonHtml}</span>
+    <span class="dbbw-dot">·</span>
+    <span class="dbbw-games wide">${midHtml}</span>
+    ${player?`<span class="dbbw-pwrap"><span class="dbbw-dot">·</span><span class="dbbw-player">${esc(player.name)} <span class="dbbw-rate">${player.avg.toFixed(1)}</span></span></span>`:''}
+  </div>`;
+}
+function winStreakCardHtml(team){
+  const sec = (cap, perSeason)=>{
+    const top = winStreakTop(team, perSeason);
+    return `<div class="dbbw-block"><div class="dbbw-cap">${cap}</div>${
+      top.length ? top.map((r,i)=>{
+        const same = r.first.id===r.last.id;
+        const span = same ? `Season ${esc(r.first.number)}${seasonResultFlags(r.first).champion?' <span class="dbbw-champ">🏆</span>':''}` : `Season ${esc(r.first.number)} → ${esc(r.last.number)}`;
+        return streakRowHtml(i+1, r.len, 'turf', r.logos, r.first.number, span, `${r.gf}–${r.ga} goals`, r.top);
+      }).join('') : `<div class="empty">No wins in the selected divisions</div>`
+    }</div>`;
+  };
+  return sec('Longest win streak', false) + sec('Longest win streak in one season', true);
+}
+function titleRuns(team){
+  const runs = []; let cur = [];
+  const flush = ()=>{ if(cur.length) runs.push(cur); cur = []; };
+  streakSeasonsSorted('titleStreak', team).forEach(({s, ok})=>{
+    const f = seasonResultFlags(s);
+    const won = ok && (f.champion || f.perfectSeason);
+    if(!won){ flush(); return; }
+    const prev = cur[cur.length-1];
+    if(prev && Number(s.number) !== Number(prev.s.number)+1) flush();
+    cur.push({s, perfect: !!f.perfectSeason});
+  });
+  flush();
+  return runs;
+}
+function titleRunInfo(r){
+  return {len:r.length, first:r[0].s, last:r[r.length-1].s, perfect:r.filter(x=>x.perfect).length,
+    logos: streakLogos(r.map(x=>{ const ss = seasonTeams(x.s); return (ss[0] && ss[0].logo) || teamLogo(seasonTeamName(x.s)); })),
+    names: [...new Set(r.map(x=>seasonTeamName(x.s)))]};
+}
+function titleIcons(n, perfect){
+  const gold = n - perfect;
+  const show = (c, html)=> c<=0 ? '' : (c>4 ? `${html}×${c}` : html.repeat(c));
+  return show(gold,'🏆') + show(perfect,'<span style="color:var(--violet)">✦</span>');
+}
+function titleStreakCardHtml(team){
+  const runs = titleRuns(team).map(titleRunInfo);
+  runs.sort((a,b)=> b.len-a.len || Number(b.last.number)-Number(a.last.number));
+  const span = r => r.first.id===r.last.id ? `Season ${esc(r.first.number)}` : `Season ${esc(r.first.number)} → ${esc(r.last.number)}`;
+  const top = runs.slice(0,3);
+  /* per club: a run only continues while the SAME club keeps winning in back-to-back seasons */
+  const byClub = [];
+  titleRuns(team).forEach(r=>{
+    let seg = [];
+    const push = ()=>{ if(seg.length) byClub.push(titleRunInfo(seg)); seg = []; };
+    r.forEach(x=>{ if(seg.length && seasonTeamName(seg[0].s)!==seasonTeamName(x.s)) push(); seg.push(x); });
+    push();
+  });
+  const best = {};
+  byClub.forEach(r=>{ const k = r.names[0]; if(!best[k] || r.len>best[k].len || (r.len===best[k].len && Number(r.last.number)>Number(best[k].last.number))) best[k] = r; });
+  const clubs = Object.values(best).sort((a,b)=> b.len-a.len || Number(b.last.number)-Number(a.last.number)).slice(0,3);
+  const empty = `<div class="empty">No title seasons in the selected divisions</div>`;
+  return `<div class="dbbw-block"><div class="dbbw-cap">Longest title / perfect streak</div>${
+      top.length ? top.map((r,i)=> streakRowHtml(i+1, r.len, 'gold', r.logos, r.first.number, span(r), titleIcons(r.len, r.perfect), null)).join('') : empty
+    }</div>
+    <div class="dbbw-block"><div class="dbbw-cap">Longest title / perfect streak by club</div>${
+      clubs.length ? clubs.map((r,i)=> streakRowHtml(i+1, r.len, 'gold', r.logos, r.first.number, esc(r.names[0]), span(r), null)).join('') : empty
+    }</div>`;
+}
+function renderDashStreaks(){
+  const t = dashBW.team, scope = t ? ' · ' + t : '';
+  const a = document.getElementById('db-sw-body'), b = document.getElementById('db-st-body');
+  if(a) a.innerHTML = winStreakCardHtml(t);
+  if(b) b.innerHTML = titleStreakCardHtml(t);
+  ['db-sw-scope','db-st-scope'].forEach(id=>{ const el = document.getElementById(id); if(el) el.textContent = scope; });
+}
 /* Team chip (looks like a button) + its menu. '' = All teams. */
 function dashBWChipInner(){
   const t = dashBW.team;
@@ -3337,6 +3481,7 @@ function renderDashBW(){
   document.getElementById('db-best-body').innerHTML  = dashBWCard('best', t);
   document.getElementById('db-worst-body').innerHTML = dashBWCard('worst', t);
   paintDivBtns();
+  renderDashStreaks();
   const scope = t ? ' · ' + t : '';
   document.getElementById('db-best-scope').textContent  = scope;
   document.getElementById('db-worst-scope').textContent = scope;
@@ -3380,8 +3525,8 @@ document.addEventListener('click', e=>{
 document.addEventListener('click', e=>{
   const b = e.target.closest('.divbtn'); if(!b) return;
   const wrap = b.closest('.divctl'); if(!wrap) return;
-  const kind = wrap.id==='divctl-best' ? 'best' : 'worst';
-  const key = kind==='best' ? 'bestDivs' : 'worstDivs';
+  const kind = wrap.id.replace('divctl-','');
+  const key = DIV_KEYS[kind]; if(!key) return;
   const d = Number(b.dataset.div);
   const arr = userSettings[key];
   const i = arr.indexOf(d);
@@ -3492,6 +3637,23 @@ function renderDashboard(){
   </div>
 
   <div class="card dbfilter" id="db-bwfilter"><span class="dbflabel">Team</span>${dashBWChipInner()}</div>
+
+  <div class="grid g2 db-bwgrid">
+    <div class="card accent-green">
+      <div class="bw-head">
+        <div class="section-title" style="margin-top:0">Win streaks <span id="db-sw-scope" style="color:var(--ink-dim)"></span></div>
+        <div class="divctl" id="divctl-winStreak"><span class="lbl">Div:</span>${divBtnsHtml('winStreak')}</div>
+      </div>
+      <div id="db-sw-body">${winStreakCardHtml(dashBW.team)}</div>
+    </div>
+    <div class="card accent-green">
+      <div class="bw-head">
+        <div class="section-title" style="margin-top:0">Title streaks <span id="db-st-scope" style="color:var(--ink-dim)"></span></div>
+        <div class="divctl" id="divctl-titleStreak"><span class="lbl">Div:</span>${divBtnsHtml('titleStreak')}</div>
+      </div>
+      <div id="db-st-body">${titleStreakCardHtml(dashBW.team)}</div>
+    </div>
+  </div>
 
   ${activeSeason ? `
   <div class="section-title" style="display:flex;align-items:center;gap:10px">
@@ -4542,7 +4704,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v154';
+const SCAN_BUILD = 'v155';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
