@@ -3401,7 +3401,7 @@ function winStreakCardHtml(team){
       }).join('') : `<div class="empty">No wins in the selected divisions</div>`
     }</div>`;
   };
-  return sec('Longest win streak', false) + sec('Longest win streak in one season', true);
+  return sec('Longest win streak', false);
 }
 function titleRuns(team){
   const runs = []; let cur = [];
@@ -3432,23 +3432,9 @@ function titleStreakCardHtml(team){
   runs.sort((a,b)=> b.len-a.len || Number(b.last.number)-Number(a.last.number));
   const span = r => r.first.id===r.last.id ? `Season ${esc(r.first.number)}` : `Season ${esc(r.first.number)} → ${esc(r.last.number)}`;
   const top = runs.slice(0,3);
-  /* per club: a run only continues while the SAME club keeps winning in back-to-back seasons */
-  const byClub = [];
-  titleRuns(team).forEach(r=>{
-    let seg = [];
-    const push = ()=>{ if(seg.length) byClub.push(titleRunInfo(seg)); seg = []; };
-    r.forEach(x=>{ if(seg.length && seasonTeamName(seg[0].s)!==seasonTeamName(x.s)) push(); seg.push(x); });
-    push();
-  });
-  const best = {};
-  byClub.forEach(r=>{ const k = r.names[0]; if(!best[k] || r.len>best[k].len || (r.len===best[k].len && Number(r.last.number)>Number(best[k].last.number))) best[k] = r; });
-  const clubs = Object.values(best).sort((a,b)=> b.len-a.len || Number(b.last.number)-Number(a.last.number)).slice(0,3);
   const empty = `<div class="empty">No title seasons in the selected divisions</div>`;
   return `<div class="dbbw-block"><div class="dbbw-cap">Longest title / perfect streak</div>${
       top.length ? top.map((r,i)=> streakRowHtml(i+1, r.len, 'gold', r.logos, r.first.number, span(r), titleIcons(r.len, r.perfect), null)).join('') : empty
-    }</div>
-    <div class="dbbw-block"><div class="dbbw-cap">Longest title / perfect streak by club</div>${
-      clubs.length ? clubs.map((r,i)=> streakRowHtml(i+1, r.len, 'gold', r.logos, r.first.number, esc(r.names[0]), span(r), null)).join('') : empty
     }</div>`;
 }
 function renderDashStreaks(){
@@ -4704,7 +4690,7 @@ let ocrWorkerPromise = null;
 let ocrLoggerTarget = null;
 /* Bump on every scanner change AND any UI change — shown in the scan box so we can
    tell which build a browser is actually running (browsers cache this page aggressively). */
-const SCAN_BUILD = 'v155';
+const SCAN_BUILD = 'v156';
 
 const OCR_PHASE_LABELS = {
   'loading tesseract core': 'Loading OCR engine (first time only)…',
